@@ -3,8 +3,9 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-10-20 · `main` @ `1b03fe6` · `origin/F16_Barra_Inferior` @ `396bb37`
-> (sin commits nuevos en `origin`).
+> Última verificación: 2026-10-20 · `main` @ `f71c78e` (F16 y CI mergeados) ·
+> `feat/ficha-planta` (ficha de planta, RF3, desde `main`) ·
+> `feat/selector-idioma` (F10.1, sin mergear).
 
 ## Qué es este proyecto
 
@@ -22,16 +23,30 @@ No hay monorepo ni workspace: cada repo se instala y ejecuta por separado con `n
 
 ## Estado de ramas (leer antes de empezar)
 
-`main` contiene **solo el scaffold** (commit `1b03fe6`: Vite + React + Tailwind + Oxlint, una
-pantalla de bienvenida). El único trabajo funcional está en `origin/F16_Barra_Inferior`
-(2 commits sin mergear, HEAD `396bb37`): componente `BottomNavigation` con iconos, tests y Vitest
-configurado.
+`main` contiene el scaffold (Vite + React + Tailwind + Oxlint), la navegación inferior de F16
+(`BottomNavigation` con tests y Vitest) y el CI. El resto de pantallas (mapa, rutas, búsqueda, etc.)
+todavía no existe: llegan con sus propias UTs.
 
-Antes de asumir que una carpeta está vacía, comprobar la rama:
-`git branch -r` y `git log --oneline main..origin/<rama>`.
+Ramas de trabajo en curso:
 
-En `main` las carpetas `src/components/`, `src/pages/` y `src/services/` solo tienen `.gitkeep`.
-La capa de servicios/API todavía no existe: el frontend aún no consume el backend.
+- `feat/selector-idioma` (F10.1): selector de idioma en Ajustes.
+- `feat/ficha-planta` (RF3): pantalla de ficha de planta (`src/pages/FichaPlanta/`), creada desde
+  `main` (no acumula el trabajo de F10.1). Al mergear ambas ramas hay que combinar `src/App.tsx` y
+  `src/App.test.tsx`, que las dos tocan.
+
+La ficha de planta (`src/pages/FichaPlanta/`) existe ya como pantalla completa: foto, nombre común
+y científico, familia, descripción breve, dato de interés, fuentes y botón "Ver en el mapa".
+
+Esta UT es **solo la parte visual**: como las clases del modelo de dominio (`Planta`,
+`Ubicacion`, `LugarHistoricoCultural`, `Observacion`) todavía **no existen**, no se ha creado
+ningún tipo, servicio ni clase para representarlas. Los datos que muestra la ficha son de ejemplo
+(`src/pages/FichaPlanta/constants.ts`) y desaparecerán cuando exista la API de ficha. La entrada a
+la ficha es una tarjeta provisional en la pantalla de pestañas (`src/App.tsx`): desaparecerá
+cuando existan las pantallas de mapa o de búsqueda, que son las que abrirán una ficha de verdad.
+
+La UI está en español. Ajustes permite elegir idioma (es/va/en) y guarda la preferencia, pero **no
+traduce los textos**: eso corresponde a otra UT (UT44). El frontend sigue sin consumir el backend:
+tampoco hay variable de entorno con la base URL de la API ni proxy en `vite.config.ts`.
 
 ## Stack
 
@@ -39,7 +54,7 @@ La capa de servicios/API todavía no existe: el frontend aún no consume el back
 - Tailwind CSS 4 mediante el plugin `@tailwindcss/vite`; se importa en `src/index.css`
   (`@import "tailwindcss";`). No hay `tailwind.config.js` (configuración CSS-first).
 - Oxlint (`.oxlintrc.json`, plugins react/typescript/oxc).
-- En la rama de feature además: `lucide-react`, Vitest 5 + Testing Library (`jsdom`).
+- `lucide-react` para iconos; Vitest 5 + Testing Library (`jsdom`) para tests.
 
 ## Comandos
 
@@ -49,7 +64,7 @@ npm run dev       # servidor Vite con HMR
 npm run build     # tsc -b && vite build
 npm run lint      # oxlint
 npm run preview   # sirve dist/
-npm test          # vitest run (solo existe en la rama F16_Barra_Inferior)
+npm test          # vitest run
 ```
 
 No hay Prettier ni ESLint. `npm run build` es la verificación de tipos (no hay script `typecheck`
@@ -63,15 +78,15 @@ src/main.tsx          Bootstrap: createRoot + <StrictMode>
 src/App.tsx           Shell de la app
 src/index.css         @import "tailwindcss"
 src/components/       Componentes (una carpeta por componente)
-src/pages/            Vistas por ruta
-src/services/         Cliente HTTP / integración con el backend
-src/types/            Tipos compartidos (rama de feature)
+src/pages/            Vistas por ruta (Settings: Ajustes e Idioma; FichaPlanta: ficha de planta)
+src/services/         Cliente HTTP / integración con el backend (y preferencia de idioma)
+src/types/            Tipos compartidos (navigation.ts, language.ts)
 public/               Assets estáticos (favicon, icons.svg)
 docs/agents/          Convenciones para agentes (issue tracker, domain docs)
 ```
 
-Patrón del componente existente (`src/components/BottomNavigation/` en `origin/F16_Barra_Inferior`),
-a replicar en componentes nuevos:
+Patrón del componente existente (`src/components/BottomNavigation/`), a replicar en componentes
+nuevos:
 
 ```
 BottomNavigation/
@@ -88,27 +103,29 @@ BottomNavigation/
   props como `interface` exportada (`BottomNavigationProps`) y documentadas.
 - **Barrel `index.ts`** por componente; los imports desde fuera usan la carpeta
   (`from './components/BottomNavigation'`), no el fichero interno.
-- **Tipos compartidos** en `src/types/` (`navigation.ts` define `TabId` y `TabConfig`).
-  Reutilizar uniones de literales en vez de `enum` (`erasableSyntaxOnly` lo prohíbe).
+- **Tipos compartidos** en `src/types/` (`navigation.ts`: `TabId`/`TabConfig`; `language.ts`:
+  `Language` y nombres de idioma). Reutilizar uniones de literales en vez de `enum`
+  (`erasableSyntaxOnly` lo prohíbe). No añadir tipos de entidades que el modelo de dominio todavía
+  no define.
 - **Tailwind inline**, sin archivos CSS por componente. Paleta actual: `emerald` para activo,
   `neutral` para secundario, fondo `neutral-100`/`neutral-950`. Mobile-first.
 - **Accesibilidad no negociable**: `role="tablist"`/`role="tab"`, `aria-selected`, `aria-label` en
   cada pestaña, roving `tabIndex`, navegación con flechas/Home/End, `focus-visible:ring`, área táctil
   mínima de 48px y `pb-[env(safe-area-inset-bottom,0px)]` para el notch.
-- **Idioma de UI en español** (`Inicio`, `Mapa`, `Escanear`, `Rutas`, `Buscar`); identificadores y
-  código en inglés.
+- **Idioma de UI en español**; identificadores y código en inglés. El selector de Ajustes guarda
+  una preferencia (`es`/`va`/`en`) en `localStorage`, pero no cambia los textos: la traducción es
+  otra UT (UT44).
 - Estilo: sin Prettier configurado; el scaffold usa comillas simples y sin punto y coma, la rama de
   feature usa punto y coma. Seguir el fichero que se toca y no reformatear código ajeno.
 
 ## Tests
 
 - Vitest + Testing Library con `environment: 'jsdom'` y `globals: true`, configurado en
-  `vite.config.ts` (rama de feature) y tipos `@testing-library/jest-dom/vitest` en `tsconfig.app.json`.
+  `vite.config.ts`, con tipos `@testing-library/jest-dom/vitest` en `tsconfig.app.json`.
 - Tests colocados: `Componente.test.tsx` junto al componente. Consultas por rol/aria
   (`getByRole('tab', { name: /ver mapa/i })`), no por clase CSS.
 - Al añadir componentes interactivos, añadir tests de render, estado activo, callback y teclado.
-- En `main` todavía no hay `npm test`: si se toca un componente sin la rama mergeada, no prometer
-  tests ejecutados.
+- Los tests que lean o escriban la preferencia de idioma deben limpiar `localStorage`.
 
 ## Integración con el backend
 
@@ -116,6 +133,9 @@ BottomNavigation/
 - Endpoints disponibles: `GET /health`, `GET /trees`, `GET /trees/:id`, `POST /trees/import`,
   `GET /species`, `POST /species/enrich` (implementados en `origin/explore_open_data`).
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
+- La ficha de planta todavía no tiene servicio: no se crea ninguno hasta que existan las clases
+  del modelo de dominio y un endpoint de ficha. La extracción de la información de planta
+  (consulta a Neon y enriquecimiento con Wikipedia/Wikidata) es del backend, no del frontend.
 - Pendiente: no hay variable de entorno para la base URL de la API ni proxy en `vite.config.ts`.
 
 ## Git
@@ -135,8 +155,6 @@ configuración de protección y el versionado están en `docs/agents/git-workflo
 - No commitear `node_modules` ni `dist` (ya ignorados).
 - Este checkout es el principal del repo: para trabajo en paralelo, usar worktrees.
 - No hacer `git push` ni abrir PRs sin que lo pida el usuario.
-- Rama actual sin prefijo `F16_Barra_Inferior`: nació antes de esta política, no renombrar sin
-  cerrar su PR.
 
 ## Agent skills
 
