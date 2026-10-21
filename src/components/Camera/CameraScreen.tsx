@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { CameraMode, PermissionStatus, CameraScreenProps } from './types';
+import type { CameraMode, PermissionStatus, CameraScreenProps, SavedPhoto } from './types';
 import { CameraPermissionPrompt } from './CameraPermissionPrompt';
 import { CameraPermissionDenied } from './CameraPermissionDenied';
 import { CameraActive } from './CameraActive';
@@ -79,6 +79,18 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     setPermission('denied');
   };
 
+  const handleSavePhoto = (photo: SavedPhoto): boolean => {
+    try {
+      if (typeof localStorage === 'undefined') return false;
+      const stored = localStorage.getItem('naturemaps.savedPhotos');
+      const current = stored ? JSON.parse(stored) as SavedPhoto[] : [];
+      localStorage.setItem('naturemaps.savedPhotos', JSON.stringify([photo, ...current]));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   // Abrir selector de galería
   const handleOpenGallery = () => {
     fileInputRef.current?.click();
@@ -146,6 +158,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           onClose={onClose}
           onSelectFromGallery={handleOpenGallery}
           onPhotoCaptured={onPhotoCaptured}
+          onSavePhoto={handleSavePhoto}
         />
       )}
     </div>

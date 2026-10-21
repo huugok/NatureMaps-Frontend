@@ -2,6 +2,14 @@ export type CameraMode = 'planta' | 'monumento';
 
 export type PermissionStatus = 'checking' | 'prompt' | 'granted' | 'denied';
 
+export interface SavedPhoto {
+  id: string;
+  dataUrl: string;
+  mode: CameraMode;
+  label: string;
+  createdAt: string;
+}
+
 export interface CameraScreenProps {
   /**
    * Callback invoked when the user exits the camera screen (clicks back or close).

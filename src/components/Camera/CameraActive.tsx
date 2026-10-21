@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Leaf, Landmark, Check } from 'lucide-react';
+import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
+import type { SavedPhoto } from './types';
 
 export interface CameraActiveProps {
   mode: CameraMode;
@@ -8,6 +9,7 @@ export interface CameraActiveProps {
   onClose: () => void;
   onSelectFromGallery: () => void;
   onPhotoCaptured?: (dataUrl: string, mode: CameraMode) => void;
+  onSavePhoto: (photo: SavedPhoto) => boolean;
 }
 
 export const CameraActive: React.FC<CameraActiveProps> = ({
@@ -16,6 +18,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onClose,
   onSelectFromGallery,
   onPhotoCaptured,
+  onSavePhoto,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -24,6 +27,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [flashOn, setFlashOn] = useState(false);
   const [hasRealStream, setHasRealStream] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [photoSaved, setPhotoSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +104,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   };
 
   const handleTakePhoto = () => {
+    setPhotoSaved(false);
+    setSaveError(false);
     if (videoRef.current && hasRealStream) {
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
@@ -130,6 +137,32 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       setCapturedPhoto(dataUrl);
       onPhotoCaptured?.(dataUrl, mode);
     }
+  };
+
+  const handleSavePhoto = () => {
+    if (!capturedPhoto) return;
+    const downloadLink = document.createElement('a');
+    downloadLink.href = capturedPhoto;
+    downloadLink.download = `${mode}-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+
+    const saved = onSavePhoto({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      dataUrl: capturedPhoto,
+      mode,
+      label: '',
+      createdAt: new Date().toISOString(),
+    });
+    setPhotoSaved(saved);
+    setSaveError(!saved);
+  };
+
+  const handleDiscardPhoto = () => {
+    setCapturedPhoto(null);
+    setPhotoSaved(false);
+    setSaveError(false);
   };
 
   return (
@@ -176,9 +209,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               <X size={20} strokeWidth={2.2} />
             </button>
 
-            <h1 className="text-xs font-bold tracking-tight text-white drop-shadow-sm">
-              {mode === 'planta' ? 'Identificar planta' : 'Identificar monumento'}
-            </h1>
+            <span aria-hidden="true" />
 
             <button
               type="button"
@@ -297,39 +328,65 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         </div>
       </div>
 
-      {/* Overlay de vista previa si se tomó una foto */}
+      {/* Vista previa y opciones de guardado */}
       {capturedPhoto && (
-        <div className="absolute inset-0 z-30 bg-black/95 flex flex-col justify-between p-6 pt-10 pb-24">
-          <div className="flex items-center justify-between text-white">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-              Foto capturada ({mode === 'planta' ? 'Planta' : 'Monumento'})
+        <div className="absolute inset-0 z-30 bg-black text-white">
+          <img src={capturedPhoto} alt="Vista previa de la foto capturada" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-transparent to-black/75 pointer-events-none" />
+
+          <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[40px_1fr_40px] items-center px-4 pt-[max(20px,env(safe-area-inset-top))] pb-4">
+            <button
+              type="button"
+              onClick={handleDiscardPhoto}
+              aria-label="Descartar foto"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60 cursor-pointer"
+            >
+              <X size={20} strokeWidth={2.2} />
+            </button>
+            <span className="flex justify-center text-white drop-shadow-sm" aria-label={mode === 'planta' ? 'Planta' : 'Monumento'}>
+              {mode === 'planta' ? <Leaf size={19} /> : <Landmark size={19} />}
             </span>
-            <button
-              type="button"
-              onClick={() => setCapturedPhoto(null)}
-              className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 cursor-pointer"
-              aria-label="Cerrar vista previa"
-            >
-              <X size={18} />
-            </button>
-          </div>
+            <span aria-hidden="true" />
+          </header>
 
-          <div className="my-auto mx-auto max-w-xs max-h-[40vh] rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl">
-            <img src={capturedPhoto} alt="Foto capturada" className="w-full h-full object-contain" />
-          </div>
+          <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
+            {(photoSaved || saveError) && (
+              <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
+                {photoSaved ? 'Foto guardada en este dispositivo' : 'No se pudo guardar en este dispositivo'}
+              </p>
+            )}
+            <div className="flex items-end justify-between">
+              <button
+                type="button"
+                onClick={handleSavePhoto}
+                disabled={photoSaved}
+                aria-label={photoSaved ? 'Foto guardada' : 'Guardar foto'}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-black/45 backdrop-blur-md hover:bg-black/65 disabled:text-emerald-300 cursor-pointer disabled:cursor-default"
+              >
+                {photoSaved ? <Check size={22} /> : <Download size={22} />}
+              </button>
 
-          <div className="flex flex-col gap-2 max-w-xs mx-auto w-full">
-            <div className="p-3 bg-emerald-950/80 border border-emerald-600/40 rounded-xl text-emerald-200 text-xs text-center flex items-center justify-center gap-2">
-              <Check size={16} className="text-emerald-400" />
-              <span>Foto lista para identificar en {mode === 'planta' ? 'Planta' : 'Monumento o calle'}</span>
+              <button
+                type="button"
+                disabled
+                aria-label="Identificar foto próximamente"
+                title="Identificación próximamente"
+                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-lg opacity-80 cursor-not-allowed"
+              >
+                <span className="relative"><ScanSearch size={28} /><Ban size={38} className="absolute -left-[5px] -top-[5px] text-red-300" /></span>
+              </button>
+
+              <button
+                type="button"
+                aria-label="Identificación manual próximamente"
+                title="Identificación manual próximamente"
+                disabled
+                className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white/70 backdrop-blur-md cursor-not-allowed"
+              >
+                <ScanSearch size={22} />
+                <Ban size={30} className="absolute text-red-300" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setCapturedPhoto(null)}
-              className="py-3 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold cursor-pointer"
-            >
-              Volver a hacer foto
-            </button>
           </div>
         </div>
       )}
