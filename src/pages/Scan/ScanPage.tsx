@@ -75,11 +75,29 @@ export const ScanPage: React.FC = () => {
       <div aria-live="polite" className="mt-4 text-sm">
         {estado === 'identificando' && <p role="status">Enviando la foto a Pl@ntNet…</p>}
         {estado === 'completado' && resultado !== null && (
-          <p role="status">
-            Identificación completada ({resultado.results.length}{' '}
-            {resultado.results.length === 1 ? 'especie candidata' : 'especies candidatas'}). El
-            proceso de identificación continúa con la foto enviada.
-          </p>
+          <>
+            <p role="status">
+              Identificación completada ({resultado.results.length}{' '}
+              {resultado.results.length === 1 ? 'especie candidata' : 'especies candidatas'}). El
+              proceso de identificación continúa con la foto enviada.
+            </p>
+            {/* Candidatas en texto, para poder comprobar la respuesta de Pl@ntNet. */}
+            {resultado.results.length > 0 ? (
+              <ol className="mt-2 list-decimal pl-5 text-neutral-800">
+                {resultado.results.map((candidata, index) => (
+                  <li key={index} className="leading-relaxed">
+                    {candidata.scientificName}
+                    {candidata.author !== null && ` ${candidata.author}`}
+                    {' — '}
+                    {(candidata.score * 100).toFixed(1).replace('.', ',')}%
+                    {candidata.commonNames.length > 0 && ` — ${candidata.commonNames.join(', ')}`}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-2 text-neutral-600">Pl@ntNet no ha devuelto candidatas para esta foto.</p>
+            )}
+          </>
         )}
         {estado === 'error' && (
           <>

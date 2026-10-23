@@ -45,6 +45,9 @@ describe('ScanPage — UT F04: envío de foto a Pl@ntNet', () => {
     // La app informa de que el envío se completó y el proceso continúa.
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/identificación completada/i));
     expect(screen.getByText(/2 especies candidatas/i)).toBeInTheDocument();
+    // Las candidatas se muestran en texto: nombre, puntuación y nombres comunes.
+    expect(screen.getByText(/Papaver rhoeas L\. — 75,0% — Amapola/)).toBeInTheDocument();
+    expect(screen.getByText(/Papaver dubium/)).toBeInTheDocument();
   });
 
   test('PA 659: se puede enviar una nueva foto y sustituye a la anterior', async () => {
