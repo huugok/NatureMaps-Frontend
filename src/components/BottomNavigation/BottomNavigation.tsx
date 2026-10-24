@@ -28,6 +28,14 @@ export interface BottomNavigationProps {
    * Optional custom tab definitions if overriding the default 5 tabs.
    */
   tabs?: TabConfig[];
+  /**
+   * Accessible name of the navigation landmark. Defaults to the Spanish text.
+   */
+  navLabel?: string;
+  /**
+   * Screen-reader suffix announced on the active tab. Defaults to '(activo)'.
+   */
+  activeText?: string;
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({
@@ -37,6 +45,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   className = '',
   position = 'fixed',
   tabs = DEFAULT_TABS,
+  navLabel = 'Barra de navegación principal',
+  activeText = '(activo)',
 }) => {
   const [internalTab, setInternalTab] = React.useState<TabId>(defaultTab);
 
@@ -82,7 +92,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
   return (
     <nav
-      aria-label="Barra de navegación principal"
+      aria-label={navLabel}
       className={`${positionClasses} bg-white border-t border-neutral-200/90 shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
     >
       <div
@@ -139,7 +149,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               </span>
 
               {/* Screen reader info for current page */}
-              {isActive && <span className="sr-only">(activo)</span>}
+              {isActive && <span className="sr-only">{activeText}</span>}
             </button>
           );
         })}

@@ -1,0 +1,1 @@
+export { PermisoCamara } from './PermisoCamara'

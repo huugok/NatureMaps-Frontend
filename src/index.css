@@ -1,1 +1,84 @@
 @import "tailwindcss";
+
+/*
+  Tokens de diseño de Nature MAPS (sacados del prototipo de Figma).
+  Tailwind 4 los convierte en utilidades: bg-accent, text-muted, rounded-card, shadow-float…
+  Ningún componente debe usar colores "a mano": siempre estos tokens.
+*/
+@theme {
+  /* Marca */
+  --color-green: #2b6942;
+  --color-warm: #b8863b;
+
+  /* Texto y superficies */
+  --color-ink: #1f2937;
+  --color-ink-2: #48504d;
+  --color-muted: #6b7273;
+  --color-muted-2: #9aa0a0;
+  --color-line: #e8e8e3;
+  --color-surface: #ffffff;
+  --color-danger: #e85d5d;
+
+  /* Acento: cambia según el modo (ver más abajo) */
+  --color-accent: #2b6942;
+  --color-accent-2: #4f8f5f;
+  --color-accent-soft: #e7eedd;
+  --color-on-accent: #ffffff;
+  --color-app: #f9f9f6;
+
+  /* Tipografía */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-caption: 11.5px;
+  --text-small: 13px;
+  --text-body: 15px;
+  --text-heading: 18px;
+  --text-title: 23px;
+
+  /* Formas */
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-panel: 20px;
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.1);
+}
+
+/* Acento por modo: lo activa AppContext con <html data-mode="…"> */
+html[data-mode='aventura'] {
+  --color-accent: #6c4ce0;
+  --color-accent-2: #9b6bef;
+  --color-accent-soft: #ede7fb;
+  --color-app: #f6f3fe;
+}
+html[data-mode='descubridor'],
+html[data-mode='esencial'] {
+  --color-accent: #1f7a6c;
+  --color-accent-2: #3a9b8b;
+  --color-accent-soft: #dceee9;
+  --color-app: #f1f7f5;
+}
+html[data-mode='educativo'] {
+  --color-accent: #2f8fe0;
+  --color-accent-2: #57b4f0;
+  --color-accent-soft: #dbeeff;
+  --color-app: #eaf6ff;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: #e7e7e2;
+    -webkit-font-smoothing: antialiased;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
