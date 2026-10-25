@@ -2,13 +2,29 @@ import { useRef, useState } from 'react';
 import { BottomNavigation } from './components/BottomNavigation';
 import { CameraScreen } from './components/Camera';
 import { FichaPlantaPage } from './pages/FichaPlanta';
+import { identifyPlant } from './services/identify';
+import type { CameraMode } from './components/Camera';
+import type { PlantIdentification } from './types/identify';
 import type { TabId } from './types/navigation';
 
 type Screen = 'tabs' | 'ficha';
+type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, encoded] = dataUrl.split(',');
+  if (!header || !encoded) throw new Error('La imagen capturada no tiene un formato válido');
+  const mimeType = /^data:(.*?);base64$/.exec(header)?.[1] ?? 'image/jpeg';
+  const binary = atob(encoded);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new Blob([bytes], { type: mimeType });
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
   const [screen, setScreen] = useState<Screen>('tabs');
+  const [identificationStatus, setIdentificationStatus] = useState<IdentificationStatus>('idle');
+  const [identificationResults, setIdentificationResults] = useState<PlantIdentification | null>(null);
+  const [identificationError, setIdentificationError] = useState<string | null>(null);
   const previousTab = useRef<TabId>('inicio');
 
   const handleTabChange = (tab: TabId) => {
@@ -21,6 +37,29 @@ function App() {
 
   const closeCamera = () => setActiveTab(previousTab.current);
 
+  const handlePhotoCaptured = () => {
+    setIdentificationResults(null);
+    setIdentificationError(null);
+    setIdentificationStatus('idle');
+  };
+
+  const handleIdentifyPhoto = async (dataUrl: string, mode: CameraMode) => {
+    if (mode !== 'planta') return;
+
+    setIdentificationStatus('identifying');
+    setIdentificationResults(null);
+    setIdentificationError(null);
+    try {
+      const image = dataUrlToBlob(dataUrl);
+      const result = await identifyPlant(image, `captura.${image.type === 'image/png' ? 'png' : 'jpg'}`);
+      setIdentificationResults(result);
+      setIdentificationStatus('completed');
+    } catch (error) {
+      setIdentificationError(error instanceof Error ? error.message : 'Error inesperado al identificar la planta.');
+      setIdentificationStatus('error');
+    }
+  };
+
   const handleViewOnMap = () => {
     setActiveTab('mapa');
     setScreen('tabs');
@@ -32,7 +71,14 @@ function App() {
         {screen === 'ficha' ? (
           <FichaPlantaPage onBack={() => setScreen('tabs')} onViewOnMap={handleViewOnMap} />
         ) : activeTab === 'escanear' ? (
-          <CameraScreen onClose={closeCamera} />
+          <CameraScreen
+            onClose={closeCamera}
+            onPhotoCaptured={handlePhotoCaptured}
+            onIdentifyPhoto={handleIdentifyPhoto}
+            identificationStatus={identificationStatus}
+            identificationResults={identificationResults}
+            identificationError={identificationError}
+          />
         ) : (
           <div className="flex-1 bg-neutral-950">
             <div className="mx-auto w-full max-w-md px-4 pt-20">

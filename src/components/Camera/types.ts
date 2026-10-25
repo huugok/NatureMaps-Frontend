@@ -1,3 +1,5 @@
+import type { PlantIdentification } from '../../types/identify';
+
 export type CameraMode = 'planta' | 'monumento';
 
 export type PermissionStatus = 'checking' | 'prompt' | 'granted' | 'denied';
@@ -23,5 +25,9 @@ export interface CameraScreenProps {
    * Optional callback when a photo is captured or selected from gallery.
    */
   onPhotoCaptured?: (photoDataUrl: string, mode: CameraMode) => void;
+  onIdentifyPhoto?: (photoDataUrl: string, mode: CameraMode) => void;
+  identificationStatus?: 'idle' | 'identifying' | 'completed' | 'error';
+  identificationResults?: PlantIdentification | null;
+  identificationError?: string | null;
 }
 

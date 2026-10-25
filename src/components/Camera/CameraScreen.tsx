@@ -8,6 +8,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   onClose,
   initialMode = 'planta',
   onPhotoCaptured,
+  onIdentifyPhoto,
+  identificationStatus = 'idle',
+  identificationResults = null,
+  identificationError = null,
 }) => {
   const [permission, setPermission] = useState<PermissionStatus>('checking');
   const [mode, setMode] = useState<CameraMode>(initialMode);
@@ -117,7 +121,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
         aria-hidden="true"
         className="hidden"
         onChange={handleFileChange}
@@ -158,7 +162,11 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           onClose={onClose}
           onSelectFromGallery={handleOpenGallery}
           onPhotoCaptured={onPhotoCaptured}
+          onIdentifyPhoto={onIdentifyPhoto}
           onSavePhoto={handleSavePhoto}
+          identificationStatus={identificationStatus}
+          identificationResults={identificationResults}
+          identificationError={identificationError}
         />
       )}
     </div>

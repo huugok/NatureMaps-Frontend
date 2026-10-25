@@ -2,6 +2,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
+import type { PlantIdentification } from '../../types/identify';
+
+type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
 export interface CameraActiveProps {
   mode: CameraMode;
@@ -9,7 +12,11 @@ export interface CameraActiveProps {
   onClose: () => void;
   onSelectFromGallery: () => void;
   onPhotoCaptured?: (dataUrl: string, mode: CameraMode) => void;
+  onIdentifyPhoto?: (dataUrl: string, mode: CameraMode) => void;
   onSavePhoto: (photo: SavedPhoto) => boolean;
+  identificationStatus: IdentificationStatus;
+  identificationResults: PlantIdentification | null;
+  identificationError: string | null;
 }
 
 export const CameraActive: React.FC<CameraActiveProps> = ({
@@ -18,7 +25,11 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onClose,
   onSelectFromGallery,
   onPhotoCaptured,
+  onIdentifyPhoto,
   onSavePhoto,
+  identificationStatus,
+  identificationResults,
+  identificationError,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -163,6 +174,12 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     setCapturedPhoto(null);
     setPhotoSaved(false);
     setSaveError(false);
+  };
+
+  const handleIdentify = () => {
+    if (capturedPhoto && identificationStatus !== 'identifying' && identificationStatus !== 'completed') {
+      onIdentifyPhoto?.(capturedPhoto, mode);
+    }
   };
 
   return (
@@ -350,6 +367,41 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           </header>
 
           <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
+            {identificationStatus !== 'idle' && (
+              <div aria-live="polite" className="mb-4 max-h-[38vh] overflow-y-auto rounded-xl bg-black/65 p-3 text-sm backdrop-blur-sm">
+                {identificationStatus === 'identifying' && <p role="status">Enviando la foto a Pl@ntNet…</p>}
+                {identificationStatus === 'completed' && identificationResults && (
+                  <>
+                    <p role="status" className="font-medium">
+                      {identificationResults.results.length > 0
+                        ? `Candidatas más probables (${identificationResults.results.length})`
+                        : 'Pl@ntNet no ha encontrado candidatas para esta foto.'}
+                    </p>
+                    {identificationResults.results.length > 0 && (
+                      <ol className="mt-2 list-decimal space-y-1 pl-5">
+                        {identificationResults.results.slice(0, 5).map((match, index) => (
+                          <li key={`${match.scientificName}-${index}`}>
+                            <span className="font-medium">{match.scientificName}</span>
+                            {match.author && ` ${match.author}`}
+                            {' — '}{(match.score * 100).toFixed(1).replace('.', ',')}%
+                            {match.commonNames.length > 0 && ` · ${match.commonNames.join(', ')}`}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </>
+                )}
+                {identificationStatus === 'error' && mode === 'planta' && (
+                  <div>
+                    <p role="alert">No se ha podido identificar la foto.</p>
+                    {identificationError && <p className="mt-1 text-white/75">{identificationError}</p>}
+                    <button type="button" onClick={handleIdentify} className="mt-2 underline underline-offset-2">
+                      Reintentar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {(photoSaved || saveError) && (
               <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
                 {photoSaved ? 'Foto guardada en este dispositivo' : 'No se pudo guardar en este dispositivo'}
@@ -368,12 +420,15 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
               <button
                 type="button"
-                disabled
-                aria-label="Identificar foto próximamente"
-                title="Identificación próximamente"
-                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-lg opacity-80 cursor-not-allowed"
+                disabled={mode !== 'planta' || identificationStatus === 'identifying' || identificationStatus === 'completed'}
+                onClick={handleIdentify}
+                aria-label={mode !== 'planta' ? 'Identificación disponible solo para plantas' : identificationStatus === 'identifying' ? 'Identificando foto' : identificationStatus === 'completed' ? 'Identificación completada' : 'Identificar foto'}
+                title={mode === 'planta' ? 'Identificar la foto capturada' : 'La identificación está disponible solo en modo Planta'}
+                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span className="relative"><ScanSearch size={28} /><Ban size={38} className="absolute -left-[5px] -top-[5px] text-red-300" /></span>
+                {identificationStatus === 'identifying' ? (
+                  <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                ) : <ScanSearch size={28} />}
               </button>
 
               <button
