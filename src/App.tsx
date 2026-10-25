@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { BottomNavigation } from './components/BottomNavigation';
 import { CameraScreen } from './components/Camera';
 import { FichaPlantaPage } from './pages/FichaPlanta';
+import { MapPage } from './pages/Map';
 import { identifyPlant } from './services/identify';
 import type { CameraMode } from './components/Camera';
 import type { PlantIdentification } from './types/identify';
@@ -70,6 +71,8 @@ function App() {
       <main className="flex-1 min-h-0 flex flex-col w-full max-w-md mx-auto overflow-hidden relative">
         {screen === 'ficha' ? (
             <FichaPlantaPage onBack={() => setScreen('tabs')} onViewOnMap={handleViewOnMap} />
+        ) : activeTab === 'mapa' ? (
+          <MapPage />
         ) : activeTab === 'escanear' ? (
           <CameraScreen
             onClose={closeCamera}
@@ -104,7 +107,11 @@ function App() {
         activeTab={activeTab}
         onChange={handleTabChange}
         position="fixed"
-        className={(identificationStatus === 'error' || identificationStatus === 'completed') && activeTab === 'escanear' ? 'z-[90]' : ''}
+        className={activeTab === 'mapa'
+          ? 'z-[2000]'
+          : (identificationStatus === 'error' || identificationStatus === 'completed') && activeTab === 'escanear'
+            ? 'z-[90]'
+            : ''}
       />
     </div>
   );
