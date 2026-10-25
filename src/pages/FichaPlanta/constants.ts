@@ -28,7 +28,7 @@ export const DEMO_SPECIES = [
     photoAlt: 'Jacaranda en floración violeta',
     photoCredit: 'Kahuroa · Wikimedia Commons · dominio público',
     description:
-      'Árbol subtropical oriundo de Sudamérica que alcanza los 12–15 metros y se cultiva por sus vistosas flores violetas, que cubren la copa en primavera antes de que salgan las hojas.',
+      'Árbol subtropical oriundo de Sudamérica —de forma nativa crece en Argentina, Brasil, Bolivia y Paraguay—, de la familia de las bignonias. El ejemplar adulto alcanza los 12–15 metros (hasta 20 en condiciones favorables) y proyecta una copa irregular, a veces en forma de sombrilla, de 10–12 metros de diámetro y sombra de intensidad media. Se cultiva por sus vistosas flores de color azul violeta, de 4–5 cm, agrupadas en panículas erectas de 20–30 cm, que llenan por completo la copa en primavera antes de que salgan las hojas; en algún ejemplar se repite después una segunda floración, más escasa, en pleno verano.',
     flowering: 'primavera',
     curiosity: {
       label: 'Dato curioso',
@@ -73,7 +73,7 @@ export const DEMO_SPECIES = [
     photoAlt: 'Naranjas amargas en la copa del naranjo',
     photoCredit: 'Zeynel Cebeci · Wikimedia Commons · CC BY-SA 4.0',
     description:
-      'Cítrico perennifolio de la familia de las rutáceas; es un híbrido originario del sudeste asiático que llegó a la Península con los árabes. De sus flores (azahar) se destila aceite esencial para perfumes, y su fruto amargo no se come en fresco.',
+      'Árbol cítrico perennifolio de la familia de las rutáceas, de 7–8 metros de altura y con espinas axilares agudas. Es un híbrido entre el pomelo (Citrus maxima) y la mandarina (Citrus reticulata) que surgió en el sudeste asiático y, vía India y Persia, se expandió con el mundo árabe desde el año 700, llegando a la península ibérica durante la expansión musulmana. Muchas variedades se usan por su aceite esencial para perfumes, saborizantes y como medicina; de sus flores sale el azahar, y su fruta amarga es la conocida naranja de Sevilla, naranja cajera o naranja cachorreña.',
     flowering: '',
     curiosity: {
       label: 'Dato curioso',
@@ -119,7 +119,7 @@ export const DEMO_SPECIES = [
     photoAlt: 'Racimos de dátiles colgando de una palmera',
     photoCredit: 'Agnieszka Kwiecień, Nova · Wikimedia Commons · CC BY-SA 4.0',
     description:
-      'Palmera cuyo fruto comestible es el dátil, probablemente originaria del suroeste de Asia; se usa como ornamental en zonas costeras cálidas, aislada o en grupos formando palmerales.',
+      'Palmera cuyo fruto comestible es el dátil, probablemente oriunda del suroeste de Asia. Es una de las especies más notables del género Phoenix, que cuenta con unas quince especies repartidas desde Canarias, pasando por el norte de África y el sur de Asia, hasta el Extremo Oriente. Se usa comercialmente para el aprovechamiento de sus frutos y también como ornamental en zonas cálidas costeras, como elemento aislado, en hileras o en grupos formando palmerales; en España sus hojas, llamadas palmas, se utilizan en la celebración del Domingo de Ramos, y de sus vainas sale una fibra apreciada para cuerda y tela gruesa.',
     flowering: '',
     curiosity: {
       label: 'Dato curioso',
@@ -165,7 +165,7 @@ export const DEMO_SPECIES = [
     photoAlt: 'Copa redondeada de un laurel de Indias en una rotonda',
     photoCredit: 'H. Zell · Wikimedia Commons · CC BY-SA 3.0',
     description:
-      'Árbol perenne de gran porte y rápido crecimiento, con copa voluminosa y raíces aéreas que se unen al tronco; en España vive en las costas desde Cádiz hasta Valencia.',
+      'Árbol perenne de gran porte y rápido crecimiento que llega a superar los 15 metros de altura, muy ramificado y con copa voluminosa. Emite raíces aéreas que, al tocar el suelo, enraízan, engrosan y terminan uniéndose al tronco. Nativo del sur y sureste de Asia, este ficus —llamado comúnmente laurel de Indias— se utiliza como árbol de sombra en las calles de muchas localidades de climas cálidos y subtropicales; en España se encuentra desde la costa de Cádiz hasta la de Valencia, además de en las Islas Baleares y Canarias, y también se cultiva como planta ornamental de interior y como bonsái.',
     flowering: '',
     curiosity: {
       label: 'Dato curioso',
@@ -211,7 +211,7 @@ export const DEMO_SPECIES = [
     photoAlt: 'Filera de plátanos de sombra en un parque',
     photoCredit: 'Tiago Fioreze · Wikimedia Commons · CC BY-SA 3.0',
     description:
-      'Híbrido de imponente porte —hasta 55 metros— común en parques y jardines de las zonas templadas del mundo por la agradable sombra que proyecta.',
+      'Árbol de imponente porte —alcanza hasta los 55 metros de alto—, perteneciente a la familia de las platanáceas y de muy larga vida: puede vivir hasta 500 años. Por lo general se considera un híbrido de Platanus orientalis y Platanus occidentalis, aunque hay expertos que opinan que puede tratarse de un cultivar de P. orientalis, y su origen exacto no está claro. Es común en los parques y jardines de todas las ciudades de las zonas templadas del mundo por la agradable sombra que proporciona; antes de la aparición del automóvil se usaba profusamente en las cunetas de las carreteras para dar sombra a carros, carruajes y diligencias durante los duros veranos mediterráneos. A la hora de plantarlo hay que tener en cuenta su problemática alergénica.',
     flowering: '',
     curiosity: {
       label: 'Dato curioso',
@@ -256,7 +256,7 @@ export const DEMO_SPECIES = [
     photoAlt: 'Tipuana en floración amarilla junto a una vía',
     photoCredit: 'Daniel Ventura · Wikimedia Commons · CC BY-SA 3.0',
     description:
-      'Árbol semicaducifolio de la familia de las leguminosas, originario de Argentina y Bolivia; resiste la sequía y es frecuente en avenidas y paseos por su floración amarilla y su buena sombra.',
+      'Árbol semicaducifolio de la familia de las leguminosas (Fabaceae), la única especie aceptada del género Tipuana y originaria de Argentina y Bolivia. Resiste la sequía sin llegar a perder las hojas, y en las zonas urbanas es frecuente en calles anchas, avenidas, paseos y jardines por su magnífica floración amarilla y su muy buena sombra; en el hemisferio norte florece alrededor de julio y agosto. Sus raíces, robustas y extensas, hacen que no se aconseje plantarlo cerca de edificaciones, y su madera se ha empleado para fabricar muebles, puertas y escaleras.',
     flowering: 'jul-ago',
     curiosity: {
       label: 'Dato curioso',

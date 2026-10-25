@@ -17,7 +17,7 @@ Recopilación del contenido que mostrará la ficha de planta (RF3) en la demo, c
 
 | Tipo de dato | Fuente | Forma de verificación |
 |---|---|---|
-| Descripción y curiosidades | Wikipedia en español (CC BY-SA) | Texto adaptado del propio artículo; enlazado en cada fuente |
+| Descripción y curiosidades | Wikipedia en español (CC BY-SA) | Texto adaptado de las secciones de cada artículo (introducción, *Descripción*, *Historia*, *Usos* según especie); cada ficha enlaza su artículo |
 | Familia botánica | Wikipedia / Wikidata (propiedad `P171`) | Confirmación individual por especie |
 | Nombre común (castellano/valenciano), distrito y barrio | Inventario de Arbolado (Ajuntament de València) | Consulta `geojson` con `outFields=…,distrito,barrio` |
 | Recuento de ejemplares por especie | Inventario de Arbolado (Ajuntament de València) | Consulta `returnCountOnly` con `nom_botanico LIKE '<binomial>%'` (total del inventario al consultar: 157.649 árboles) |
@@ -32,10 +32,11 @@ de Wikimedia para hotlinks (20/40/60/120/250/330/500/960/1280/1920/3840 px; ver
 ### 1. Jacaranda (Jacaranda mimosifolia) — familia Bignoniaceae
 
 - Ejemplares en el inventario: **5.253** · Ejemplo real: barrio Vara de Quart (Patraix).
-- Descripción (adaptada de <https://es.wikipedia.org/wiki/Jacaranda_mimosifolia>): árbol
-  subtropical oriundo de Sudamérica, 12–15 m, cultivado por sus flores violetas que cubren la
-  copa antes de la foliación (el artículo documenta la floración primaveral y una segunda
-  floración estival más escasa).
+- Descripción (adaptada de <https://es.wikipedia.org/wiki/Jacaranda_mimosifolia>, secciones
+  introducción y *Descripción*): árbol subtropical sudamericano (Argentina, Brasil, Bolivia y
+  Paraguay) de 12–15 m (hasta 20 m en condiciones favorables) con copa irregular en sombrilla y
+  sombra de intensidad media; flores azul violeta de 4–5 cm en panículas erectas de 20–30 cm
+  que cubren la copa antes de la foliación, con una segunda floración estival más escasa.
 - Curiosidad (fuente Wikipedia, sección *Descripción*): el fruto es una cápsula leñosa en forma
   de castañuela; en guaraní, *ka-í jepopeté* («aplauso de mono»).
 - Floración: primavera (verificada en el artículo; prudencia con el rango mensual, el
@@ -47,9 +48,12 @@ de Wikimedia para hotlinks (20/40/60/120/250/330/500/960/1280/1920/3840 px; ver
 
 - Ejemplares en el inventario: **12.661** · Ejemplo real: barrio Benicalap (Benicalap). El
   inventario lo llama `Naranjo amargo` / `Taronger bord`.
-- Descripción (adaptada de <https://es.wikipedia.org/wiki/Citrus_%C3%97_aurantium>): cítrico
-  perennifolio, híbrido de sudeste asiático llegado a la Península durante la expansión
-  musulmana; aceite esencial de azahar para perfumes; fruto amargo.
+- Descripción (adaptada de <https://es.wikipedia.org/wiki/Citrus_%C3%97_aurantium>, secciones
+  introducción, *Historia* y *Usos*): perennifolio de 7–8 m con espinas axilares; híbrido entre
+  Citrus maxima y Citrus reticulata surgido en el sudeste asiático y extendido por India, Persia
+  y el mundo árabe desde el año 700, llegando a Iberia con la expansión musulmana; aceite
+  esencial para perfumes, saborizantes y medicina; nombres populares de la naranja amarga
+  (Sevilla, cajera, cachorreña…).
 - Curiosidad (fuente Wikipedia, secciones *Historia* y *Portainjerto*): portainjerto preferido
   de los cítricos comerciales; su naranja, con más pectina que la dulce, es la de la mermelada
   de Sevilla que se envía a Inglaterra.
@@ -62,9 +66,12 @@ de Wikimedia para hotlinks (20/40/60/120/250/330/500/960/1280/1920/3840 px; ver
 ### 3. Palmera datilera (Phoenix dactylifera) — familia Arecaceae
 
 - Ejemplares en el inventario: **7.565** · Ejemplo real: barrio Russafa (L'Eixample).
-- Descripción (adaptada de <https://es.wikipedia.org/wiki/Phoenix_dactylifera>): palmera del
-  dátil, probablemente originaria del suroeste de Asia; ornamental en zonas costeras cálidas,
-  aislada o en palmerales.
+- Descripción (adaptada de <https://es.wikipedia.org/wiki/Phoenix_dactylifera>, secciones
+  introducción y *Usos*): palmera del dátil, probablemente oriunda del suroeste de Asia; una de
+  las más notables del género Phoenix (unas quince especies desde Canarias hasta Extremo
+  Oriente); comercial por sus frutos y ornamental en zonas costeras cálidas, aislada o en
+  palmerales; sus hojas (palmas) se usan en el Domingo de Ramos en España y sus vainas dan
+  fibra para cuerda y tela gruesa.
 - Curiosidad (fuente Wikipedia, sección *Usos* y apartado de producción): sus hojas —las
   *palmas*— son las del Domingo de Ramos en España; en Elche llegó a haber la mayor producción
   de dátil in vitro del mundo.
@@ -78,9 +85,11 @@ de Wikimedia para hotlinks (20/40/60/120/250/330/500/960/1280/1920/3840 px; ver
 ### 4. Laurel de Indias (Ficus microcarpa) — familia Moraceae
 
 - Ejemplares en el inventario: **3.157** · Ejemplo real: barrio Sant Francesc (Ciutat Vella).
-- Descripción (adaptada de <https://es.wikipedia.org/wiki/Ficus_microcarpa>): perenne de gran
-  porte y rápido crecimiento, con copa voluminosa y raíces aéreas; en España vive desde Cádiz
-  hasta Valencia.
+- Descripción (adaptada de <https://es.wikipedia.org/wiki/Ficus_microcarpa>, secciones
+  introducción y *Descripción*: perenne de gran porte y rápido crecimiento, supera los 15 m con
+  copa voluminosa y raíces aéreas que se unen al tronco; árbol de sombra en calles de climas
+  cálidos y subtropicales; en España desde la costa de Cádiz a la de Valencia, Baleares y
+  Canarias; también de interior y como bonsái.
 - Curiosidad (fuente Wikipedia, secciones *Descripción* y *Ecología*): los jóvenes pueden
   germinar sobre muros y estructuras de hormigón; considerada invasiva en varias regiones.
 - Familia (Moraceae) confirmada por Wikidata (`Q714180 → Ficus → Moraceae`).
@@ -92,8 +101,12 @@ de Wikimedia para hotlinks (20/40/60/120/250/330/500/960/1280/1920/3840 px; ver
 
 - Ejemplares en el inventario: **9.947** · Ejemplo real: barrio Campanar (Campanar). El
   inventario escribe `Platanus x hispanica` (con `x` ASCII); Wikipedia usa el signo `×`.
-- Descripción (adaptada de <https://es.wikipedia.org/wiki/Platanus_%C3%97_hispanica>): híbrido
-  de imponente porte (hasta 55 m), común en parques y jardines por su sombra.
+- Descripción (adaptada de <https://es.wikipedia.org/wiki/Platanus_%C3%97_hispanica>, secciones
+  introducción *Origen* y *Cultivo*): hasta 55 m de alto y hasta 500 años de vida; híbrido de
+  Platanus orientalis y P. occidentalis (o cultivar de P. orientalis según otros autores),
+  origen discutido; común en parques y jardines de todo el mundo templado por su agradable
+  sombra; plantado antiguamente en cunetas de carretera para dar sombra a carros y diligencias
+  en los veranos mediterráneos; problemática alergénica a considerar al plantarlo.
 - Curiosidad (fuente Wikipedia, sección *Usos* y apartado general): antes del automóvil se
   plantaba en cunetas para sombra de carros y diligencias en los veranos mediterráneos; puede
   vivir hasta 500 años. El artículo advierte además de su problemática alergénica (dato a
@@ -104,9 +117,12 @@ de Wikimedia para hotlinks (20/40/60/120/250/330/500/960/1280/1920/3840 px; ver
 ### 6. Tipuana (Tipuana tipu) — familia Fabaceae
 
 - Ejemplares en el inventario: **2.955** · Ejemplo real: barrio La Vega Baixa (Algirós).
-- Descripción (adaptada de <https://es.wikipedia.org/wiki/Tipuana_tipu>): semicaducifolio de
-  las leguminosas, originario de Argentina y Bolivia; resiste sequía; frecuente en avenidas y
-  paseos por floración amarilla y sombra.
+- Descripción (adaptada de <https://es.wikipedia.org/wiki/Tipuana_tipu>, secciones introducción
+  y *Cultivo*): semicaducifolio de las Fabaceae, única especie del género Tipuana, originaria de
+  Argentina y Bolivia; resiste la sequía sin perder las hojas; floración amarilla, julio-agosto
+  en el hemisferio norte; frecuente en calles anchas, avenidas y paseos por su floración y su
+  buena sombra; raíces robustas y extensas (no se aconseja plantarlo junto a edificios); madera
+  para muebles, puertas y escaleras.
 - Curiosidad (fuente Wikipedia, sección *Cultivo*): raíces robustas y extensas (no se aconseja
   plantarlo junto a edificios); en Argentina, la chicharrita *Cephisus siccifolius* conoce el
   fenómeno del «llanto de las tipas» (gotas azucaradas excretadas).
