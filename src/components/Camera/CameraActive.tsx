@@ -1,8 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
+import { ArrowLeft, ChevronRight, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
-import type { PlantIdentification } from '../../types/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -40,6 +40,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [selectedPlant, setSelectedPlant] = useState<PlantMatch | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,6 +175,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     setCapturedPhoto(null);
     setPhotoSaved(false);
     setSaveError(false);
+    setSelectedPlant(null);
     onPhotoCaptured?.('', mode);
   };
 
@@ -486,6 +488,70 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 </div>
               </div>
               <p className="mt-auto pt-5 text-center text-xs text-slate-500">Reconocimiento con <a href="https://my.plantnet.org" target="_blank" rel="noreferrer" className="underline">Pl@ntNet</a></p>
+              </div>
+            </section>
+          )}
+          {identificationStatus === 'completed' && mode === 'planta' && identificationResults && (
+            <section className="fixed inset-0 z-[80] flex flex-col overflow-y-auto overscroll-contain bg-stone-50 pb-[calc(62px+env(safe-area-inset-bottom,0px))] text-slate-900">
+              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-emerald-100">
+                <img src={capturedPhoto} alt="Foto de la planta identificada" className="h-full w-full object-cover" />
+                <header className="absolute inset-x-0 top-0 flex items-center justify-between p-4 pt-[max(20px,env(safe-area-inset-top))]">
+                  <button type="button" onClick={handleDiscardPhoto} aria-label="Volver a la cámara" className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm">
+                    <ArrowLeft size={20} />
+                  </button>
+                  <span className="rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white">Tu foto</span>
+                </header>
+              </div>
+              <div className="flex-1 px-4 pb-4 pt-4">
+                {identificationResults.results.length > 0 ? (
+                  <>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Especie más probable</p>
+                    {identificationResults.results.map((match, index) => {
+                      const percentage = Math.round(match.score * 100);
+                      const name = match.commonNames[0] ?? match.genus ?? 'Especie identificada';
+                      return (
+                        <React.Fragment key={`${match.scientificName}-${index}`}>
+                        {index === 1 && <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">Otras posibles especies</p>}
+                        <button type="button" onClick={() => setSelectedPlant(match)} aria-label={`Ver ficha de ${match.scientificName}`} className={`mb-3 block w-full rounded-2xl border bg-white p-3 text-left shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${index === 0 ? 'border-emerald-700 ring-1 ring-emerald-700' : 'border-neutral-200'}`}>
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800"><Leaf size={23} /></span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-bold text-neutral-900">{match.scientificName}</p>
+                              <p className="truncate text-sm text-neutral-500">{name}{match.family ? ` · ${match.family}` : ''}</p>
+                            </div>
+                            <span className="flex shrink-0 items-center gap-1 text-lg font-bold text-emerald-800">{percentage}%<ChevronRight size={19} className="text-neutral-400" aria-hidden="true" /></span>
+                          </div>
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-100" role="meter" aria-label={`Certeza de ${match.scientificName}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage}>
+                            <div className="h-full rounded-full bg-emerald-800" style={{ width: `${percentage}%` }} />
+                          </div>
+                          {index === 0 && <p className="mt-1 text-xs text-slate-500">{percentage >= 70 ? 'Certeza alta' : percentage >= 40 ? 'Certeza media' : 'Certeza baja'}</p>}
+                        </button>
+                        </React.Fragment>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700" role="status">
+                    Pl@ntNet no ha encontrado especies candidatas para esta foto.
+                  </div>
+                )}
+                <button type="button" onClick={handleDiscardPhoto} className="mt-4 w-full py-2 text-center text-sm font-semibold text-emerald-800 underline underline-offset-2">
+                  Ninguna coincide · repetir foto
+                </button>
+                <p className="mt-6 text-center text-xs text-slate-500">Resultados de <a href="https://my.plantnet.org" target="_blank" rel="noreferrer" className="underline">Pl@ntNet</a>. El % indica la certeza del reconocimiento.</p>
+              </div>
+            </section>
+          )}
+          {selectedPlant && (
+            <section className="fixed inset-0 z-[85] flex flex-col overflow-y-auto bg-stone-50 pb-[calc(62px+env(safe-area-inset-bottom,0px))] text-neutral-900">
+              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-emerald-100">
+                <img src={capturedPhoto} alt="Foto de la planta identificada" className="h-full w-full object-cover" />
+                <button type="button" onClick={() => setSelectedPlant(null)} aria-label="Volver a resultados" className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm"><ArrowLeft size={20} /></button>
+              </div>
+              <div className="-mt-6 flex-1 rounded-t-3xl bg-white px-5 pb-6 pt-5">
+                <h1 className="text-2xl font-bold">{selectedPlant.scientificName}</h1>
+                <p className="mt-1 text-sm text-neutral-500">{selectedPlant.commonNames[0] ?? selectedPlant.genus ?? 'Especie identificada'}{selectedPlant.family ? ` · Familia ${selectedPlant.family}` : ''}</p>
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">La ficha detallada de esta planta todavía no está disponible.</div>
               </div>
             </section>
           )}

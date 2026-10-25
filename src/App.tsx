@@ -104,7 +104,7 @@ function App() {
         activeTab={activeTab}
         onChange={handleTabChange}
         position="fixed"
-        className={identificationStatus === 'error' && activeTab === 'escanear' ? 'z-[90]' : ''}
+        className={(identificationStatus === 'error' || identificationStatus === 'completed') && activeTab === 'escanear' ? 'z-[90]' : ''}
       />
     </div>
   );
