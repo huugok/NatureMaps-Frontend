@@ -69,7 +69,7 @@ function App() {
     <div className="h-dvh min-h-screen bg-black flex flex-col font-sans text-neutral-900 overflow-hidden">
       <main className="flex-1 min-h-0 flex flex-col w-full max-w-md mx-auto overflow-hidden relative">
         {screen === 'ficha' ? (
-          <FichaPlantaPage onBack={() => setScreen('tabs')} onViewOnMap={handleViewOnMap} />
+            <FichaPlantaPage onBack={() => setScreen('tabs')} onViewOnMap={handleViewOnMap} />
         ) : activeTab === 'escanear' ? (
           <CameraScreen
             onClose={closeCamera}
@@ -100,7 +100,12 @@ function App() {
         )}
       </main>
 
-      <BottomNavigation activeTab={activeTab} onChange={handleTabChange} position="fixed" />
+      <BottomNavigation
+        activeTab={activeTab}
+        onChange={handleTabChange}
+        position="fixed"
+        className={identificationStatus === 'error' && activeTab === 'escanear' ? 'z-[90]' : ''}
+      />
     </div>
   );
 }

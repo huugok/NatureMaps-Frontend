@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
+import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
 import type { PlantIdentification } from '../../types/identify';
@@ -174,6 +174,14 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     setCapturedPhoto(null);
     setPhotoSaved(false);
     setSaveError(false);
+    onPhotoCaptured?.('', mode);
+  };
+
+  const isConnectionError = identificationError?.toLowerCase().includes('contactar con el servidor')
+    || identificationError?.toLowerCase().includes('conexión');
+
+  const handleRetryFromError = () => {
+    if (capturedPhoto) onIdentifyPhoto?.(capturedPhoto, mode);
   };
 
   const handleIdentify = () => {
@@ -443,6 +451,44 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               </button>
             </div>
           </div>
+          {identificationStatus === 'error' && mode === 'planta' && (
+            <section className="fixed inset-0 z-[80] flex flex-col overflow-y-auto overscroll-contain bg-stone-50 pb-[calc(62px+env(safe-area-inset-bottom,0px))] text-slate-900">
+              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-emerald-100">
+                <img src={capturedPhoto} alt="Foto de la planta" className="h-full w-full object-cover" />
+                <header className="absolute inset-x-0 top-0 flex items-center gap-3 p-4 pt-[max(20px,env(safe-area-inset-top))]">
+                  <button type="button" onClick={handleDiscardPhoto} aria-label="Volver a la cámara" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm">
+                    <ArrowLeft size={20} />
+                  </button>
+                  <h1 className="rounded-full bg-white/90 px-4 py-2 text-lg font-bold shadow-sm">No se pudo identificar</h1>
+                </header>
+              </div>
+              <div className="flex flex-1 flex-col px-4 pb-4">
+              <div className={`mt-2 rounded-2xl border p-4 ${isConnectionError ? 'border-neutral-200 bg-white' : 'border-amber-300 bg-amber-50'}`}>
+                <div className="flex items-center gap-3 font-semibold">
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${isConnectionError ? 'bg-neutral-100 text-neutral-500' : 'bg-white text-amber-700'}`}>
+                    {isConnectionError ? <Ban size={20} /> : <ScanSearch size={20} />}
+                  </span>
+                  {isConnectionError ? 'No hay conexión a internet' : 'No se pudo completar la identificación'}
+                </div>
+                <p className={`mt-3 text-sm leading-5 ${isConnectionError ? 'text-slate-600' : 'text-amber-900'}`}>
+                  {isConnectionError
+                    ? 'Hemos guardado tu foto. La identificaremos cuando vuelvas a tener red. Mientras, puedes seguir usando el mapa y las zonas descargadas.'
+                    : 'El servicio de reconocimiento no ha devuelto una respuesta válida. Vuelve a probar más tarde o busca la planta por su nombre.'}
+                </p>
+                {identificationError && <p className="mt-2 text-xs text-slate-500">{identificationError}</p>}
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={handleRetryFromError} className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold text-white ${isConnectionError ? 'bg-emerald-800' : 'bg-amber-800'}`}>
+                    Reintentar
+                  </button>
+                  <button type="button" onClick={handleDiscardPhoto} className="min-h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold">
+                    {isConnectionError ? 'Ver modo offline' : 'Buscar por nombre'}
+                  </button>
+                </div>
+              </div>
+              <p className="mt-auto pt-5 text-center text-xs text-slate-500">Reconocimiento con <a href="https://my.plantnet.org" target="_blank" rel="noreferrer" className="underline">Pl@ntNet</a></p>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>
