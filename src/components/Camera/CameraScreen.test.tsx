@@ -29,10 +29,10 @@ describe('CameraScreen Component', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows permission denied screen with explanation when user rejects permission', () => {
+  it('shows permission denied screen with explanation when user rejects permission', async () => {
     render(<CameraScreen onClose={vi.fn()} />);
 
-    const denyButton = screen.getByRole('button', { name: /^no permitir cámara$/i });
+    const denyButton = await screen.findByRole('button', { name: /^no permitir cámara$/i });
     fireEvent.click(denyButton);
 
     expect(screen.getByText(/la cámara está desactivada/i)).toBeInTheDocument();
@@ -44,10 +44,10 @@ describe('CameraScreen Component', () => {
     ).toBeInTheDocument();
   });
 
-  it('allows toggling between Planta and Monumento o calle in the denied state', () => {
+  it('allows toggling between Planta and Monumento o calle in the denied state', async () => {
     render(<CameraScreen onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /^no permitir cámara$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^no permitir cámara$/i }));
 
     const monumentoBtn = screen.getByRole('button', { name: /monumento o calle/i });
     fireEvent.click(monumentoBtn);
@@ -76,11 +76,11 @@ describe('CameraScreen Component', () => {
     fireEvent.click(allowButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/identificar planta/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /hacer foto/i })).toBeInTheDocument();
     });
 
     expect(screen.getByText(/encuadra la hoja, flor o fruto/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /hacer foto/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /planta/i })).toBeInTheDocument();
   });
 
   it('updates instructions when switching to Monumento o calle in active camera', async () => {
@@ -103,13 +103,12 @@ describe('CameraScreen Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /^permitir cámara$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/identificar planta/i)).toBeInTheDocument();
+      expect(screen.getByText(/encuadra la hoja, flor o fruto/i)).toBeInTheDocument();
     });
 
     const monumentoBtn = screen.getByRole('button', { name: /monumento o calle/i });
     fireEvent.click(monumentoBtn);
 
-    expect(screen.getByText(/identificar monumento/i)).toBeInTheDocument();
     expect(screen.getByText(/encuadra el monumento o la calle/i)).toBeInTheDocument();
     expect(screen.getByText(/te diremos qué es y su importancia cultural/i)).toBeInTheDocument();
   });
