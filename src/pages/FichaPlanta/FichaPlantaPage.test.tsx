@@ -21,21 +21,21 @@ describe('FichaPlantaPage', () => {
     renderFicha();
 
     expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument();
-    expect(screen.getByText(/Árbol ornamental de gran porte/)).toBeInTheDocument();
+    expect(screen.getByText(/Árbol subtropical oriundo de Sudamérica/)).toBeInTheDocument();
   });
 
   it('muestra la familia, la floración y el lugar donde está la especie', () => {
     renderFicha();
 
-    expect(screen.getByText('Floración: abr-jun')).toBeInTheDocument();
-    expect(screen.getByText('Parc Central')).toBeInTheDocument();
+    expect(screen.getByText('Floración: primavera')).toBeInTheDocument();
+    expect(screen.getByText('Vara de Quart')).toBeInTheDocument();
   });
 
   it('muestra la curiosidad de la especie', () => {
     renderFicha();
 
     expect(screen.getByText('Dato curioso:')).toBeInTheDocument();
-    expect(screen.getByText(/todo un símbolo de Valencia/)).toBeInTheDocument();
+    expect(screen.getByText(/aplauso de mono/)).toBeInTheDocument();
   });
 
   it('avisa del servicio de identificación con su enlace', () => {
@@ -54,10 +54,13 @@ describe('FichaPlantaPage', () => {
     renderFicha();
 
     expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('Pl@ntNet (CIRAD, INRAE, INRIA, IRD)')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('Wikipedia (es)')).toBeInTheDocument();
+    expect(screen.getByText('Wikimedia Commons')).toBeInTheDocument();
     expect(screen.getByText('Ajuntament de València')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'https://www.valencia.es' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://geoportal.valencia.es/server/rest/services/OPENDATA/MedioAmbiente/MapServer/151/query' }),
+    ).toBeInTheDocument();
   });
 
   it('el botón "Ver en el mapa" avisa', () => {
