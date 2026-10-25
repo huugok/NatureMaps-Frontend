@@ -1,4 +1,6 @@
-# Contenido de especies para la demo (RF3 · RNF6)
+# Contenido de especies para la demo (UT 918 - F06 · RF3 · RNF6)
+
+**UT 918 — F06. Preparar textos de especies botánicas del MVP.**
 
 Recopilación del contenido que mostrará la ficha de planta (RF3) en la demo, con la
 **fuente de cada texto y foto** anotada, según el requisito no funcional RNF6

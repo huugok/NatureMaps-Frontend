@@ -1,5 +1,6 @@
 /**
- * Datos de la demo de la ficha (UT RF3, con trazabilidad de orígenes — RNF6).
+ * Datos de la demo de la ficha (UT 918 - F06: preparar textos de especies
+ * botánicas del MVP; cubre RF3, con trazabilidad de orígenes — RNF6).
  *
  * El contenido seguirá viniendo de la API cuando exista una endpoint de ficha
  * (las clases del modelo de dominio `Planta`, `Ubicacion`,
