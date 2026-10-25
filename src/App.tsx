@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { BottomNavigation } from './components/BottomNavigation';
 import { CameraScreen } from './components/Camera';
+import { MapPage } from './pages/Map';
 import type { CameraMode } from './components/Camera';
 import { FichaPlantaPage, fichaDesdeIdentificacion } from './pages/FichaPlanta';
 import type { FichaEspecie, IdentificacionFicha } from './pages/FichaPlanta';
@@ -110,6 +111,8 @@ function App() {
               onBack={() => setScreen('settings')}
               onSave={handleSaveLanguage}
             />
+          ) : activeTab === 'mapa' ? (
+            <MapPage />
           ) : activeTab === 'escanear' ? (
             <CameraScreen
               onClose={() => setActiveTab(previousTab.current)}
@@ -147,7 +150,12 @@ function App() {
           )}
         </main>
 
-        <BottomNavigation activeTab={activeTab} onChange={handleTabChange} position="fixed" />
+        <BottomNavigation
+          activeTab={activeTab}
+          onChange={handleTabChange}
+          position="fixed"
+          className={activeTab === 'mapa' ? 'z-[2000]' : ''}
+        />
       </div>
 
       {ficha !== null && (

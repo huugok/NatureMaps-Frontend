@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+.user-location-icon,
+.searched-place-icon {
+  background: transparent;
+  border: 0;
+}
+
+.user-location-icon span {
+  position: absolute;
+  inset: 3px;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: #4285f4;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 45%);
+}
+
+.searched-place-icon span {
+  position: absolute;
+  inset: 4px;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  background: #e34f42;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 45%);
+}
