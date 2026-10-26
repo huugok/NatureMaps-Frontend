@@ -123,4 +123,3 @@ describe('CameraScreen Component', () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 });
-
