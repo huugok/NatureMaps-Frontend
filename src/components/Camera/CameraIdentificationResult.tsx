@@ -9,7 +9,7 @@ import {
   TITULO,
   TITULO_CANDIDATAS,
 } from '../EspeciesAlternativas';
-import type { PlantIdentification } from '../../types/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
 import type { CameraMode } from './types';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
@@ -25,6 +25,11 @@ export interface CameraIdentificationResultProps {
   error: string | null;
   /** Reintenta el envío de la foto actual. */
   onRetry: () => void;
+  /**
+   * Abre la ficha de la especie indicada. Se usa desde el botón «Ver ficha»
+   * (resultado principal, PA 1250) y al tocar una alternativa (PA 692).
+   */
+  onOpenSpecies: (match: PlantMatch) => void;
 }
 
 /**
@@ -39,6 +44,7 @@ export function CameraIdentificationResult({
   results,
   error,
   onRetry,
+  onOpenSpecies,
 }: CameraIdentificationResultProps) {
   // La elección se guarda junto a la identificación a la que pertenece: cuando
   // llega un resultado nuevo, la comparación falla y la elección desaparece sin
@@ -79,10 +85,29 @@ export function CameraIdentificationResult({
               <EspeciesAlternativas
                 matches={results.results}
                 selectedName={elegida}
-                onSelect={(nombre) => setEleccion({ results, nombre })}
+                onSelect={(nombre) => {
+                  // PA 692: tocar una alternativa la marca y abre su ficha.
+                  setEleccion({ results, nombre });
+                  const candidata = results.results.find(
+                    (match) => match.scientificName === nombre,
+                  );
+                  if (candidata) onOpenSpecies(candidata);
+                }}
                 title={confianzaBaja ? TITULO : TITULO_CANDIDATAS}
                 subtitle={confianzaBaja ? SUBTITULO : SUBTITULO_CANDIDATAS}
               />
+
+              {mejorCoincidencia !== null && (
+                // PA 1250: la ficha del resultado principal, siempre accesible.
+                <button
+                  type="button"
+                  onClick={() => onOpenSpecies(mejorCoincidencia)}
+                  className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+                >
+                  Ver ficha
+                </button>
+              )}
+
               {elegida !== null && (
                 <p role="status" className="mt-2 text-sm font-medium text-emerald-800">
                   {CONFIRMACION_ELECCION}: {elegida}

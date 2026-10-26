@@ -101,10 +101,13 @@ describe('ScanPage — UT F05 (PA 689): especies alternativas con confianza baja
     mockIdentifyPlant.mockReset();
   });
 
-  async function identificarCon(resultado: PlantIdentification) {
+  async function identificarCon(
+    resultado: PlantIdentification,
+    props: React.ComponentProps<typeof ScanPage> = {},
+  ) {
     const user = userEvent.setup();
     mockIdentifyPlant.mockResolvedValue(resultado);
-    render(<ScanPage />);
+    render(<ScanPage {...props} />);
     await user.upload(screen.getByLabelText('Foto de la planta'), foto('planta.jpg'));
     await user.click(screen.getByRole('button', { name: 'Identificar' }));
     await waitFor(() => expect(mockIdentifyPlant).toHaveBeenCalledTimes(1));
@@ -146,6 +149,32 @@ describe('ScanPage — UT F05 (PA 689): especies alternativas con confianza baja
       screen.queryByRole('heading', { name: 'Especies alternativas' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/Papaver rhoeas L\. — 75,0% — Amapola/)).toBeInTheDocument();
+  });
+
+  test('PA 1250: «Ver ficha» abre la especie del resultado principal', async () => {
+    const onOpenSpecies = vi.fn();
+    const user = await identificarCon(identification, { onOpenSpecies });
+
+    await user.click(screen.getByRole('button', { name: 'Ver ficha' }));
+
+    expect(onOpenSpecies).toHaveBeenCalledTimes(1);
+    expect(onOpenSpecies).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Papaver rhoeas' }),
+      null,
+    );
+  });
+
+  test('PA 692: tocar una alternativa abre la ficha de esa especie', async () => {
+    const onOpenSpecies = vi.fn();
+    const user = await identificarCon(confianzaBaja, { onOpenSpecies });
+
+    await user.click(screen.getByRole('radio', { name: /Jacaranda/ }));
+
+    expect(onOpenSpecies).toHaveBeenCalledTimes(1);
+    expect(onOpenSpecies).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Jacaranda mimosifolia' }),
+      null,
+    );
   });
 
   test('una nueva foto descarta la especie elegida', async () => {

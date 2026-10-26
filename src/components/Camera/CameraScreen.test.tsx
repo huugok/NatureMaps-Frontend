@@ -181,4 +181,30 @@ describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
 
     expect(screen.getByText(/Especie elegida: Ficus benjamina/)).toBeInTheDocument();
   });
+
+  it('«Ver ficha» abre la especie principal con la foto elegida', async () => {
+    const onOpenSpecies = vi.fn();
+    const { rerender } = render(<CameraScreen onClose={vi.fn()} onOpenSpecies={onOpenSpecies} />);
+
+    elegirDeGaleria();
+    await waitFor(() =>
+      expect(screen.getByAltText('Vista previa de la foto capturada')).toBeInTheDocument(),
+    );
+
+    rerender(
+      <CameraScreen
+        onClose={vi.fn()}
+        onOpenSpecies={onOpenSpecies}
+        identificationStatus="completed"
+        identificationResults={bajaConfianza}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver ficha' }));
+
+    expect(onOpenSpecies).toHaveBeenCalledTimes(1);
+    const [match, foto] = onOpenSpecies.mock.calls[0];
+    expect(match.scientificName).toBe('Ficus benjamina');
+    expect(foto).toMatch(/^data:image/);
+  });
 });

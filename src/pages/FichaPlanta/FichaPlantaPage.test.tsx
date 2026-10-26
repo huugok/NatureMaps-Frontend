@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { DEMO_SPECIES } from './constants';
 import { FichaPlantaPage } from './FichaPlantaPage';
 
 const renderFicha = (props: React.ComponentProps<typeof FichaPlantaPage> = {}) =>
@@ -93,5 +94,59 @@ describe('FichaPlantaPage', () => {
     const unfavoriteButton = screen.getByRole('button', { name: 'Quitar de favoritos' });
     expect(unfavoriteButton).toHaveAttribute('aria-pressed', 'true');
     expect(onToggleFavorite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
+  it('pinta la especie que recibe, no siempre la de ejemplo', () => {
+    render(<FichaPlantaPage species={DEMO_SPECIES[1]} />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Citrus × aurantium' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Naranjo amargo')).toBeInTheDocument();
+  });
+
+  it('muestra la confianza cuando la ficha viene de una identificación', () => {
+    render(<FichaPlantaPage species={DEMO_SPECIES[0]} identification={{ score: 0.83 }} />);
+
+    expect(screen.getByText('Identificada con 83% de confianza')).toBeInTheDocument();
+  });
+
+  it('con una especie genérica usa la foto capturada y no inventa secciones', () => {
+    render(
+      <FichaPlantaPage
+        species={{
+          commonName: 'Rosal silvestre',
+          scientificName: 'Rosa canina',
+          family: 'Rosaceae',
+          photoUrl: 'data:image/jpeg;base64,abc',
+          sources: [
+            {
+              name: 'Pl@ntNet',
+              description: 'Identificación por imagen',
+              url: 'https://my.plantnet.org',
+              icon: 'search',
+            },
+          ],
+        }}
+        identification={{ score: 0.46 }}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: /Rosal silvestre/ })).toBeInTheDocument();
+    expect(screen.getByText('Identificada con 46% de confianza')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dato curioso/)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
+    expect(screen.getByText('Pl@ntNet')).toBeInTheDocument();
+  });
+
+  it('sin foto ni fuentes deja el marcador y oculta el bloque de fuentes', () => {
+    render(<FichaPlantaPage species={{ commonName: 'Rosal', scientificName: 'Rosa sp.' }} />);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Fuentes de información' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
   });
 });

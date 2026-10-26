@@ -9,6 +9,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   initialMode = 'planta',
   onPhotoCaptured,
   onIdentifyPhoto,
+  onOpenSpecies,
   identificationStatus = 'idle',
   identificationResults = null,
   identificationError = null,
@@ -173,6 +174,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           onSelectFromGallery={handleOpenGallery}
           onPhotoCaptured={onPhotoCaptured}
           onIdentifyPhoto={onIdentifyPhoto}
+          onOpenSpecies={onOpenSpecies}
           onSavePhoto={handleSavePhoto}
           identificationStatus={identificationStatus}
           identificationResults={identificationResults}
