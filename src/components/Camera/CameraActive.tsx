@@ -3,6 +3,7 @@ import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
 import type { PlantIdentification } from '../../types/identify';
+import { CameraIdentificationResult } from './CameraIdentificationResult';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -17,6 +18,10 @@ export interface CameraActiveProps {
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
   identificationError: string | null;
+  /** Foto capturada o elegida de la galería; `null` si todavía no hay ninguna. */
+  photo: string | null;
+  /** Cambia la foto activa (captura, galería o descarte). */
+  onPhotoChange: (photo: string | null) => void;
 }
 
 export const CameraActive: React.FC<CameraActiveProps> = ({
@@ -30,6 +35,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   identificationStatus,
   identificationResults,
   identificationError,
+  photo,
+  onPhotoChange,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -37,11 +44,16 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [flashOn, setFlashOn] = useState(false);
   const [hasRealStream, setHasRealStream] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
+    // Con una foto elegida (por ejemplo, desde la galería) no hace falta abrir
+    // la cámara: se muestra la vista previa y el botón de identificar.
+    if (photo !== null) {
+      return;
+    }
+
     let cancelled = false;
 
     async function initCamera() {
@@ -90,7 +102,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         streamRef.current = null;
       }
     };
-  }, [facingMode]);
+  }, [facingMode, photo]);
 
   const handleToggleFacingMode = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
@@ -126,7 +138,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        setCapturedPhoto(dataUrl);
+        onPhotoChange(dataUrl);
         onPhotoCaptured?.(dataUrl, mode);
         return;
       }
@@ -145,15 +157,15 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       ctx.textAlign = 'center';
       ctx.fillText(mode === 'planta' ? 'Foto de Planta' : 'Foto de Monumento', 200, 200);
       const dataUrl = dummyCanvas.toDataURL('image/jpeg');
-      setCapturedPhoto(dataUrl);
+      onPhotoChange(dataUrl);
       onPhotoCaptured?.(dataUrl, mode);
     }
   };
 
   const handleSavePhoto = () => {
-    if (!capturedPhoto) return;
+    if (!photo) return;
     const downloadLink = document.createElement('a');
-    downloadLink.href = capturedPhoto;
+    downloadLink.href = photo;
     downloadLink.download = `${mode}-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
@@ -161,7 +173,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
     const saved = onSavePhoto({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      dataUrl: capturedPhoto,
+      dataUrl: photo,
       mode,
       label: '',
       createdAt: new Date().toISOString(),
@@ -171,14 +183,14 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   };
 
   const handleDiscardPhoto = () => {
-    setCapturedPhoto(null);
+    onPhotoChange(null);
     setPhotoSaved(false);
     setSaveError(false);
   };
 
   const handleIdentify = () => {
-    if (capturedPhoto && identificationStatus !== 'identifying' && identificationStatus !== 'completed') {
-      onIdentifyPhoto?.(capturedPhoto, mode);
+    if (photo && identificationStatus !== 'identifying' && identificationStatus !== 'completed') {
+      onIdentifyPhoto?.(photo, mode);
     }
   };
 
@@ -346,9 +358,9 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       </div>
 
       {/* Vista previa y opciones de guardado */}
-      {capturedPhoto && (
+      {photo && (
         <div className="absolute inset-0 z-30 bg-black text-white">
-          <img src={capturedPhoto} alt="Vista previa de la foto capturada" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={photo} alt="Vista previa de la foto capturada" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-transparent to-black/75 pointer-events-none" />
 
           <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[40px_1fr_40px] items-center px-4 pt-[max(20px,env(safe-area-inset-top))] pb-4">
@@ -368,39 +380,13 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
           <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
             {identificationStatus !== 'idle' && (
-              <div aria-live="polite" className="mb-4 max-h-[38vh] overflow-y-auto rounded-xl bg-black/65 p-3 text-sm backdrop-blur-sm">
-                {identificationStatus === 'identifying' && <p role="status">Enviando la foto a Pl@ntNet…</p>}
-                {identificationStatus === 'completed' && identificationResults && (
-                  <>
-                    <p role="status" className="font-medium">
-                      {identificationResults.results.length > 0
-                        ? `Candidatas más probables (${identificationResults.results.length})`
-                        : 'Pl@ntNet no ha encontrado candidatas para esta foto.'}
-                    </p>
-                    {identificationResults.results.length > 0 && (
-                      <ol className="mt-2 list-decimal space-y-1 pl-5">
-                        {identificationResults.results.slice(0, 5).map((match, index) => (
-                          <li key={`${match.scientificName}-${index}`}>
-                            <span className="font-medium">{match.scientificName}</span>
-                            {match.author && ` ${match.author}`}
-                            {' — '}{(match.score * 100).toFixed(1).replace('.', ',')}%
-                            {match.commonNames.length > 0 && ` · ${match.commonNames.join(', ')}`}
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </>
-                )}
-                {identificationStatus === 'error' && mode === 'planta' && (
-                  <div>
-                    <p role="alert">No se ha podido identificar la foto.</p>
-                    {identificationError && <p className="mt-1 text-white/75">{identificationError}</p>}
-                    <button type="button" onClick={handleIdentify} className="mt-2 underline underline-offset-2">
-                      Reintentar
-                    </button>
-                  </div>
-                )}
-              </div>
+              <CameraIdentificationResult
+                status={identificationStatus}
+                mode={mode}
+                results={identificationResults}
+                error={identificationError}
+                onRetry={handleIdentify}
+              />
             )}
             {(photoSaved || saveError) && (
               <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>

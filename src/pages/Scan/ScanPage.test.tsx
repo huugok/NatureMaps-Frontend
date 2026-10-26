@@ -85,3 +85,76 @@ describe('ScanPage — UT F04: envío de foto a Pl@ntNet', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/identificación completada/i));
   });
 });
+
+describe('ScanPage — UT F05 (PA 689): especies alternativas con confianza baja', () => {
+  const confianzaBaja: PlantIdentification = {
+    bestMatch: null,
+    remainingIdentificationRequests: 12,
+    results: [
+      { score: 0.31, scientificName: 'Jacaranda mimosifolia', author: null, family: null, genus: null, commonNames: ['Jacaranda'], gbifId: null },
+      { score: 0.42, scientificName: 'Ficus benjamina', author: null, family: null, genus: null, commonNames: ['Ficus'], gbifId: null },
+      { score: 0.12, scientificName: 'Ligustrum lucidum', author: null, family: null, genus: null, commonNames: ['Aligustre'], gbifId: null },
+    ],
+  };
+
+  beforeEach(() => {
+    mockIdentifyPlant.mockReset();
+  });
+
+  async function identificarCon(resultado: PlantIdentification) {
+    const user = userEvent.setup();
+    mockIdentifyPlant.mockResolvedValue(resultado);
+    render(<ScanPage />);
+    await user.upload(screen.getByLabelText('Foto de la planta'), foto('planta.jpg'));
+    await user.click(screen.getByRole('button', { name: 'Identificar' }));
+    await waitFor(() => expect(mockIdentifyPlant).toHaveBeenCalledTimes(1));
+    return user;
+  }
+
+  test('con confianza baja muestra las alternativas ordenadas y con su porcentaje', async () => {
+    await identificarCon(confianzaBaja);
+
+    expect(
+      screen.getByRole('heading', { name: 'Especies alternativas' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/la confianza de la mejor coincidencia es baja/i)).toBeInTheDocument();
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(3);
+    expect(radios[0]).toHaveAccessibleName(/Ficus/);
+    expect(radios[1]).toHaveAccessibleName(/Jacaranda/);
+    expect(radios[2]).toHaveAccessibleName(/Aligustre/);
+
+    expect(screen.getByText('42% de confianza')).toBeInTheDocument();
+    expect(screen.getByText('31% de confianza')).toBeInTheDocument();
+    expect(screen.getByText('12% de confianza')).toBeInTheDocument();
+  });
+
+  test('el usuario puede elegir una de las especies mostradas', async () => {
+    const user = await identificarCon(confianzaBaja);
+
+    await user.click(screen.getByRole('radio', { name: /Jacaranda/ }));
+
+    expect(screen.getByRole('radio', { name: /Jacaranda/ })).toBeChecked();
+    expect(screen.getByText(/Especie elegida: Jacaranda mimosifolia/)).toBeInTheDocument();
+  });
+
+  test('con confianza suficiente no ofrece alternativas y sigue listando candidatas', async () => {
+    await identificarCon(identification);
+
+    expect(
+      screen.queryByRole('heading', { name: 'Especies alternativas' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/Papaver rhoeas L\. — 75,0% — Amapola/)).toBeInTheDocument();
+  });
+
+  test('una nueva foto descarta la especie elegida', async () => {
+    const user = await identificarCon(confianzaBaja);
+
+    await user.click(screen.getByRole('radio', { name: /Ficus/ }));
+    expect(screen.getByText(/Especie elegida: Ficus benjamina/)).toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText('Foto de la planta'), foto('otra.jpg'));
+    expect(screen.queryByText(/Especie elegida/)).not.toBeInTheDocument();
+  });
+});

@@ -124,3 +124,61 @@ describe('CameraScreen Component', () => {
   });
 });
 
+
+describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
+  const bajaConfianza = {
+    bestMatch: null,
+    remainingIdentificationRequests: 9,
+    results: [
+      { score: 0.44, scientificName: 'Ficus benjamina', author: null, family: null, genus: null, commonNames: ['Ficus'], gbifId: null },
+      { score: 0.31, scientificName: 'Jacaranda mimosifolia', author: null, family: null, genus: null, commonNames: ['Jacaranda'], gbifId: null },
+    ],
+  };
+
+  const elegirDeGaleria = (nombre = 'planta.jpg') => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['foto'], nombre, { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [file] } });
+  };
+
+  it('una foto de la galería se ve en la vista previa y se puede identificar', async () => {
+    const onIdentifyPhoto = vi.fn();
+    render(<CameraScreen onClose={vi.fn()} onIdentifyPhoto={onIdentifyPhoto} />);
+
+    elegirDeGaleria();
+
+    await waitFor(() =>
+      expect(screen.getByAltText('Vista previa de la foto capturada')).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Identificar foto' }));
+
+    expect(onIdentifyPhoto).toHaveBeenCalledTimes(1);
+    expect(onIdentifyPhoto.mock.calls[0]?.[0]).toMatch(/^data:image/);
+    expect(onIdentifyPhoto.mock.calls[0]?.[1]).toBe('planta');
+  });
+
+  it('tras identificar la foto de la galería muestra las especies alternativas', async () => {
+    const { rerender } = render(<CameraScreen onClose={vi.fn()} />);
+
+    elegirDeGaleria('planta.jpg');
+    await waitFor(() =>
+      expect(screen.getByAltText('Vista previa de la foto capturada')).toBeInTheDocument(),
+    );
+
+    rerender(
+      <CameraScreen
+        onClose={vi.fn()}
+        identificationStatus="completed"
+        identificationResults={bajaConfianza}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Especies alternativas' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Ficus/ }));
+
+    expect(screen.getByText(/Especie elegida: Ficus benjamina/)).toBeInTheDocument();
+  });
+});
