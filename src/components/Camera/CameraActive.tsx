@@ -29,6 +29,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onSavePhoto,
   identificationStatus,
   identificationResults,
+  identificationError,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -39,6 +40,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
+
+  const isBackendConnectionError = identificationError === 'No se ha podido contactar con el servidor de identificación';
 
   useEffect(() => {
     let cancelled = false;
@@ -395,6 +398,15 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                     )}
                   </>
                 )}
+                {identificationStatus === 'error' && mode === 'planta' && !isBackendConnectionError && (
+                  <div>
+                    <p role="alert">No se ha podido identificar la foto.</p>
+                    {identificationError && <p className="mt-1 text-white/75">{identificationError}</p>}
+                    <button type="button" onClick={handleIdentify} className="mt-2 underline underline-offset-2">
+                      Reintentar
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             {(photoSaved || saveError) && (
@@ -438,7 +450,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               </button>
             </div>
           </div>
-          {identificationStatus === 'error' && mode === 'planta' && (
+          {identificationStatus === 'error' && mode === 'planta' && isBackendConnectionError && (
             <section className="fixed inset-0 z-[80] flex flex-col overflow-y-auto overscroll-contain bg-stone-50 pb-[calc(62px+env(safe-area-inset-bottom,0px))] text-slate-900">
               <div className="relative h-64 w-full shrink-0 overflow-hidden bg-emerald-100">
                 <img src={capturedPhoto} alt="Foto de la planta" className="h-full w-full object-cover" />
