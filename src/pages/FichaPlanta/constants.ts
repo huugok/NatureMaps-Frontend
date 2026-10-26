@@ -17,7 +17,9 @@
  *   Ajuntament de València (ArcGIS REST, MapServer 151, CC BY 4.0); el recuento
  *   de ejemplares de cada especie también procede de esa fuente.
  */
-export const DEMO_SPECIES = [
+import type { FichaEspecie } from './types';
+
+export const DEMO_SPECIES: FichaEspecie[] = [
   {
     commonName: 'Jacaranda',
     scientificName: 'Jacaranda mimosifolia',

@@ -35,6 +35,7 @@ const renderResultado = (
       results={bajaConfianza}
       error={null}
       onRetry={vi.fn()}
+      onOpenSpecies={vi.fn()}
       {...props}
     />,
   );
@@ -90,6 +91,7 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
         ])}
         error={null}
         onRetry={vi.fn()}
+        onOpenSpecies={vi.fn()}
       />,
     );
 
@@ -125,6 +127,30 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
 
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('PA 1250: el botón «Ver ficha» abre la especie del resultado principal', async () => {
+    const onOpenSpecies = vi.fn();
+    renderResultado({ results: clara, onOpenSpecies });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver ficha' }));
+
+    expect(onOpenSpecies).toHaveBeenCalledTimes(1);
+    expect(onOpenSpecies).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Papaver rhoeas' }),
+    );
+  });
+
+  it('PA 692: tocar una alternativa abre la ficha de esa especie', async () => {
+    const onOpenSpecies = vi.fn();
+    renderResultado({ onOpenSpecies });
+
+    await userEvent.click(screen.getByRole('radio', { name: /Jacaranda/ }));
+
+    expect(onOpenSpecies).toHaveBeenCalledTimes(1);
+    expect(onOpenSpecies).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Jacaranda mimosifolia' }),
+    );
   });
 
   it('no muestra el error de identificación en modo monumento', () => {

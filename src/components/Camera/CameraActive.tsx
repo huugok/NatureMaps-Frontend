@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
-import type { PlantIdentification } from '../../types/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
 import { CameraIdentificationResult } from './CameraIdentificationResult';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
@@ -14,6 +14,8 @@ export interface CameraActiveProps {
   onSelectFromGallery: () => void;
   onPhotoCaptured?: (dataUrl: string, mode: CameraMode) => void;
   onIdentifyPhoto?: (dataUrl: string, mode: CameraMode) => void;
+  /** Abre la ficha de la especie indicada (PA 1250 y PA 692). */
+  onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
   onSavePhoto: (photo: SavedPhoto) => boolean;
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
@@ -31,6 +33,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onSelectFromGallery,
   onPhotoCaptured,
   onIdentifyPhoto,
+  onOpenSpecies,
   onSavePhoto,
   identificationStatus,
   identificationResults,
@@ -386,6 +389,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 results={identificationResults}
                 error={identificationError}
                 onRetry={handleIdentify}
+                onOpenSpecies={(match) => onOpenSpecies?.(match, photo)}
               />
             )}
             {(photoSaved || saveError) && (

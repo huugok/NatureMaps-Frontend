@@ -6,7 +6,7 @@ import {
   EspeciesAlternativas,
 } from '../../components/EspeciesAlternativas';
 import { identifyPlant } from '../../services/identify';
-import type { PlantIdentification } from '../../types/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
 
 type Estado = 'sin-foto' | 'preparado' | 'identificando' | 'completado' | 'error';
 
@@ -18,8 +18,16 @@ type Estado = 'sin-foto' | 'preparado' | 'identificando' | 'completado' | 'error
  * UT F05 (RF18 · PA 689): cuando la mejor coincidencia no llega a
  * `CONFIANZA_MINIMA`, en lugar del listado se ofrecen las especies
  * alternativas ordenadas por confianza y el usuario elige una.
+ *
+ * UT F05 (PA 1250 · PA 692): el botón «Ver ficha» abre la especie principal y
+ * tocar una alternativa abre la suya.
  */
-export const ScanPage: React.FC = () => {
+export interface ScanPageProps {
+  /** Abre la ficha de la especie indicada. */
+  onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
+}
+
+export const ScanPage: React.FC<ScanPageProps> = ({ onOpenSpecies }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [estado, setEstado] = useState<Estado>('sin-foto');
@@ -54,6 +62,11 @@ export const ScanPage: React.FC = () => {
       setError(err instanceof Error ? err.message : null);
       setEstado('error');
     }
+  };
+
+  const abrirFicha = (match: PlantMatch) => {
+    setElegida(match.scientificName);
+    onOpenSpecies?.(match, null);
   };
 
   const mejorCoincidencia = resultado?.results[0] ?? null;
@@ -107,7 +120,13 @@ export const ScanPage: React.FC = () => {
                 <EspeciesAlternativas
                   matches={resultado.results}
                   selectedName={elegida}
-                  onSelect={setElegida}
+                  onSelect={(nombre) => {
+                    const candidata = resultado.results.find(
+                      (match) => match.scientificName === nombre,
+                    );
+                    if (candidata) abrirFicha(candidata);
+                    else setElegida(nombre);
+                  }}
                 />
                 {elegida !== null && (
                   <p role="status" className="mt-3 text-sm font-medium text-emerald-800">
@@ -130,6 +149,16 @@ export const ScanPage: React.FC = () => {
                   ))}
                 </ol>
               )
+            )}
+            {mejorCoincidencia !== null && (
+              // PA 1250: la ficha del resultado principal.
+              <button
+                type="button"
+                onClick={() => abrirFicha(mejorCoincidencia)}
+                className="mt-3 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Ver ficha
+              </button>
             )}
           </>
         )}
