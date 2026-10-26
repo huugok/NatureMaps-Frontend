@@ -38,6 +38,8 @@ function App() {
     setScreen('tabs');
   };
 
+  const closeCamera = () => setActiveTab(previousTab.current);
+
   const handleSaveLanguage = (next: Language) => {
     saveLanguagePreference(next);
     setLanguage(next);
@@ -90,7 +92,7 @@ function App() {
           />
         ) : activeTab === 'escanear' ? (
           <CameraScreen
-            onClose={() => setActiveTab(previousTab.current)}
+            onClose={closeCamera}
             onPhotoCaptured={handlePhotoCaptured}
             onIdentifyPhoto={handleIdentifyPhoto}
             identificationStatus={identificationStatus}
@@ -124,7 +126,12 @@ function App() {
         )}
       </main>
 
-      <BottomNavigation activeTab={activeTab} onChange={handleTabChange} position="fixed" />
+      <BottomNavigation
+        activeTab={activeTab}
+        onChange={handleTabChange}
+        position="fixed"
+        className={identificationStatus === 'error' && activeTab === 'escanear' ? 'z-[90]' : ''}
+      />
     </div>
   );
 }

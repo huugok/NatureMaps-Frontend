@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
+import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
 import type { PlantIdentification } from '../../types/identify';
@@ -29,7 +29,6 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onSavePhoto,
   identificationStatus,
   identificationResults,
-  identificationError,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -174,6 +173,11 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     setCapturedPhoto(null);
     setPhotoSaved(false);
     setSaveError(false);
+    onPhotoCaptured?.('', mode);
+  };
+
+  const handleRetryFromError = () => {
+    if (capturedPhoto) onIdentifyPhoto?.(capturedPhoto, mode);
   };
 
   const handleIdentify = () => {
@@ -391,15 +395,6 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                     )}
                   </>
                 )}
-                {identificationStatus === 'error' && mode === 'planta' && (
-                  <div>
-                    <p role="alert">No se ha podido identificar la foto.</p>
-                    {identificationError && <p className="mt-1 text-white/75">{identificationError}</p>}
-                    <button type="button" onClick={handleIdentify} className="mt-2 underline underline-offset-2">
-                      Reintentar
-                    </button>
-                  </div>
-                )}
               </div>
             )}
             {(photoSaved || saveError) && (
@@ -443,6 +438,36 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               </button>
             </div>
           </div>
+          {identificationStatus === 'error' && mode === 'planta' && (
+            <section className="fixed inset-0 z-[80] flex flex-col overflow-y-auto overscroll-contain bg-stone-50 pb-[calc(62px+env(safe-area-inset-bottom,0px))] text-slate-900">
+              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-emerald-100">
+                <img src={capturedPhoto} alt="Foto de la planta" className="h-full w-full object-cover" />
+                <header className="absolute inset-x-0 top-0 flex items-center gap-3 p-4 pt-[max(20px,env(safe-area-inset-top))]">
+                  <button type="button" onClick={handleDiscardPhoto} aria-label="Volver a la cámara" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm">
+                    <ArrowLeft size={20} />
+                  </button>
+                  <h1 className="rounded-full bg-white/90 px-4 py-2 text-lg font-bold shadow-sm">Planta sin identificar</h1>
+                </header>
+              </div>
+              <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
+                <div className="rounded-2xl border border-emerald-200 bg-white p-5 text-center shadow-sm">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-800">
+                    <ScanSearch size={24} aria-hidden="true" />
+                  </span>
+                  <h2 className="mt-3 text-lg font-semibold">Identificación pendiente</h2>
+                  <p className="mt-2 text-sm leading-5 text-slate-600">
+                    Aún no tenemos información verificada sobre esta planta. Puedes volver a intentarlo.
+                  </p>
+                  <button type="button" onClick={handleRetryFromError} className="mt-5 min-h-12 w-full rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white">
+                    Reintentar identificación
+                  </button>
+                  <button type="button" onClick={handleDiscardPhoto} className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700">
+                    Volver a la cámara
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>
