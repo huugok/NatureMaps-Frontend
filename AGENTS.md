@@ -3,7 +3,9 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-10-20 · `main` @ `f71c78e` (F16 y CI mergeados).
+> Última verificación: 2026-10-26 · `main` @ `1289d1e` (scaffold + F16 + ficha RF3 + envío de
+> foto a Pl@ntNet F04 + textos de especies F06, mergeados) · Rama de trabajo:
+> `feat/selector-idioma` (F10.1, PR #6, selector de idioma en Ajustes).
 
 ## Qué es este proyecto
 
@@ -21,13 +23,48 @@ No hay monorepo ni workspace: cada repo se instala y ejecuta por separado con `n
 
 ## Estado de ramas (leer antes de empezar)
 
-`main` contiene el scaffold (Vite + React + Tailwind + Oxlint), la navegación inferior de F16
-(`BottomNavigation` con tests y Vitest) y el CI. El resto de pantallas (mapa, ficha de planta,
-rutas, etc.) todavía no existe: llegan con sus propias UTs.
+`main` contiene el scaffold (Vite + React + Tailwind + Oxlint) y el CI, además de:
 
-La UI está en español. Ajustes permite elegir idioma (es/va/en) y guarda la preferencia, pero **no
-traduce los textos**: eso corresponde a otra UT (UT44). La capa de servicios/API tampoco existe
-aún: el frontend no consume el backend.
+- la navegación inferior de F16 (PR #1, `src/components/BottomNavigation/` con tests y Vitest);
+- la pantalla de ficha de planta de RF3 (PR #8, `src/pages/FichaPlanta/`);
+- el envío de foto al backend para identificar con Pl@ntNet, UT F04 (PR #9,
+  `src/pages/Scan/`, `src/services/identify.ts` y `src/types/identify.ts`);
+- el contenido de las 6 especies de la demo, UT 918 - F06 (PR #14,
+  `src/pages/FichaPlanta/constants.ts` y `docs/contenido-especies-demo.md`).
+
+El resto de pantallas (mapa, rutas, búsqueda…) llegan con sus propias UTs.
+
+Ramas con PR abierta (a 26/10/2026):
+
+- `feat/selector-idioma` (F10.1, PR #6): selector de idioma en Ajustes.
+- `feat/pantallas-iniciales` (PR #11): pantallas iniciales con rutas, selector de modo y kit
+  de UI.
+- `feat/traduccion-pantallas` (PR #12): traducción de pantallas a es/va/en.
+- `feat/camara` (PR #13): pantallas de cámara y permisos.
+
+Otras ramas remotas sin PR activa: `feat/mapa-base`, `feat/porcentaje-confianza`,
+`feat/respuesta-sinconexionPlantNet`. `feat/ficha-planta` y `feat/envio-foto-plantnet`
+quedaron mergeadas (PRs #8 y #9); la PR #10 (UT 931, especie más probable) se cerró sin
+mergear (rama `feat/mostrar-especie-probable`).
+
+La ficha de planta (`src/pages/FichaPlanta/`) existe como pantalla completa: foto, nombre común
+y científico, familia, descripción breve, dato de interés, fuentes y botón "Ver en el mapa".
+El escaneo (`src/pages/Scan/`) envía la foto al backend y muestra las especies candidatas.
+
+La ficha sigue siendo **solo la parte visual**: como las clases del modelo de dominio
+(`Planta`, `Ubicacion`, `LugarHistoricoCultural`, `Observacion`) todavía **no existen**, no se
+ha creado ningún tipo, servicio ni clase para representarlas. Los textos de las 6 especies de
+la demo viven en `src/pages/FichaPlanta/constants.ts` (UT 918), con la fuente de cada texto y
+foto documentada en `docs/contenido-especies-demo.md`; llegarán de la API cuando exista el
+endpoint de ficha. La entrada a la ficha es una tarjeta provisional en la pantalla de pestañas
+(`src/App.tsx`): desaparecerá cuando existan las pantallas de mapa o de búsqueda, que son las
+que abrirán una ficha de verdad.
+
+Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
+`localStorage`, pero **no traduce los textos**: eso corresponde a la UT44 (rama
+`feat/traduccion-pantallas`, PR #12). El frontend consume el backend solo para la identificación
+por foto (`src/services/identify.ts` → `POST /plants/identify`); la ficha de planta no tiene
+servicio todavía.
 
 ## Stack
 
@@ -59,8 +96,9 @@ src/main.tsx          Bootstrap: createRoot + <StrictMode>
 src/App.tsx           Shell de la app
 src/index.css         @import "tailwindcss"
 src/components/       Componentes (una carpeta por componente)
-src/pages/            Vistas por ruta (Settings: Ajustes e Idioma)
-src/services/         Cliente HTTP / integración con el backend (y preferencia de idioma)
+src/pages/            Vistas por ruta (FichaPlanta: ficha de planta; Scan: escaneo/identificación;
+                      Settings: Ajustes e Idioma)
+src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de idioma)
 src/types/            Tipos compartidos (navigation.ts, language.ts)
 public/               Assets estáticos (favicon, icons.svg)
 docs/agents/          Convenciones para agentes (issue tracker, domain docs)
@@ -86,7 +124,8 @@ BottomNavigation/
   (`from './components/BottomNavigation'`), no el fichero interno.
 - **Tipos compartidos** en `src/types/` (`navigation.ts`: `TabId`/`TabConfig`; `language.ts`:
   `Language` y nombres de idioma). Reutilizar uniones de literales en vez de `enum`
-  (`erasableSyntaxOnly` lo prohíbe).
+  (`erasableSyntaxOnly` lo prohíbe). No añadir tipos de entidades que el modelo de dominio todavía
+  no define.
 - **Tailwind inline**, sin archivos CSS por componente. Paleta actual: `emerald` para activo,
   `neutral` para secundario, fondo `neutral-100`/`neutral-950`. Mobile-first.
 - **Accesibilidad no negociable**: `role="tablist"`/`role="tab"`, `aria-selected`, `aria-label` en
@@ -113,7 +152,14 @@ BottomNavigation/
 - Endpoints disponibles: `GET /health`, `GET /trees`, `GET /trees/:id`, `POST /trees/import`,
   `GET /species`, `POST /species/enrich` (implementados en `origin/explore_open_data`).
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
-- Pendiente: no hay variable de entorno para la base URL de la API ni proxy en `vite.config.ts`.
+- La identificación por foto (`src/services/identify.ts`) consume `POST /plants/identify` con la
+  base URL `VITE_API_URL` (por defecto `http://localhost:3000`); el resto de pantallas siguen
+  sin consumir el backend.
+- La ficha de planta todavía no tiene servicio: no se crea ninguno hasta que existan las clases
+  del modelo de dominio y un endpoint de ficha. La extracción de la información de planta
+  (consulta a Neon y enriquecimiento con Wikipedia/Wikidata) es del backend, no del frontend.
+- Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta) ni variable para los
+  endpoints nuevos de ficha.
 
 ## Git
 
