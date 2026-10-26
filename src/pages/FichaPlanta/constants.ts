@@ -208,7 +208,7 @@ export const DEMO_SPECIES = [
     // Foto: https://commons.wikimedia.org/wiki/File:Platanus.JPG (Tiago Fioreze, CC BY-SA 3.0)
     photoUrl:
       'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Platanus.JPG/500px-Platanus.JPG',
-    photoAlt: 'Filera de plátanos de sombra en un parque',
+    photoAlt: 'Hilera de plátanos de sombra en un parque',
     photoCredit: 'Tiago Fioreze · Wikimedia Commons · CC BY-SA 3.0',
     description:
       'Árbol de imponente porte —alcanza hasta los 55 metros de alto—, perteneciente a la familia de las platanáceas y de muy larga vida: puede vivir hasta 500 años. Por lo general se considera un híbrido de Platanus orientalis y Platanus occidentalis, aunque hay expertos que opinan que puede tratarse de un cultivar de P. orientalis, y su origen exacto no está claro. Es común en los parques y jardines de todas las ciudades de las zonas templadas del mundo por la agradable sombra que proporciona; antes de la aparición del automóvil se usaba profusamente en las cunetas de las carreteras para dar sombra a carros, carruajes y diligencias durante los duros veranos mediterráneos. A la hora de plantarlo hay que tener en cuenta su problemática alergénica.',
