@@ -40,14 +40,14 @@ function SourceCard({ source }: SourceCardProps) {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-neutral-900">{source.name}</p>
           {source.description && (
-            <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">{source.description}</p>
+            <p className="mt-0.5 text-xs leading-relaxed break-words text-neutral-500">{source.description}</p>
           )}
           {source.url && (
             <a
               href={source.url}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+              className="mt-1 inline-flex items-center gap-1 text-xs font-medium break-all text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             >
               {source.url}
               <ExternalLink size={12} aria-hidden="true" />
