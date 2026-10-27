@@ -1,41 +1,55 @@
 /**
- * Valores y textos por defecto de la lista de especies alternativas (UT F05).
- * Se centralizan aquí para poder ajustarlos sin tocar el componente ni la
- * pantalla que lo usa.
+ * Valores y textos por defecto del resultado de la identificación (UT F05).
+ * Se centralizan aquí para poder ajustarlos sin tocar los componentes ni la
+ * pantalla que los usa.
  */
 
 /**
- * Confianza mínima para considerar que la identificación es clara. Por debajo
- * de este valor se ofrecen especies alternativas para que el usuario elija
- * (PA 689). 0.5 es el mismo umbral que documentó la UT 931: por encima,
- * Pl@ntNet suele acertar la especie concreta.
+ * Confianza a partir de la cual la certeza se considera alta. Por debajo de
+ * este valor la ficha principal avisa de que la identificación no es
+ * concluyente y las alternativas cobran más peso (PA 689).
+ */
+export const CONFIANZA_ALTA = 0.75;
+
+/**
+ * Confianza mínima para considerar que la identificación es concluyente. Es el
+ * mismo umbral que documentó la UT 931: por encima, Pl@ntNet suele acertar la
+ * especie concreta.
  */
 export const CONFIANZA_MINIMA = 0.5;
 
-/** Número máximo de alternativas que se muestran a la vez. */
-export const MAX_ALTERNATIVAS = 5;
+/**
+ * Número máximo de alternativas que acompañan a la especie más probable. Con
+ * la principal, la lista nunca muestra más de 5 especies a la vez.
+ */
+export const MAX_ALTERNATIVAS = 4;
 
-/** A partir de esta confianza la tarjeta se etiqueta como «Muy parecido». */
-export const MUY_PARECIDO = 0.9;
+/** Cabecera de la tarjeta principal. */
+export const ETIQUETA_ESPECIE_MAS_PROBABLE = 'Especie más probable';
 
-/** Cabecera de la sección. */
-export const TITULO = 'Especies alternativas';
+/** Cabecera de la lista de alternativas. */
+export const TITULO = '¿No es esta? Otras posibles';
 
-/** Texto de apoyo bajo la cabecera. */
-export const SUBTITULO = 'Posibles alternativas';
+/** Etiqueta de la foto escaneada sobre la cabecera verde. */
+export const ETIQUETA_TU_FOTO = 'Tu foto';
 
-/** Etiqueta de la tarjeta cuando la confianza es muy alta. */
-export const ETIQUETA_MUY_PARECIDO = 'Muy parecido';
+/** Botón de la tarjeta principal que abre la ficha de la especie. */
+export const BOTON_VER_FICHA = 'Ver ficha';
 
-/** Cabecera cuando la identificación sí es concluyente. */
-export const TITULO_CANDIDATAS = 'Especies candidatas';
+/** Acción para descartar el resultado y hacer otra foto. */
+export const TEXTO_REPETIR_FOTO = 'Ninguna coincide · repetir foto';
 
-/** Texto de apoyo cuando la identificación sí es concluyente. */
-export const SUBTITULO_CANDIDATAS = 'Coincidencias más probables';
-
-/** Aviso que explica por qué se ofrecen alternativas (PA 689). */
-export const AVISO_CONFIANZA_BAJA =
-  'La confianza de la mejor coincidencia es baja: elige la especie que te parezca correcta.';
-
-/** Texto de la confirmación tras elegir una especie. */
+/** Texto de la confirmación tras elegir una alternativa. */
 export const CONFIRMACION_ELECCION = 'Especie elegida';
+
+/** Estado cuando Pl@ntNet no devuelve ninguna candidata. */
+export const SIN_COINCIDENCIAS = 'Pl@ntNet no ha encontrado candidatas para esta foto.';
+
+/** Pie que explica de dónde sale el porcentaje. */
+export const PIE_IDENTIFICACION =
+  'Resultados de Pl@ntNet. El % indica la certeza del reconocimiento.';
+
+/** Certeza de la especie principal según su confianza. */
+export const CERTEZA_ALTA = 'Certeza alta';
+export const CERTEZA_MEDIA = 'Certeza media';
+export const CERTEZA_BAJA = 'Certeza baja';

@@ -174,11 +174,12 @@ describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Especies alternativas' })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(2);
+    expect(screen.getByText('Especie más probable')).toBeInTheDocument();
+    expect(screen.getByText('Ficus benjamina')).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole('radio', { name: /Ficus/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Jacaranda/ }));
 
-    expect(screen.getByText(/Especie elegida: Ficus benjamina/)).toBeInTheDocument();
+    expect(screen.getByText(/Especie elegida: Jacaranda mimosifolia/)).toBeInTheDocument();
   });
 });

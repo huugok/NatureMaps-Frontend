@@ -29,33 +29,31 @@ const renderLista = (matches: PlantMatch[], selectedName: string | null = null, 
 describe('EspeciesAlternativas — UT F05 (PA 689)', () => {
   it('ordena las especies de mayor a menor confianza aunque lleguen desordenadas', () => {
     renderLista([
-      candidata('Jacaranda mimosifolia', 0.78, ['Jacaranda']),
-      candidata('Ligustrum lucidum', 0.41, ['Aligustre']),
-      candidata('Ficus benjamina', 0.92, ['Ficus']),
+      candidata('Jacaranda mimosifolia', 0.18, ['Jacaranda']),
+      candidata('Ligustrum lucidum', 0.04, ['Aligustre']),
+      candidata('Ficus benjamina', 0.25, ['Ficus']),
     ]);
 
-    const nombres = screen
-      .getAllByRole('radio')
-      .map((radio) => radio.closest('label')?.textContent ?? '');
+    const radios = screen.getAllByRole('radio');
 
-    expect(nombres[0]).toContain('Ficus');
-    expect(nombres[1]).toContain('Jacaranda');
-    expect(nombres[2]).toContain('Aligustre');
+    expect(radios[0]).toHaveAccessibleName(/Ficus/);
+    expect(radios[1]).toHaveAccessibleName(/Jacaranda/);
+    expect(radios[2]).toHaveAccessibleName(/Aligustre/);
   });
 
   it('muestra el porcentaje de confianza de cada especie', () => {
     renderLista([
-      candidata('Ficus benjamina', 0.92, ['Ficus']),
-      candidata('Jacaranda mimosifolia', 0.78, ['Jacaranda']),
+      candidata('Ficus benjamina', 0.25, ['Ficus']),
+      candidata('Jacaranda mimosifolia', 0.09, ['Jacaranda']),
     ]);
 
-    expect(screen.getByText('92% de confianza')).toBeInTheDocument();
-    expect(screen.getByText('78% de confianza')).toBeInTheDocument();
+    expect(screen.getByText('25%')).toBeInTheDocument();
+    expect(screen.getByText('9%')).toBeInTheDocument();
   });
 
-  it('avisa de que la elección es del usuario y llama a onSelect con el nombre científico', async () => {
+  it('llama a onSelect con el nombre científico de la especie pulsada', async () => {
     const onSelect = vi.fn();
-    renderLista([candidata('Ficus benjamina', 0.92, ['Ficus'])], null, onSelect);
+    renderLista([candidata('Ficus benjamina', 0.25, ['Ficus'])], null, onSelect);
 
     await userEvent.click(screen.getByRole('radio', { name: /Ficus/ }));
 
@@ -66,8 +64,8 @@ describe('EspeciesAlternativas — UT F05 (PA 689)', () => {
   it('marca como elegida la especie seleccionada', () => {
     renderLista(
       [
-        candidata('Ficus benjamina', 0.92, ['Ficus']),
-        candidata('Jacaranda mimosifolia', 0.78, ['Jacaranda']),
+        candidata('Ficus benjamina', 0.25, ['Ficus']),
+        candidata('Jacaranda mimosifolia', 0.09, ['Jacaranda']),
       ],
       'Jacaranda mimosifolia',
     );
@@ -76,8 +74,8 @@ describe('EspeciesAlternativas — UT F05 (PA 689)', () => {
     expect(screen.getByRole('radio', { name: /Ficus/ })).not.toBeChecked();
   });
 
-  it('usa el nombre científico cuando la especie no trae nombre común', () => {
-    renderLista([candidata('Papaver dubium', 0.42)]);
+  it('muestra el nombre científico aunque la especie no traiga nombre común', () => {
+    renderLista([candidata('Papaver dubium', 0.09)]);
 
     expect(screen.getByRole('radio', { name: /Papaver dubium/ })).toBeInTheDocument();
   });
@@ -93,20 +91,15 @@ describe('EspeciesAlternativas — UT F05 (PA 689)', () => {
     ]);
 
     const radios = screen.getAllByRole('radio');
-    expect(radios).toHaveLength(5);
+    expect(radios).toHaveLength(4);
     expect(screen.queryByRole('radio', { name: /Especie 6/ })).not.toBeInTheDocument();
   });
 
-  it('etiqueta como «Muy parecido» solo las especies con confianza muy alta', () => {
-    renderLista([
-      candidata('Ficus benjamina', 0.92, ['Ficus']),
-      candidata('Jacaranda mimosifolia', 0.78, ['Jacaranda']),
-    ]);
+  it('usa la cabecera del diseño por defecto', () => {
+    renderLista([candidata('Ficus benjamina', 0.25, ['Ficus'])]);
 
-    expect(screen.getAllByText('Muy parecido')).toHaveLength(1);
-    expect(screen.getByRole('radio', { name: /Ficus/ })).toHaveAccessibleName(/Muy parecido/);
-    expect(screen.getByRole('radio', { name: /Jacaranda/ })).not.toHaveAccessibleName(
-      /Muy parecido/,
-    );
+    expect(
+      screen.getByRole('heading', { name: '¿No es esta? Otras posibles' }),
+    ).toBeInTheDocument();
   });
 });

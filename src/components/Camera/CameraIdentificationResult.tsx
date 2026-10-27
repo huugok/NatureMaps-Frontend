@@ -1,15 +1,6 @@
 import { useState } from 'react';
-import {
-  AVISO_CONFIANZA_BAJA,
-  CONFIANZA_MINIMA,
-  CONFIRMACION_ELECCION,
-  EspeciesAlternativas,
-  SUBTITULO,
-  SUBTITULO_CANDIDATAS,
-  TITULO,
-  TITULO_CANDIDATAS,
-} from '../EspeciesAlternativas';
-import type { PlantIdentification } from '../../types/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
+import { ResultadoEscaneo } from '../ResultadoEscaneo';
 import type { CameraMode } from './types';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
@@ -23,22 +14,33 @@ export interface CameraIdentificationResultProps {
   results: PlantIdentification | null;
   /** Mensaje legible cuando la identificación falla. */
   error: string | null;
+  /** Foto enviada, para la cabecera del resultado. */
+  photo: string | null;
   /** Reintenta el envío de la foto actual. */
   onRetry: () => void;
+  /** Abre la ficha de la especie más probable. */
+  onOpenSpecies?: (match: PlantMatch) => void;
+  /** Vuelve atrás desde el resultado. */
+  onBack: () => void;
+  /** Descarta la foto y vuelve a la cámara para repetirla. */
+  onRepeatPhoto: () => void;
 }
 
 /**
  * UT F05 (RF18 · PA 689): resultado de la identificación dentro del escaneo
- * con cámara. Si la mejor coincidencia no llega a `CONFIANZA_MINIMA`, ofrece
- * las especies alternativas ordenadas por confianza para que el usuario elija;
- * si no, mantiene el listado de candidatas.
+ * con cámara. Muestra la foto, la especie más probable (con su ficha) y las
+ * alternativas ordenadas por confianza para que el usuario elija.
  */
 export function CameraIdentificationResult({
   status,
   mode,
   results,
   error,
+  photo,
   onRetry,
+  onOpenSpecies,
+  onBack,
+  onRepeatPhoto,
 }: CameraIdentificationResultProps) {
   // La elección se guarda junto a la identificación a la que pertenece: cuando
   // llega un resultado nuevo, la comparación falla y la elección desaparece sin
@@ -53,57 +55,47 @@ export function CameraIdentificationResult({
     return null;
   }
 
-  const mejorCoincidencia = results?.results[0] ?? null;
-  const confianzaBaja = mejorCoincidencia !== null && mejorCoincidencia.score < CONFIANZA_MINIMA;
+  if (status === 'completed' && results !== null) {
+    return (
+      <ResultadoEscaneo
+        photoUrl={photo}
+        matches={results.results}
+        selectedName={elegida}
+        onSelectAlternative={(nombre) => setEleccion({ results, nombre })}
+        onOpenPrimary={onOpenSpecies}
+        onBack={onBack}
+        onRepeatPhoto={onRepeatPhoto}
+      />
+    );
+  }
 
-  return (
-    <div
-      aria-live="polite"
-      className="mb-4 max-h-[60vh] overflow-y-auto rounded-xl bg-black/65 p-3 text-sm backdrop-blur-sm"
-    >
-      {status === 'identifying' && <p role="status">Enviando la foto a Pl@ntNet…</p>}
+  if (status === 'identifying') {
+    return (
+      <div
+        aria-live="polite"
+        className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
+      >
+        <p role="status">Enviando la foto a Pl@ntNet…</p>
+      </div>
+    );
+  }
 
-      {status === 'completed' && results && (
-        <>
-          {results.results.length === 0 && (
-            <p role="status">Pl@ntNet no ha encontrado candidatas para esta foto.</p>
-          )}
+  if (status === 'error' && mode === 'planta') {
+    return (
+      <div
+        aria-live="polite"
+        className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
+      >
+        <p role="alert">No se ha podido identificar la foto.</p>
+        {error && <p className="mt-1 text-white/75">{error}</p>}
+        <button type="button" onClick={onRetry} className="mt-2 underline underline-offset-2">
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
-          {results.results.length > 0 && (
-            <div className="rounded-lg bg-neutral-100 p-3 text-neutral-900">
-              {confianzaBaja && (
-                <p className="text-sm text-amber-800">{AVISO_CONFIANZA_BAJA}</p>
-              )}
-              {/* Mismas fichas en los dos casos: alternativas con confianza
-                  baja, candidatas cuando la identificación es concluyente. */}
-              <EspeciesAlternativas
-                matches={results.results}
-                selectedName={elegida}
-                onSelect={(nombre) => setEleccion({ results, nombre })}
-                title={confianzaBaja ? TITULO : TITULO_CANDIDATAS}
-                subtitle={confianzaBaja ? SUBTITULO : SUBTITULO_CANDIDATAS}
-              />
-              {elegida !== null && (
-                <p role="status" className="mt-2 text-sm font-medium text-emerald-800">
-                  {CONFIRMACION_ELECCION}: {elegida}
-                </p>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {status === 'error' && mode === 'planta' && (
-        <div>
-          <p role="alert">No se ha podido identificar la foto.</p>
-          {error && <p className="mt-1 text-white/75">{error}</p>}
-          <button type="button" onClick={onRetry} className="mt-2 underline underline-offset-2">
-            Reintentar
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
 
 export default CameraIdentificationResult;

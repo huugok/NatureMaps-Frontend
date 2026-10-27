@@ -34,7 +34,10 @@ const renderResultado = (
       mode="planta"
       results={bajaConfianza}
       error={null}
+      photo="data:image/jpeg;base64,foto"
       onRetry={vi.fn()}
+      onBack={vi.fn()}
+      onRepeatPhoto={vi.fn()}
       {...props}
     />,
   );
@@ -52,21 +55,22 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
     expect(screen.getByRole('status')).toHaveTextContent(/enviando la foto a pl@ntnet/i);
   });
 
-  it('con confianza baja muestra las alternativas ordenadas y con su porcentaje', () => {
+  it('muestra la especie más probable y las alternativas ordenadas con su porcentaje', () => {
     renderResultado();
 
-    expect(screen.getByRole('heading', { name: 'Especies alternativas' })).toBeInTheDocument();
-    expect(screen.getByText(/la confianza de la mejor coincidencia es baja/i)).toBeInTheDocument();
+    expect(screen.getByText('Especie más probable')).toBeInTheDocument();
+    expect(screen.getByText('Ficus benjamina')).toBeInTheDocument();
+    expect(screen.getByText('42%')).toBeInTheDocument();
 
     const radios = screen.getAllByRole('radio');
-    expect(radios).toHaveLength(3);
-    expect(radios[0]).toHaveAccessibleName(/Ficus/);
-    expect(radios[1]).toHaveAccessibleName(/Jacaranda/);
-    expect(radios[2]).toHaveAccessibleName(/Aligustre/);
-    expect(screen.getByText('42% de confianza')).toBeInTheDocument();
+    expect(radios).toHaveLength(2);
+    expect(radios[0]).toHaveAccessibleName(/Jacaranda/);
+    expect(radios[1]).toHaveAccessibleName(/Aligustre/);
+    expect(screen.getByText('31%')).toBeInTheDocument();
+    expect(screen.getByText('12%')).toBeInTheDocument();
   });
 
-  it('el usuario puede elegir una especie y se confirma', async () => {
+  it('el usuario puede elegir una especie alternativa y se confirma', async () => {
     renderResultado();
 
     await userEvent.click(screen.getByRole('radio', { name: /Jacaranda/ }));
@@ -78,8 +82,8 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
   it('descarta la especie elegida cuando llega una identificación nueva', async () => {
     const { rerender } = renderResultado();
 
-    await userEvent.click(screen.getByRole('radio', { name: /Ficus/ }));
-    expect(screen.getByText(/Especie elegida: Ficus benjamina/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: /Jacaranda/ }));
+    expect(screen.getByText(/Especie elegida: Jacaranda mimosifolia/)).toBeInTheDocument();
 
     rerender(
       <CameraIdentificationResult
@@ -89,25 +93,46 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
           { score: 0.2, scientificName: 'Tipuana tipu', author: null, family: null, genus: null, commonNames: [], gbifId: null },
         ])}
         error={null}
+        photo={null}
         onRetry={vi.fn()}
+        onBack={vi.fn()}
+        onRepeatPhoto={vi.fn()}
       />,
     );
 
     expect(screen.queryByText(/Especie elegida/)).not.toBeInTheDocument();
   });
 
-  it('con confianza suficiente muestra las fichas de las candidatas, sin aviso de confianza baja', () => {
+  it('con confianza suficiente también ofrece las otras posibles', () => {
     renderResultado({ results: clara });
 
-    expect(screen.getByRole('heading', { name: 'Especies candidatas' })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(2);
-    expect(screen.getByRole('radio', { name: /Amapola/ })).toBeInTheDocument();
-    expect(
-      screen.queryByText(/la confianza de la mejor coincidencia es baja/i),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: 'Especies alternativas' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('Papaver rhoeas')).toBeInTheDocument();
+    expect(screen.getByText('Certeza alta')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Papaver dubium/ })).toBeInTheDocument();
+  });
+
+  it('«Ver ficha» abre la especie más probable', async () => {
+    const onOpenSpecies = vi.fn();
+    renderResultado({ results: clara, onOpenSpecies });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver ficha' }));
+
+    expect(onOpenSpecies).toHaveBeenCalledTimes(1);
+    expect(onOpenSpecies).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Papaver rhoeas' }),
+    );
+  });
+
+  it('el botón de volver y el de repetir foto avisan', async () => {
+    const onBack = vi.fn();
+    const onRepeatPhoto = vi.fn();
+    renderResultado({ onBack, onRepeatPhoto });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Volver' }));
+    await userEvent.click(screen.getByRole('button', { name: /repetir foto/i }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onRepeatPhoto).toHaveBeenCalledTimes(1);
   });
 
   it('avisa cuando Pl@ntNet no devuelve candidatas', () => {

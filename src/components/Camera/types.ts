@@ -1,4 +1,4 @@
-import type { PlantIdentification } from '../../types/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
 
 export type CameraMode = 'planta' | 'monumento';
 
@@ -26,6 +26,8 @@ export interface CameraScreenProps {
    */
   onPhotoCaptured?: (photoDataUrl: string, mode: CameraMode) => void;
   onIdentifyPhoto?: (photoDataUrl: string, mode: CameraMode) => void;
+  /** Abre la ficha de la especie identificada o de una alternativa (PA 1250). */
+  onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
   identificationStatus?: 'idle' | 'identifying' | 'completed' | 'error';
   identificationResults?: PlantIdentification | null;
   identificationError?: string | null;
