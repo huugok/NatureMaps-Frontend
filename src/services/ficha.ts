@@ -1,4 +1,5 @@
 import type { Language } from '../types/language';
+import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
 
 // Servicio de la ficha de planta (RF3, UT F06): conecta la pantalla con la API
 // del backend (NatureMaps-Backend) en lugar de leer datos de ejemplo de
@@ -10,7 +11,8 @@ import type { Language } from '../types/language';
 // apunta a localhost, como la API en desarrollo.
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
-/** Fuente declarada de un texto o de la ficha (RNF6: trazabilidad). */
+/** Fuente declarada de un texto o de la ficha (RNF6: trazabilidad), tal y
+ * como llega de la API: sin icono, que es decisión de presentación. */
 export interface FichaSource {
   name: string;
   description: string;
@@ -84,22 +86,9 @@ export interface FichaDetail extends FichaListItem {
   };
 }
 
-/** Modelo de vista que consume FichaPlantaPage, ya mapeado desde la API. */
-export interface EspecieFicha {
-  id: number;
-  commonName: string;
-  scientificName: string;
-  family: string | null;
-  photoUrl: string | null;
-  photoAlt: string;
-  photoCredit: string | null;
-  description: string;
-  flowering: string | null;
-  curiosity: { label: string; text: string } | null;
-  sources: FichaSource[];
-  locations: { district: string | null; neighborhood: string | null }[];
-  locationTotal: number;
-}
+/** Modelo de vista que consume FichaPlantaPage: una fila de la API mapeada a
+ * la forma de `FichaEspecie` (nulos -> ausentes, fuentes con icono). */
+export type { FichaEspecie } from '../pages/FichaPlanta/types';
 
 async function fetchJson<T>(url: string, mensaje: string): Promise<T> {
   let response: Response;
@@ -157,7 +146,7 @@ export function commonNameFor(names: FichaNameInfo[], language: Language): strin
 /** Convierte el código de fuente del enriquecimiento ('WIKIPEDIA') en etiqueta
  * de UI ('Wikipedia'), para cuando el texto mostrado es el extracto automático
  * y no hay ficha editorial que traiga sus propias fuentes (RNF6). */
-function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment): FichaSource {
+function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment): FichaFuente {
   const nombre = enrichment.source.charAt(0).toUpperCase() + enrichment.source.slice(1).toLowerCase();
   return {
     name: nombre,
@@ -165,32 +154,58 @@ function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment): FichaSource {
       ? `Extracto enciclopédico · ${enrichment.license}`
       : 'Extracto enciclopédico',
     url: enrichment.url,
+    icon: 'search',
   };
 }
 
-/** Mapea la respuesta del detalle al modelo de vista de la ficha. */
-export function fichaDesdeDetalle(detail: FichaDetail, language: Language): EspecieFicha {
-  const commonName = commonNameFor(detail.names, language) ?? detail.scientificName;
+/** Fuente de la API -> fuente pintable: el icono es presentación, y se elige
+ * por URL (el geoportal del Ayuntamiento es fuente institucional). */
+function fuentePintable(fuente: FichaSource): FichaFuente {
   return {
-    id: detail.id,
+    ...fuente,
+    icon: fuente.url.includes('geoportal.valencia.es') ? 'landmark' : 'search',
+  };
+}
+
+/** Ficha desde una fila de GET /species (sirve para la fila de la lista y para
+ * el detalle, que la extiende): todo menos las ubicaciones, que solo trae el
+ * detalle. Los campos que la BD no tiene se quedan ausentes y la página oculta
+ * esas secciones en lugar de pintarlas vacías. */
+export function fichaDesdeItemLista(item: FichaListItem, language: Language): FichaEspecie {
+  const commonName = commonNameFor(item.names, language) ?? item.scientificName;
+  return {
     commonName,
-    scientificName: detail.scientificName,
-    family: detail.profile?.family ?? null,
-    photoUrl: detail.image?.url ?? null,
+    scientificName: item.scientificName,
+    family: item.profile?.family ?? undefined,
+    photoUrl: item.image?.url,
     photoAlt: `Fotografía de ${commonName}`,
-    photoCredit: detail.image?.attribution ?? null,
-    description: detail.content ?? '',
-    flowering: detail.profile?.flowering ?? null,
-    curiosity: detail.profile?.curiosity
-      ? { label: 'Dato curioso', text: detail.profile.curiosity }
-      : null,
+    photoCredit: item.image?.attribution,
+    description: item.content ?? undefined,
+    flowering: item.profile?.flowering ?? undefined,
+    curiosity: item.profile?.curiosity
+      ? { label: 'Dato curioso', text: item.profile.curiosity }
+      : undefined,
     // Fuentes mostradas: las declaradas en la ficha editorial si existe; si no,
     // la del enriquecimiento cuyo extracto es el texto que se está leyendo.
-    sources: detail.profile?.sources ?? (detail.enrichment ? [fuenteDesdeEnriquecimiento(detail.enrichment)] : []),
-    locations: detail.locations.items.map((ubicacion) => ({
-      district: ubicacion.district,
-      neighborhood: ubicacion.neighborhood,
-    })),
+    sources: item.profile?.sources
+      ? item.profile.sources.map(fuentePintable)
+      : item.enrichment
+        ? [fuenteDesdeEnriquecimiento(item.enrichment)]
+        : [],
+  };
+}
+
+/** Mapea la respuesta del detalle al modelo de vista de la ficha: la ficha de
+ * la fila más sus ubicaciones reales (chips y recuento de ejemplares). */
+export function fichaDesdeDetalle(detail: FichaDetail, language: Language): FichaEspecie {
+  return {
+    ...fichaDesdeItemLista(detail, language),
+    locations: detail.locations.items
+      .filter((ubicacion) => ubicacion.neighborhood !== null || ubicacion.district !== null)
+      .map((ubicacion) => ({
+        name: ubicacion.neighborhood ?? ubicacion.district ?? '',
+        district: ubicacion.district ?? undefined,
+      })),
     locationTotal: detail.locations.total,
   };
 }

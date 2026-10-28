@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { DEMO_SPECIES } from './constants';
 import { FichaPlantaPage } from './FichaPlantaPage';
-import type { EspecieFicha } from '../../services/ficha';
+import type { FichaPlantaPageProps } from './FichaPlantaPage';
+import type { FichaEspecie } from './types';
 
-const especie: EspecieFicha = {
-  id: 7,
+// Ficha como la sirve el backend (GET /species/:id mapeado por services/ficha).
+const especie: FichaEspecie = {
   commonName: 'Jacaranda',
   scientificName: 'Jacaranda mimosifolia',
   family: 'Bignoniaceae',
@@ -16,15 +18,15 @@ const especie: EspecieFicha = {
   flowering: 'primavera',
   curiosity: { label: 'Dato curioso', text: 'su fruto es una cápsula leñosa en forma de castañuela…' },
   sources: [
-    { name: 'Wikipedia (es)', description: 'Descripción y datos botánicos (CC BY-SA) · Consulta 25/10/2026', url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia' },
-    { name: 'Wikimedia Commons', description: 'Fotografía: "Jacaranda1212.jpg" de Kahuroa · dominio público', url: 'https://commons.wikimedia.org/wiki/File:Jacaranda1212.jpg' },
-    { name: 'Ajuntament de València', description: 'Inventario de arbolado municipal · 5.253 ejemplares', url: 'https://geoportal.valencia.es/server/rest/services/OPENDATA/MedioAmbiente/MapServer/151/query' },
+    { name: 'Wikipedia (es)', description: 'Descripción y datos botánicos (CC BY-SA) · Consulta 25/10/2026', url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia', icon: 'search' },
+    { name: 'Wikimedia Commons', description: 'Fotografía: "Jacaranda1212.jpg" de Kahuroa · dominio público', url: 'https://commons.wikimedia.org/wiki/File:Jacaranda1212.jpg', icon: 'search' },
+    { name: 'Ajuntament de València', description: 'Inventario de arbolado municipal · 5.253 ejemplares', url: 'https://geoportal.valencia.es/server/rest/services/OPENDATA/MedioAmbiente/MapServer/151/query', icon: 'landmark' },
   ],
-  locations: [{ district: 'Patraix', neighborhood: 'Vara de Quart' }],
+  locations: [{ name: 'Vara de Quart', district: 'Patraix' }],
   locationTotal: 3,
 };
 
-const renderFicha = (overrides: Partial<Parameters<typeof FichaPlantaPage>[0]> = {}) =>
+const renderFicha = (overrides: Partial<FichaPlantaPageProps> = {}) =>
   render(
     <FichaPlantaPage
       species={especie}
@@ -80,13 +82,13 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
     renderFicha({
       species: {
         ...especie,
-        photoUrl: null,
-        photoCredit: null,
-        flowering: null,
-        curiosity: null,
+        photoUrl: undefined,
+        photoCredit: undefined,
+        flowering: undefined,
+        curiosity: undefined,
         sources: [],
         locations: [],
-        locationTotal: 0,
+        locationTotal: undefined,
       },
     });
 
@@ -167,6 +169,7 @@ describe('la ficha mantiene su formato ante cualquier contenido (RF3)', () => {
       name: `Fuente número ${i + 1}`,
       description: `Descripción de la fuente ${i + 1}`,
       url: `https://fuentes.ejemplo.org/${i + 1}`,
+      icon: 'search' as const,
     }));
     renderFicha({ species: { ...especie, sources: muchas } });
 
@@ -184,5 +187,161 @@ describe('la ficha mantiene su formato ante cualquier contenido (RF3)', () => {
     expect(titulo).toHaveClass('break-words');
     expect(titulo.textContent).toBe('X'.repeat(300));
     expect(screen.getByText('P'.repeat(500))).toHaveClass('break-words');
+  });
+});
+
+describe('FichaPlantaPage con la especie de la demo', () => {
+  // La página ya no tiene especie por defecto: la demo se pasa explícita y
+  // solo vive como fixture (los datos reales vienen del backend).
+  const renderDemo = (props: Partial<FichaPlantaPageProps> = {}) =>
+    render(<FichaPlantaPage species={DEMO_SPECIES[0]} {...props} />);
+
+  it('muestra la foto, el nombre común y el científico y la familia', () => {
+    renderDemo();
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Jacaranda')).toBeInTheDocument();
+    expect(screen.getByText('Familia Bignoniaceae')).toBeInTheDocument();
+  });
+
+  it('muestra la descripción breve', () => {
+    renderDemo();
+
+    expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument();
+    expect(screen.getByText(/Árbol subtropical oriundo de Sudamérica/)).toBeInTheDocument();
+  });
+
+  it('muestra la familia, la floración y el lugar donde está la especie', () => {
+    renderDemo();
+
+    expect(screen.getByText('Floración: primavera')).toBeInTheDocument();
+    expect(screen.getByText('Vara de Quart')).toBeInTheDocument();
+  });
+
+  it('muestra la curiosidad de la especie', () => {
+    renderDemo();
+
+    expect(screen.getByText('Dato curioso:')).toBeInTheDocument();
+    expect(screen.getByText(/aplauso de mono/)).toBeInTheDocument();
+  });
+
+  it('avisa del servicio de identificación con su enlace', () => {
+    renderDemo();
+
+    expect(screen.getByText(/se basa en una API de reconocimiento de Plantnet/)).toBeInTheDocument();
+
+    const links = screen.getAllByRole('link', { name: 'https://my.plantnet.org' });
+    expect(links.length).toBeGreaterThan(0);
+    links.forEach((link) => {
+      expect(link).toHaveAttribute('href', 'https://my.plantnet.org');
+    });
+  });
+
+  it('lista las fuentes de información con su número', () => {
+    renderDemo();
+
+    expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('Wikipedia (es)')).toBeInTheDocument();
+    expect(screen.getByText('Wikimedia Commons')).toBeInTheDocument();
+    expect(screen.getByText('Ajuntament de València')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'https://geoportal.valencia.es/server/rest/services/OPENDATA/MedioAmbiente/MapServer/151/query' }),
+    ).toBeInTheDocument();
+  });
+
+  it('el botón "Ver en el mapa" avisa', () => {
+    const onViewOnMap = vi.fn();
+    renderDemo({ onViewOnMap });
+
+    fireEvent.click(screen.getByRole('button', { name: /ver en el mapa/i }));
+
+    expect(onViewOnMap).toHaveBeenCalledTimes(1);
+  });
+
+  it('el botón de volver avisa', () => {
+    const onBack = vi.fn();
+    renderDemo({ onBack });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('el botón de favoritos alterna entre guardar y quitar', () => {
+    const onToggleFavorite = vi.fn();
+    renderDemo({ onToggleFavorite });
+
+    const favoriteButton = screen.getByRole('button', { name: 'Guardar en favoritos' });
+    expect(favoriteButton).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(favoriteButton);
+
+    const unfavoriteButton = screen.getByRole('button', { name: 'Quitar de favoritos' });
+    expect(unfavoriteButton).toHaveAttribute('aria-pressed', 'true');
+    expect(onToggleFavorite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
+  it('pinta la especie que recibe, no siempre la de ejemplo', () => {
+    render(<FichaPlantaPage species={DEMO_SPECIES[1]} />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Citrus × aurantium' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Naranjo amargo')).toBeInTheDocument();
+  });
+
+  it('muestra la confianza cuando la ficha viene de una identificación', () => {
+    render(<FichaPlantaPage species={DEMO_SPECIES[0]} identification={{ score: 0.83 }} />);
+
+    expect(screen.getByText('Identificada con 83% de confianza')).toBeInTheDocument();
+  });
+
+  it('con una especie genérica usa la foto capturada y no inventa secciones', () => {
+    render(
+      <FichaPlantaPage
+        species={{
+          commonName: 'Rosal silvestre',
+          scientificName: 'Rosa canina',
+          family: 'Rosaceae',
+          photoUrl: 'data:image/jpeg;base64,abc',
+          sources: [
+            {
+              name: 'Pl@ntNet',
+              description: 'Identificación por imagen',
+              url: 'https://my.plantnet.org',
+              icon: 'search',
+            },
+          ],
+        }}
+        identification={{ score: 0.46 }}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: /Rosal silvestre/ })).toBeInTheDocument();
+    expect(screen.getByText('Identificada con 46% de confianza')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dato curioso/)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
+    expect(screen.getByText('Pl@ntNet')).toBeInTheDocument();
+  });
+
+  it('sin foto ni fuentes deja el marcador y oculta el bloque de fuentes', () => {
+    render(<FichaPlantaPage species={{ commonName: 'Rosal', scientificName: 'Rosa sp.' }} />);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Fuentes de información' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
+  });
+
+  it('sin total de catálogo no pinta la navegación (ficha abierta desde el escaneo)', () => {
+    render(<FichaPlantaPage species={DEMO_SPECIES[0]} />);
+
+    expect(screen.queryByRole('button', { name: 'Especie anterior' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Especie siguiente' })).not.toBeInTheDocument();
   });
 });

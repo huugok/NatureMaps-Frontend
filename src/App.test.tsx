@@ -235,7 +235,7 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
     expect(await screen.findByText('El catálogo todavía no tiene especies.')).toBeInTheDocument();
   });
 
-  it('enlaza la foto identificada con su ficha cuando la especie está en el catálogo', async () => {
+  it('enlaza la foto identificada con su ficha real cuando la especie está en el catálogo', async () => {
     // Cámara + canvas simulados: jsdom no tiene webcam ni canvas 2D.
     const mockTrack = { stop: vi.fn(), applyConstraints: vi.fn() };
     Object.defineProperty(navigator, 'mediaDevices', {
@@ -274,11 +274,15 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
     const identificar = await screen.findByRole('button', { name: 'Identificar foto' });
     fireEvent.click(identificar);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Ver ficha de Jacaranda' }));
+    // El panel del escaneo ofrece "Ver ficha": la especie está en el catálogo,
+    // así que se abre la ficha real de la BD por encima del escaneo (que no se
+    // pierde), sin navegación de catálogo pero con el chip de confianza.
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver ficha' }));
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(screen.getByText('Identificada con 91% de confianza')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Especie anterior' })).not.toBeInTheDocument();
   });
 });

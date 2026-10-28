@@ -9,19 +9,32 @@ import {
   Landmark,
   Lightbulb,
   MapPin,
+  ScanSearch,
   Search,
   Trees,
 } from 'lucide-react';
 import { IDENTIFICATION_NOTICE } from './constants';
-import type { EspecieFicha, FichaSource } from '../../services/ficha';
+import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
 export interface FichaPlantaPageProps {
-  /** Especie que se muestra, ya cargada del backend por App. */
-  species: EspecieFicha;
+  /**
+   * Especie que pinta la ficha: del catálogo del backend (la carga App, UT
+   * F06) o construida desde una identificación de Pl@ntNet. Siempre
+   * obligatoria: la página es presentacional y no tiene datos de ejemplo.
+   */
+  species: FichaEspecie;
+  /**
+   * Presente cuando la ficha se abre desde una identificación: añade el chip
+   * con la confianza para poder comprobar que es la especie identificada.
+   */
+  identification?: IdentificacionFicha | null;
   /** Posición (0-based) de la especie en el catálogo. */
-  position: number;
-  /** Número total de especies del catálogo. */
-  total: number;
+  position?: number;
+  /**
+   * Número total de especies del catálogo. Si no se pasa (ficha abierta desde
+   * el escaneo, sin navegación), la fila Anterior/Siguiente no se pinta.
+   */
+  total?: number;
   /** Callback al pulsar el botón de volver. */
   onBack?: () => void;
   /** Callback al pulsar "Ver en el mapa". */
@@ -35,11 +48,11 @@ export interface FichaPlantaPageProps {
 }
 
 interface SourceCardProps {
-  source: FichaSource;
+  source: FichaFuente;
 }
 
 function SourceCard({ source }: SourceCardProps) {
-  const Icon = source.url.includes('geoportal.valencia.es') ? Landmark : Search;
+  const Icon = source.icon === 'landmark' ? Landmark : Search;
 
   return (
     <li className="rounded-2xl border border-neutral-200 bg-white p-4">
@@ -71,13 +84,16 @@ function SourceCard({ source }: SourceCardProps) {
 
 /**
  * Ficha de planta (RF3): foto, nombre común y científico, familia,
- * descripción breve, dato de interés, fuentes y acceso al mapa.
+ * descripción, dato de interés, fuentes y acceso al mapa.
  *
- * Los datos llegan del backend vía `App` (GET /species y GET /species/:id):
- * esta pantalla es presentacional, no carga nada por su cuenta.
+ * Presentacional: recibe la especie por props —del catálogo del backend o
+ * construida desde una identificación (PA 1250 y PA 692)— y pinta cada sección
+ * únicamente si tiene datos. La fila Anterior/Siguiente solo se pinta cuando
+ * App pasa el total del catálogo.
  */
 export function FichaPlantaPage({
   species,
+  identification = null,
   position,
   total,
   onBack,
@@ -88,7 +104,8 @@ export function FichaPlantaPage({
 }: FichaPlantaPageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
 
-  const primaryLocation = species.locations[0];
+  const primaryLocation = species.locations?.[0];
+  const sources = species.sources ?? [];
 
   const handleToggleFavorite = () => {
     setIsFavorite((current) => !current);
@@ -105,7 +122,7 @@ export function FichaPlantaPage({
         {species.photoUrl ? (
           <img
             src={species.photoUrl}
-            alt={species.photoAlt}
+            alt={species.photoAlt ?? `Fotografía de ${species.commonName}`}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -159,29 +176,41 @@ export function FichaPlantaPage({
           )}
         </p>
 
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {species.flowering && (
-            <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
-              <Flower2 size={14} aria-hidden="true" />
-              Floración: {species.flowering}
-            </li>
-          )}
-          {primaryLocation && (
-            <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
-              <MapPin size={14} aria-hidden="true" />
-              {primaryLocation.neighborhood ?? primaryLocation.district}
-            </li>
-          )}
-          {species.locationTotal > 0 && (
-            <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-              <Trees size={14} aria-hidden="true" />
-              {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
-            </li>
-          )}
-        </ul>
+        {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {identification && (
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
+                <ScanSearch size={14} aria-hidden="true" />
+                Identificada con {Math.round(identification.score * 100)}% de confianza
+              </li>
+            )}
+            {species.flowering && (
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
+                <Flower2 size={14} aria-hidden="true" />
+                Floración: {species.flowering}
+              </li>
+            )}
+            {primaryLocation && (
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
+                <MapPin size={14} aria-hidden="true" />
+                {primaryLocation.name}
+              </li>
+            )}
+            {(species.locationTotal ?? 0) > 0 && (
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                <Trees size={14} aria-hidden="true" />
+                {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
+              </li>
+            )}
+          </ul>
+        )}
 
-        <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
-        <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
+        {species.description && (
+          <>
+            <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
+            <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
+          </>
+        )}
 
         {species.curiosity && (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -212,42 +241,49 @@ export function FichaPlantaPage({
           </p>
         </div>
 
-        <div className="mt-6 flex items-center gap-2">
-          <h2 className="text-lg font-bold text-neutral-900">Fuentes de información</h2>
-          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white">
-            {species.sources.length}
-          </span>
-        </div>
-        <ul className="mt-3 space-y-2">
-          {species.sources.map((source) => (
-            <SourceCard key={source.name} source={source} />
-          ))}
-        </ul>
+        {sources.length > 0 && (
+          <>
+            <div className="mt-6 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-neutral-900">Fuentes de información</h2>
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white">
+                {sources.length}
+              </span>
+            </div>
+            <ul className="mt-3 space-y-2">
+              {sources.map((source) => (
+                <SourceCard key={source.name} source={source} />
+              ))}
+            </ul>
+          </>
+        )}
 
-        {/* Navegación entre las especies del catálogo (Anterior/Siguiente). */}
-        <div className="mt-6 flex items-center justify-between gap-2" aria-label="Navegar entre especies">
-          <button
-            type="button"
-            onClick={onPrevious}
-            disabled={!onPrevious}
-            aria-label="Especie anterior"
-            className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={16} aria-hidden="true" />
-            Anterior
-          </button>
-          <span className="text-xs font-medium text-neutral-500">{position + 1} / {total}</span>
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={!onNext}
-            aria-label="Especie siguiente"
-            className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Siguiente
-            <ChevronRight size={16} aria-hidden="true" />
-          </button>
-        </div>
+        {/* Navegación entre las especies del catálogo (Anterior/Siguiente):
+            solo tiene sentido cuando la ficha viene del catálogo, no del escaneo. */}
+        {total !== undefined && (
+          <div className="mt-6 flex items-center justify-between gap-2" aria-label="Navegar entre especies">
+            <button
+              type="button"
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              aria-label="Especie anterior"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={16} aria-hidden="true" />
+              Anterior
+            </button>
+            <span className="text-xs font-medium text-neutral-500">{(position ?? 0) + 1} / {total}</span>
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label="Especie siguiente"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Siguiente
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* El botón va al final de la ficha, no fijo: así nunca tapa el contenido

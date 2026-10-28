@@ -9,14 +9,19 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   initialMode = 'planta',
   onPhotoCaptured,
   onIdentifyPhoto,
+  onOpenSpecies,
   identificationStatus = 'idle',
   identificationResults = null,
   identificationError = null,
-  identifiedSpecies = null,
-  onOpenSpeciesFicha,
 }) => {
   const [permission, setPermission] = useState<PermissionStatus>('checking');
   const [mode, setMode] = useState<CameraMode>(initialMode);
+  /**
+   * Foto activa del escaneo. Vive aquí y no en `CameraActive` para que la
+   * imagen elegida en la galería llegue a la vista previa aunque la cámara
+   * todavía no esté montada (permiso pendiente o denegado).
+   */
+  const [photo, setPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Comprobar si el navegador ya concedió permisos previamente
@@ -109,6 +114,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
+        // La foto elegida entra en el mismo flujo que una captura: vista
+        // previa y botón de identificar, con sus alternativas después.
+        setPhoto(dataUrl);
+        setPermission('granted');
         onPhotoCaptured?.(dataUrl, mode);
       };
       reader.readAsDataURL(file);
@@ -165,12 +174,13 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           onSelectFromGallery={handleOpenGallery}
           onPhotoCaptured={onPhotoCaptured}
           onIdentifyPhoto={onIdentifyPhoto}
+          onOpenSpecies={onOpenSpecies}
           onSavePhoto={handleSavePhoto}
           identificationStatus={identificationStatus}
           identificationResults={identificationResults}
           identificationError={identificationError}
-          identifiedSpecies={identifiedSpecies}
-          onOpenSpeciesFicha={onOpenSpeciesFicha}
+          photo={photo}
+          onPhotoChange={setPhoto}
         />
       )}
     </div>

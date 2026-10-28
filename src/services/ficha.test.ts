@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   commonNameFor,
   fichaDesdeDetalle,
+  fichaDesdeItemLista,
   findSpeciesIndexByScientificName,
   getSpeciesDetail,
   getSpeciesList,
@@ -154,8 +155,8 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
     expect(especie.photoCredit).toBe('Kahuroa · Wikimedia Commons · dominio público');
     expect(especie.sources).toHaveLength(1);
     expect(especie.locations).toEqual([
-      { district: 'Patraix', neighborhood: 'Vara de Quart' },
-      { district: 'Campanar', neighborhood: null },
+      { name: 'Vara de Quart', district: 'Patraix' },
+      { name: 'Campanar', district: 'Campanar' },
     ]);
     expect(especie.locationTotal).toBe(2);
   });
@@ -163,12 +164,12 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
   test('una especie sin perfil ni imagen produce una ficha parcial válida', () => {
     const especie = fichaDesdeDetalle({ ...detalle, profile: null, image: null, content: null, enrichment: null }, 'es');
 
-    expect(especie.family).toBeNull();
-    expect(especie.photoUrl).toBeNull();
-    expect(especie.photoCredit).toBeNull();
-    expect(especie.curiosity).toBeNull();
+    expect(especie.family).toBeUndefined();
+    expect(especie.photoUrl).toBeUndefined();
+    expect(especie.photoCredit).toBeUndefined();
+    expect(especie.curiosity).toBeUndefined();
     expect(especie.sources).toEqual([]);
-    expect(especie.description).toBe('');
+    expect(especie.description).toBeUndefined();
     expect(especie.commonName).toBe('Jacaranda');
   });
 
@@ -183,6 +184,7 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
         name: 'Wikipedia',
         description: 'Extracto enciclopédico · CC BY-SA 4.0',
         url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia',
+        icon: 'search',
       },
     ]);
   });
@@ -191,9 +193,17 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
     const especie = fichaDesdeDetalle(detalle, 'es');
 
     // El texto mostrado es el editorial (content = profile.description), así
-    // que las fuentes declaradas son las del perfil, no las del extracto.
-    expect(especie.sources).toEqual(detalle.profile?.sources);
-    expect(especie.sources.some((f) => f.name === 'Wikipedia')).toBe(false);
+    // que las fuentes declaradas son las del perfil, no las del extracto. El
+    // icono lo añade el mapeo por URL (Wikipedia -> búsqueda).
+    expect(especie.sources).toEqual([
+      {
+        name: 'Wikipedia (es)',
+        description: 'Descripción y datos botánicos (CC BY-SA) · Consulta 25/10/2026',
+        url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia',
+        icon: 'search',
+      },
+    ]);
+    expect(especie.sources?.some((f) => f.name === 'Wikipedia')).toBe(false);
   });
 
   test('elige el nombre común según el idioma: va acepta ca, en cae a es', () => {
@@ -208,6 +218,45 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
       { name: 'Jacaranda', language: 'ca' },
     ], 'va')).toBe('Jacaranda');
     expect(commonNameFor([], 'es')).toBeNull();
+  });
+});
+
+describe('fichaDesdeItemLista — ficha instantánea desde la fila de la lista', () => {
+  test('mapea la fila con su perfil e imagen, pero sin ubicaciones (las trae el detalle)', () => {
+    const filaCompleta: FichaListItem = {
+      ...detalle,
+      locations: undefined,
+    } as unknown as FichaListItem;
+
+    const especie = fichaDesdeItemLista(filaCompleta, 'es');
+
+    expect(especie.commonName).toBe('Jacaranda');
+    expect(especie.scientificName).toBe('Jacaranda mimosifolia');
+    expect(especie.family).toBe('Bignoniaceae');
+    expect(especie.description).toBe(detalle.content);
+    expect(especie.photoUrl).toContain('upload.wikimedia.org');
+    expect(especie.locations).toBeUndefined();
+    expect(especie.locationTotal).toBeUndefined();
+  });
+
+  test('una fuente del geoportal se pinta como institucional (icono por URL)', () => {
+    const especie = fichaDesdeItemLista({
+      ...itemLista,
+      profile: {
+        language: 'es',
+        description: null,
+        family: null,
+        flowering: null,
+        curiosity: null,
+        sources: [
+          { name: 'Ajuntament de València', description: 'Inventario de arbolado municipal', url: 'https://geoportal.valencia.es/server/rest/services/OPENDATA/MedioAmbiente/MapServer/151/query' },
+        ],
+      },
+    }, 'es');
+
+    expect(especie.sources).toEqual([
+      { name: 'Ajuntament de València', description: 'Inventario de arbolado municipal', url: 'https://geoportal.valencia.es/server/rest/services/OPENDATA/MedioAmbiente/MapServer/151/query', icon: 'landmark' },
+    ]);
   });
 });
 

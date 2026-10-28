@@ -122,76 +122,64 @@ describe('CameraScreen Component', () => {
 
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
-
-  it('ofrece abrir la ficha de la especie identificada cuando hay match en el catálogo', async () => {
-    const mockTrack = { stop: vi.fn(), applyConstraints: vi.fn() };
-    Object.defineProperty(navigator, 'mediaDevices', {
-      value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [mockTrack], getVideoTracks: () => [mockTrack] }) },
-      writable: true,
-      configurable: true,
-    });
-    const onOpenSpeciesFicha = vi.fn();
-
-    // jsdom no implementa canvas: sin este stub la captura simulada no abre la vista previa.
-    const canvasCtx = { drawImage: vi.fn(), fillRect: vi.fn(), fillText: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(canvasCtx as unknown as CanvasRenderingContext2D);
-    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,Zm90bw==');
-
-    render(
-      <CameraScreen
-        onClose={vi.fn()}
-        identificationStatus="completed"
-        identificationResults={{
-          bestMatch: 'Jacaranda mimosifolia',
-          remainingIdentificationRequests: 42,
-          results: [{ score: 0.91, scientificName: 'Jacaranda mimosifolia', author: null,
-            family: null, genus: null, commonNames: ['Jacaranda'], gbifId: null }],
-        }}
-        identifiedSpecies={{ name: 'Jacaranda' }}
-        onOpenSpeciesFicha={onOpenSpeciesFicha}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /^permitir cámara$/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /hacer foto/i }));
-
-    const verFicha = await screen.findByRole('button', { name: 'Ver ficha de Jacaranda' });
-    fireEvent.click(verFicha);
-
-    expect(onOpenSpeciesFicha).toHaveBeenCalledTimes(1);
-  });
-
-  it('no ofrece abrir ficha cuando la especie identificada no está en el catálogo', async () => {
-    const mockTrack = { stop: vi.fn(), applyConstraints: vi.fn() };
-    Object.defineProperty(navigator, 'mediaDevices', {
-      value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [mockTrack], getVideoTracks: () => [mockTrack] }) },
-      writable: true,
-      configurable: true,
-    });
-
-    // jsdom no implementa canvas: sin este stub la captura simulada no abre la vista previa.
-    const canvasCtx = { drawImage: vi.fn(), fillRect: vi.fn(), fillText: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(canvasCtx as unknown as CanvasRenderingContext2D);
-    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,Zm90bw==');
-
-    render(
-      <CameraScreen
-        onClose={vi.fn()}
-        identificationStatus="completed"
-        identificationResults={{
-          bestMatch: 'Orchus inexistentus',
-          remainingIdentificationRequests: 42,
-          results: [{ score: 0.6, scientificName: 'Orchus inexistentus', author: null,
-            family: null, genus: null, commonNames: [], gbifId: null }],
-        }}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /^permitir cámara$/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /hacer foto/i }));
-
-    expect(await screen.findByText(/candidatas más probables/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /ver ficha de/i })).not.toBeInTheDocument();
-  });
 });
 
+
+describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
+  const bajaConfianza = {
+    bestMatch: null,
+    remainingIdentificationRequests: 9,
+    results: [
+      { score: 0.44, scientificName: 'Ficus benjamina', author: null, family: null, genus: null, commonNames: ['Ficus'], gbifId: null },
+      { score: 0.31, scientificName: 'Jacaranda mimosifolia', author: null, family: null, genus: null, commonNames: ['Jacaranda'], gbifId: null },
+    ],
+  };
+
+  const elegirDeGaleria = (nombre = 'planta.jpg') => {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['foto'], nombre, { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [file] } });
+  };
+
+  it('una foto de la galería se ve en la vista previa y se puede identificar', async () => {
+    const onIdentifyPhoto = vi.fn();
+    render(<CameraScreen onClose={vi.fn()} onIdentifyPhoto={onIdentifyPhoto} />);
+
+    elegirDeGaleria();
+
+    await waitFor(() =>
+      expect(screen.getByAltText('Vista previa de la foto capturada')).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Identificar foto' }));
+
+    expect(onIdentifyPhoto).toHaveBeenCalledTimes(1);
+    expect(onIdentifyPhoto.mock.calls[0]?.[0]).toMatch(/^data:image/);
+    expect(onIdentifyPhoto.mock.calls[0]?.[1]).toBe('planta');
+  });
+
+  it('tras identificar la foto de la galería muestra las especies alternativas', async () => {
+    const { rerender } = render(<CameraScreen onClose={vi.fn()} />);
+
+    elegirDeGaleria('planta.jpg');
+    await waitFor(() =>
+      expect(screen.getByAltText('Vista previa de la foto capturada')).toBeInTheDocument(),
+    );
+
+    rerender(
+      <CameraScreen
+        onClose={vi.fn()}
+        identificationStatus="completed"
+        identificationResults={bajaConfianza}
+      />,
+    );
+
+    expect(screen.getByText('Especie más probable')).toBeInTheDocument();
+    expect(screen.getByText('Ficus benjamina')).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Jacaranda/ }));
+
+    expect(screen.getByText(/Especie elegida: Jacaranda mimosifolia/)).toBeInTheDocument();
+  });
+});
