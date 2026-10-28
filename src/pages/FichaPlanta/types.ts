@@ -1,25 +1,28 @@
 /**
  * Forma de una especie tal y como la pinta la ficha de planta.
  *
- * Los datos completos (descripción, curiosidad, fuentes…) solo existen para
- * las especies de la demo; cuando la ficha se abre desde una identificación de
- * Pl@ntNet puede llegar una especie de la que únicamente conocemos nombre,
- * familia y foto, por eso todo lo demás es opcional.
+ * Las fichas del catálogo del backend llegan completas (descripción,
+ * curiosidad, fuentes, ubicaciones…), pero cuando la ficha se abre desde una
+ * identificación de Pl@ntNet de una especie sin ficha solo se conocen nombre,
+ * familia y la foto que acaba de hacer el usuario: por eso todo lo demás es
+ * opcional y cada sección se pinta únicamente si tiene datos.
  */
 export interface FichaFuente {
   name: string;
   description: string;
   url: string;
+  /** Icono contextual: 'landmark' para fuentes institucionales, 'search' para el resto. */
   icon: 'search' | 'landmark';
 }
 
 export interface FichaUbicacion {
+  /** Nombre que se muestra: barrio si se conoce y distrito en su defecto. */
   name: string;
-  district: string;
+  district?: string;
 }
 
 export interface FichaEspecie {
-  /** Nombre común en español. */
+  /** Nombre común en el idioma de la ficha. */
   commonName: string;
   /** Nombre binomial sin autoría. */
   scientificName: string;
@@ -36,6 +39,8 @@ export interface FichaEspecie {
   curiosity?: { label: string; text: string };
   locations?: FichaUbicacion[];
   sources?: FichaFuente[];
+  /** Ejemplares catalogados en total (solo fichas del backend con ubicaciones). */
+  locationTotal?: number;
 }
 
 /** De dónde viene la ficha abierta: una identificación con su confianza. */

@@ -2,11 +2,12 @@
  * Datos de la demo de la ficha (UT 918 - F06: preparar textos de especies
  * botánicas del MVP; cubre RF3, con trazabilidad de orígenes — RNF6).
  *
- * El contenido seguirá viniendo de la API cuando exista una endpoint de ficha
- * (las clases del modelo de dominio `Planta`, `Ubicacion`,
- * `LugarHistoricoCultural`, `Observacion` todavía no existen), pero los textos
- * ya están recopilados y verificados con fuente declarada por si se reutilizan;
- * el detalle por especie está en `docs/contenido-especies-demo.md`.
+ * El contenido YA llega de la API (UT F06): `src/services/ficha.ts` consume
+ * `GET /species` y `GET /species/:id`, y los textos curados viven en la base
+ * de datos (tabla `species_profiles` del backend, sembrada con `npm run
+ * db:seed`, que es la fuente de verdad). Este fichero queda sin usar como
+ * reserva para la UT de respuesta sin conexión; el detalle por especie sigue
+ * en `docs/contenido-especies-demo.md`.
  *
  * Fuentes de este fichero, consultadas el 25/10/2026:
  * - Descripciones y curiosidades: artículos de Wikipedia en español (CC BY-SA).

@@ -12,22 +12,17 @@ function match(
 }
 
 describe('fichaDesdeIdentificacion', () => {
-  it('usa la ficha completa cuando la especie está en la demo', () => {
+  it('no consulta la demo ni el catálogo: de eso decide App; aquí toda especie es mínima', () => {
+    // Jacaranda sí tiene ficha en la BD, pero el match contra el catálogo lo
+    // hace App (findSpeciesIndexByScientificName) antes de llegar aquí.
     const ficha = fichaDesdeIdentificacion(
       match('Jacaranda mimosifolia', 0.83, ['Jacaranda'], 'Bignoniaceae'),
       null,
     );
 
-    expect(ficha.commonName).toBe('Jacaranda');
-    expect(ficha.description).toBeTruthy();
-    expect(ficha.curiosity).toBeDefined();
-    expect(ficha.sources).toHaveLength(3);
-  });
-
-  it('empareja aunque cambien mayúsculas y espacios', () => {
-    const ficha = fichaDesdeIdentificacion(match('  jacaranda MIMOSIFOLIA ', 0.6));
-
-    expect(ficha.description).toBeTruthy();
+    expect(ficha.description).toBeUndefined();
+    expect(ficha.curiosity).toBeUndefined();
+    expect(ficha.sources?.map((fuente) => fuente.name)).toEqual(['Pl@ntNet']);
   });
 
   it('construye una ficha genérica con la foto capturada y Pl@ntNet', () => {
@@ -44,7 +39,7 @@ describe('fichaDesdeIdentificacion', () => {
     expect(ficha.sources?.map((fuente) => fuente.name)).toEqual(['Pl@ntNet']);
   });
 
-  it('no inventa contenido para las especies que no están en la demo', () => {
+  it('no inventa contenido para las especies que no están en el catálogo', () => {
     const ficha = fichaDesdeIdentificacion(match('Rosa canina', 0.46, ['Rosal silvestre']), null);
 
     expect(ficha.description).toBeUndefined();

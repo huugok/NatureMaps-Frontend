@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Flower2,
   Heart,
@@ -11,26 +13,38 @@ import {
   Search,
   Trees,
 } from 'lucide-react';
-import { IDENTIFICATION_NOTICE, SAMPLE_SPECIES } from './constants';
+import { IDENTIFICATION_NOTICE } from './constants';
 import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
 export interface FichaPlantaPageProps {
   /**
-   * Especie que pinta la ficha. Si no se pasa, se usa la de ejemplo
-   * (`SAMPLE_SPECIES`), que es lo que hacía antes de recibirla por props.
+   * Especie que pinta la ficha: del catálogo del backend (la carga App, UT
+   * F06) o construida desde una identificación de Pl@ntNet. Siempre
+   * obligatoria: la página es presentacional y no tiene datos de ejemplo.
    */
-  species?: FichaEspecie;
+  species: FichaEspecie;
   /**
    * Presente cuando la ficha se abre desde una identificación: añade el chip
    * con la confianza para poder comprobar que es la especie identificada.
    */
   identification?: IdentificacionFicha | null;
+  /** Posición (0-based) de la especie en el catálogo. */
+  position?: number;
+  /**
+   * Número total de especies del catálogo. Si no se pasa (ficha abierta desde
+   * el escaneo, sin navegación), la fila Anterior/Siguiente no se pinta.
+   */
+  total?: number;
   /** Callback al pulsar el botón de volver. */
   onBack?: () => void;
   /** Callback al pulsar "Ver en el mapa". */
   onViewOnMap?: () => void;
   /** Callback al marcar o desmarcar la especie como favorita. */
   onToggleFavorite?: () => void;
+  /** Callback al pulsar "Anterior": ausente cuando no hay especie previa. */
+  onPrevious?: () => void;
+  /** Callback al pulsar "Siguiente": ausente cuando no hay especie siguiente. */
+  onNext?: () => void;
 }
 
 interface SourceCardProps {
@@ -70,25 +84,28 @@ function SourceCard({ source }: SourceCardProps) {
 
 /**
  * Ficha de planta (RF3): foto, nombre común y científico, familia,
- * descripción breve, dato de interés, fuentes y acceso al mapa.
+ * descripción, dato de interés, fuentes y acceso al mapa.
  *
- * Recibe la especie por props para poder abrir la ficha de cualquier especie
- * identificada (PA 1250 y PA 692). Las especies de la demo traen el contenido
- * completo; las que llegan de Pl@ntNet solo nombre, familia, foto y fuente, así
- * que cada sección se pinta únicamente si tiene datos.
+ * Presentacional: recibe la especie por props —del catálogo del backend o
+ * construida desde una identificación (PA 1250 y PA 692)— y pinta cada sección
+ * únicamente si tiene datos. La fila Anterior/Siguiente solo se pinta cuando
+ * App pasa el total del catálogo.
  */
 export function FichaPlantaPage({
   species,
   identification = null,
+  position,
+  total,
   onBack,
   onViewOnMap,
   onToggleFavorite,
+  onPrevious,
+  onNext,
 }: FichaPlantaPageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
-  const planta = species ?? SAMPLE_SPECIES;
 
-  const primaryLocation = planta.locations?.[0];
-  const sources = planta.sources ?? [];
+  const primaryLocation = species.locations?.[0];
+  const sources = species.sources ?? [];
 
   const handleToggleFavorite = () => {
     setIsFavorite((current) => !current);
@@ -100,18 +117,23 @@ export function FichaPlantaPage({
   };
 
   return (
-    <article className="mx-auto w-full max-w-md bg-white pb-[calc(62px+env(safe-area-inset-bottom,0px))] shadow-sm">
+    <article className="mx-auto w-full max-w-md bg-white shadow-sm">
       <div className="relative h-64 w-full overflow-hidden bg-emerald-100 sm:h-72">
-        {planta.photoUrl ? (
+        {species.photoUrl ? (
           <img
-            src={planta.photoUrl}
-            alt={planta.photoAlt ?? `Fotografía de ${planta.commonName}`}
+            src={species.photoUrl}
+            alt={species.photoAlt ?? `Fotografía de ${species.commonName}`}
             className="h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-emerald-600">
             <Trees size={56} aria-hidden="true" />
           </div>
+        )}
+        {species.photoCredit && (
+          <p className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-1 text-[10px] leading-snug text-white/90">
+            Foto: {species.photoCredit}
+          </p>
         )}
 
         <header className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
@@ -141,20 +163,20 @@ export function FichaPlantaPage({
       </div>
 
       <section className="relative z-10 -mt-6 rounded-t-3xl bg-white px-5 pt-5">
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-          {planta.scientificName}
+        <h1 className="break-words text-2xl font-bold tracking-tight text-neutral-900">
+          {species.scientificName}
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          <span>{planta.commonName}</span>
-          {planta.family && (
+        <p className="mt-1 break-words text-sm text-neutral-500">
+          <span>{species.commonName}</span>
+          {species.family && (
             <>
               {' · '}
-              <span>Familia {planta.family}</span>
+              <span>Familia {species.family}</span>
             </>
           )}
         </p>
 
-        {(identification !== null || Boolean(planta.flowering) || primaryLocation !== undefined) && (
+        {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
           <ul className="mt-4 flex flex-wrap gap-2">
             {identification && (
               <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
@@ -162,10 +184,10 @@ export function FichaPlantaPage({
                 Identificada con {Math.round(identification.score * 100)}% de confianza
               </li>
             )}
-            {planta.flowering && (
+            {species.flowering && (
               <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
                 <Flower2 size={14} aria-hidden="true" />
-                Floración: {planta.flowering}
+                Floración: {species.flowering}
               </li>
             )}
             {primaryLocation && (
@@ -174,23 +196,29 @@ export function FichaPlantaPage({
                 {primaryLocation.name}
               </li>
             )}
+            {(species.locationTotal ?? 0) > 0 && (
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                <Trees size={14} aria-hidden="true" />
+                {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
+              </li>
+            )}
           </ul>
         )}
 
-        {planta.description && (
+        {species.description && (
           <>
             <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-600">{planta.description}</p>
+            <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
           </>
         )}
 
-        {planta.curiosity && (
+        {species.curiosity && (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="flex gap-3 text-sm leading-relaxed text-neutral-700">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
-              <span>
-                <strong className="font-semibold text-neutral-900">{planta.curiosity.label}:</strong>{' '}
-                {planta.curiosity.text}
+              <span className="whitespace-pre-line">
+                <strong className="font-semibold text-neutral-900">{species.curiosity.label}:</strong>{' '}
+                {species.curiosity.text}
               </span>
             </p>
           </div>
@@ -227,6 +255,34 @@ export function FichaPlantaPage({
               ))}
             </ul>
           </>
+        )}
+
+        {/* Navegación entre las especies del catálogo (Anterior/Siguiente):
+            solo tiene sentido cuando la ficha viene del catálogo, no del escaneo. */}
+        {total !== undefined && (
+          <div className="mt-6 flex items-center justify-between gap-2" aria-label="Navegar entre especies">
+            <button
+              type="button"
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              aria-label="Especie anterior"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={16} aria-hidden="true" />
+              Anterior
+            </button>
+            <span className="text-xs font-medium text-neutral-500">{(position ?? 0) + 1} / {total}</span>
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label="Especie siguiente"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Siguiente
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </div>
         )}
       </section>
 
