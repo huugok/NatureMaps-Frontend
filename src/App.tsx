@@ -211,12 +211,15 @@ function App() {
           ) : (
             <div
               key={fichaDetail.especie.id}
-              className="flex-1 min-h-0 overflow-y-auto"
+              className="mb-[calc(62px+env(safe-area-inset-bottom,0px))] flex-1 min-h-0 overflow-y-auto"
             >
               {/* El main lleva overflow-hidden (la cámara ocupa pantalla fija),
                   así que la ficha necesita su propio scroll. La key remonta el
                   contenedor por especie: al navegar con las flechas, el scroll
-                  empieza arriba en lugar de quedarse a media ficha. */}
+                  empieza arriba en lugar de quedarse a media ficha. El margen
+                  inferior deja fuera de la zona de scroll los 62px que ocupa la
+                  barra de navegación fija: si no, la barra de scroll se corta
+                  detrás de la nav. */}
               <FichaPlantaPage
                 species={fichaDetail.especie}
                 position={index}
