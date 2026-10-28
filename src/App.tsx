@@ -72,7 +72,7 @@ function App() {
   };
 
   return (
-    <div className="h-dvh min-h-screen bg-black flex flex-col font-sans text-neutral-900 overflow-hidden">
+    <div className="h-dvh min-h-screen bg-neutral-100 flex flex-col font-sans text-neutral-900 overflow-hidden">
       <main className="flex-1 min-h-0 flex flex-col w-full max-w-md mx-auto overflow-hidden relative">
         {screen === 'ficha' ? (
           <FichaPlantaPage onBack={() => setScreen('tabs')} onViewOnMap={handleViewOnMap} />
@@ -98,7 +98,7 @@ function App() {
             identificationError={identificationError}
           />
         ) : (
-          <div className="flex-1 bg-neutral-950">
+          <div className="flex-1 bg-neutral-100">
             <button
               type="button"
               onClick={() => setScreen('settings')}
