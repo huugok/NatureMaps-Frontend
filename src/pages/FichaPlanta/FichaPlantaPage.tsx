@@ -146,10 +146,10 @@ export function FichaPlantaPage({
       </div>
 
       <section className="relative z-10 -mt-6 rounded-t-3xl bg-white px-5 pt-5">
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+        <h1 className="break-words text-2xl font-bold tracking-tight text-neutral-900">
           {species.scientificName}
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 break-words text-sm text-neutral-500">
           <span>{species.commonName}</span>
           {species.family && (
             <>
@@ -181,13 +181,13 @@ export function FichaPlantaPage({
         </ul>
 
         <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
-        <p className="mt-2 text-sm leading-relaxed text-neutral-600">{species.description}</p>
+        <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
 
         {species.curiosity && (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="flex gap-3 text-sm leading-relaxed text-neutral-700">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
-              <span>
+              <span className="whitespace-pre-line">
                 <strong className="font-semibold text-neutral-900">{species.curiosity.label}:</strong>{' '}
                 {species.curiosity.text}
               </span>

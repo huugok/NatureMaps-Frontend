@@ -142,3 +142,47 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
     expect(onToggleFavorite).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('la ficha mantiene su formato ante cualquier contenido (RF3)', () => {
+  it('respeta los saltos de párrafo del texto curado (\\n\\n de la BD)', () => {
+    renderFicha({
+      species: { ...especie, description: 'Primera línea de la descripción.\n\nSegundo párrafo tras un salto.' },
+    });
+
+    const descripcion = screen.getByText(/Primera línea de la descripción/);
+    expect(descripcion).toHaveClass('whitespace-pre-line');
+    expect(descripcion.textContent).toContain('Segundo párrafo tras un salto');
+  });
+
+  it('renderiza una descripción kilométrica entera, sin truncarla (el scroll es del contenedor en App)', () => {
+    const larga = 'Palmera de gran belleza ornamental. '.repeat(400) + 'FIN de la descripción';
+    renderFicha({ species: { ...especie, description: larga } });
+
+    const descripcion = screen.getByText(/FIN de la descripción/);
+    expect(descripcion.textContent?.endsWith('FIN de la descripción')).toBe(true);
+  });
+
+  it('aguanta un catálogo de fuentes grande sin perder la estructura', () => {
+    const muchas = Array.from({ length: 30 }, (_, i) => ({
+      name: `Fuente número ${i + 1}`,
+      description: `Descripción de la fuente ${i + 1}`,
+      url: `https://fuentes.ejemplo.org/${i + 1}`,
+    }));
+    renderFicha({ species: { ...especie, sources: muchas } });
+
+    expect(screen.getByText('Fuente número 30')).toBeInTheDocument();
+    expect(screen.getByText('30')).toBeInTheDocument(); // contador de la cabecera de fuentes
+    expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument();
+  });
+
+  it('nombres o palabras gigantescas sin espacios se parten en vez de desbordar', () => {
+    renderFicha({
+      species: { ...especie, scientificName: 'X'.repeat(300), description: 'P'.repeat(500) },
+    });
+
+    const titulo = screen.getByRole('heading', { level: 1 });
+    expect(titulo).toHaveClass('break-words');
+    expect(titulo.textContent).toBe('X'.repeat(300));
+    expect(screen.getByText('P'.repeat(500))).toHaveClass('break-words');
+  });
+});
