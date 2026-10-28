@@ -209,15 +209,24 @@ function App() {
               onRetry={retryFichaDetail}
             />
           ) : (
-            <FichaPlantaPage
-              species={fichaDetail.especie}
-              position={index}
-              total={fichaList.items.length}
-              onBack={() => setScreen('tabs')}
-              onViewOnMap={handleViewOnMap}
-              onPrevious={index > 0 ? () => setFichaIndex(index - 1) : undefined}
-              onNext={index < fichaList.items.length - 1 ? () => setFichaIndex(index + 1) : undefined}
-            />
+            <div
+              key={fichaDetail.especie.id}
+              className="flex-1 min-h-0 overflow-y-auto"
+            >
+              {/* El main lleva overflow-hidden (la cámara ocupa pantalla fija),
+                  así que la ficha necesita su propio scroll. La key remonta el
+                  contenedor por especie: al navegar con las flechas, el scroll
+                  empieza arriba en lugar de quedarse a media ficha. */}
+              <FichaPlantaPage
+                species={fichaDetail.especie}
+                position={index}
+                total={fichaList.items.length}
+                onBack={() => setScreen('tabs')}
+                onViewOnMap={handleViewOnMap}
+                onPrevious={index > 0 ? () => setFichaIndex(index - 1) : undefined}
+                onNext={index < fichaList.items.length - 1 ? () => setFichaIndex(index + 1) : undefined}
+              />
+            </div>
           )
         ) : screen === 'settings' ? (
           <SettingsPage
