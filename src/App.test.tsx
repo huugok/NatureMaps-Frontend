@@ -16,6 +16,7 @@ const catalogo = {
       names: [{ name: 'Jacaranda', language: 'es' }],
       content: 'Árbol subtropical oriundo de Sudamérica…',
       profile: null,
+      enrichment: null,
       image: null,
     },
     {
@@ -24,6 +25,7 @@ const catalogo = {
       names: [{ name: 'Naranjo amargo', language: 'es' }],
       content: 'Árbol cítrico perennifolio…',
       profile: null,
+      enrichment: null,
       image: null,
     },
   ],

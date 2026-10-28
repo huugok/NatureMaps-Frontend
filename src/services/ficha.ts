@@ -42,6 +42,16 @@ export interface FichaNameInfo {
   language: string;
 }
 
+/** Extracto automático de Wikipedia (tabla species_enrichments), con su licencia. */
+export interface FichaEnrichment {
+  language: string;
+  content: string | null;
+  source: string;
+  url: string;
+  license: string | null;
+  licenseUrl: string | null;
+}
+
 /** Fila de GET /species: alimenta la navegación Anterior/Siguiente. */
 export interface FichaListItem {
   id: number;
@@ -50,6 +60,7 @@ export interface FichaListItem {
   /** Texto principal ya resuelto por el backend (editorial -> Wikipedia). */
   content: string | null;
   profile: FichaProfile | null;
+  enrichment: FichaEnrichment | null;
   image: FichaImageInfo | null;
 }
 
@@ -143,6 +154,20 @@ export function commonNameFor(names: FichaNameInfo[], language: Language): strin
   return names[0]?.name ?? null;
 }
 
+/** Convierte el código de fuente del enriquecimiento ('WIKIPEDIA') en etiqueta
+ * de UI ('Wikipedia'), para cuando el texto mostrado es el extracto automático
+ * y no hay ficha editorial que traiga sus propias fuentes (RNF6). */
+function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment): FichaSource {
+  const nombre = enrichment.source.charAt(0).toUpperCase() + enrichment.source.slice(1).toLowerCase();
+  return {
+    name: nombre,
+    description: enrichment.license
+      ? `Extracto enciclopédico · ${enrichment.license}`
+      : 'Extracto enciclopédico',
+    url: enrichment.url,
+  };
+}
+
 /** Mapea la respuesta del detalle al modelo de vista de la ficha. */
 export function fichaDesdeDetalle(detail: FichaDetail, language: Language): EspecieFicha {
   const commonName = commonNameFor(detail.names, language) ?? detail.scientificName;
@@ -159,7 +184,9 @@ export function fichaDesdeDetalle(detail: FichaDetail, language: Language): Espe
     curiosity: detail.profile?.curiosity
       ? { label: 'Dato curioso', text: detail.profile.curiosity }
       : null,
-    sources: detail.profile?.sources ?? [],
+    // Fuentes mostradas: las declaradas en la ficha editorial si existe; si no,
+    // la del enriquecimiento cuyo extracto es el texto que se está leyendo.
+    sources: detail.profile?.sources ?? (detail.enrichment ? [fuenteDesdeEnriquecimiento(detail.enrichment)] : []),
     locations: detail.locations.items.map((ubicacion) => ({
       district: ubicacion.district,
       neighborhood: ubicacion.neighborhood,

@@ -16,6 +16,7 @@ const itemLista: FichaListItem = {
   names: [{ name: 'Jacaranda', language: 'es' }],
   content: null,
   profile: null,
+  enrichment: null,
   image: null,
 };
 
@@ -31,6 +32,14 @@ const detalle: FichaDetail = {
     sources: [
       { name: 'Wikipedia (es)', description: 'Descripción y datos botánicos (CC BY-SA) · Consulta 25/10/2026', url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia' },
     ],
+  },
+  enrichment: {
+    language: 'es',
+    content: 'Extracto automático de Wikipedia…',
+    source: 'WIKIPEDIA',
+    url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
   },
   image: {
     url: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/Jacaranda1212.jpg',
@@ -152,7 +161,7 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
   });
 
   test('una especie sin perfil ni imagen produce una ficha parcial válida', () => {
-    const especie = fichaDesdeDetalle({ ...detalle, profile: null, image: null, content: null }, 'es');
+    const especie = fichaDesdeDetalle({ ...detalle, profile: null, image: null, content: null, enrichment: null }, 'es');
 
     expect(especie.family).toBeNull();
     expect(especie.photoUrl).toBeNull();
@@ -161,6 +170,30 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
     expect(especie.sources).toEqual([]);
     expect(especie.description).toBe('');
     expect(especie.commonName).toBe('Jacaranda');
+  });
+
+  test('sin perfil editorial, el extracto de Wikipedia se declara como fuente (RNF6)', () => {
+    const especie = fichaDesdeDetalle(
+      { ...detalle, profile: null, content: 'Extracto automático de Wikipedia…' },
+      'es',
+    );
+
+    expect(especie.sources).toEqual([
+      {
+        name: 'Wikipedia',
+        description: 'Extracto enciclopédico · CC BY-SA 4.0',
+        url: 'https://es.wikipedia.org/wiki/Jacaranda_mimosifolia',
+      },
+    ]);
+  });
+
+  test('con perfil editorial, las fuentes son las del perfil aunque exista enriquecimiento', () => {
+    const especie = fichaDesdeDetalle(detalle, 'es');
+
+    // El texto mostrado es el editorial (content = profile.description), así
+    // que las fuentes declaradas son las del perfil, no las del extracto.
+    expect(especie.sources).toEqual(detalle.profile?.sources);
+    expect(especie.sources.some((f) => f.name === 'Wikipedia')).toBe(false);
   });
 
   test('elige el nombre común según el idioma: va acepta ca, en cae a es', () => {
