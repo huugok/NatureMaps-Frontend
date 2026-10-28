@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Flower2,
   Heart,
@@ -10,26 +12,34 @@ import {
   Search,
   Trees,
 } from 'lucide-react';
-import { IDENTIFICATION_NOTICE, SAMPLE_SPECIES } from './constants';
+import { IDENTIFICATION_NOTICE } from './constants';
+import type { EspecieFicha, FichaSource } from '../../services/ficha';
 
 export interface FichaPlantaPageProps {
+  /** Especie que se muestra, ya cargada del backend por App. */
+  species: EspecieFicha;
+  /** Posición (0-based) de la especie en el catálogo. */
+  position: number;
+  /** Número total de especies del catálogo. */
+  total: number;
   /** Callback al pulsar el botón de volver. */
   onBack?: () => void;
   /** Callback al pulsar "Ver en el mapa". */
   onViewOnMap?: () => void;
   /** Callback al marcar o desmarcar la especie como favorita. */
   onToggleFavorite?: () => void;
+  /** Callback al pulsar "Anterior": ausente cuando no hay especie previa. */
+  onPrevious?: () => void;
+  /** Callback al pulsar "Siguiente": ausente cuando no hay especie siguiente. */
+  onNext?: () => void;
 }
 
-/** Forma de una fuente de información, deducida de los datos de ejemplo. */
-type Fuente = (typeof SAMPLE_SPECIES.sources)[number];
-
 interface SourceCardProps {
-  source: Fuente;
+  source: FichaSource;
 }
 
 function SourceCard({ source }: SourceCardProps) {
-  const Icon = source.icon === 'landmark' ? Landmark : Search;
+  const Icon = source.url.includes('geoportal.valencia.es') ? Landmark : Search;
 
   return (
     <li className="rounded-2xl border border-neutral-200 bg-white p-4">
@@ -63,17 +73,20 @@ function SourceCard({ source }: SourceCardProps) {
  * Ficha de planta (RF3): foto, nombre común y científico, familia,
  * descripción breve, dato de interés, fuentes y acceso al mapa.
  *
- * Los datos que muestra son de ejemplo (`constants.ts`): cuando existan las
- * clases del modelo de dominio y el endpoint de ficha del backend, llegarán
- * de la API y esta pantalla dejará de leerlos de aquí.
+ * Los datos llegan del backend vía `App` (GET /species y GET /species/:id):
+ * esta pantalla es presentacional, no carga nada por su cuenta.
  */
 export function FichaPlantaPage({
+  species,
+  position,
+  total,
   onBack,
   onViewOnMap,
   onToggleFavorite,
+  onPrevious,
+  onNext,
 }: FichaPlantaPageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
-  const species = SAMPLE_SPECIES;
 
   const primaryLocation = species.locations[0];
 
@@ -92,13 +105,18 @@ export function FichaPlantaPage({
         {species.photoUrl ? (
           <img
             src={species.photoUrl}
-            alt={species.photoAlt ?? `Fotografía de ${species.commonName}`}
+            alt={species.photoAlt}
             className="h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-emerald-600">
             <Trees size={56} aria-hidden="true" />
           </div>
+        )}
+        {species.photoCredit && (
+          <p className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-1 text-[10px] leading-snug text-white/90">
+            Foto: {species.photoCredit}
+          </p>
         )}
 
         <header className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
@@ -151,7 +169,13 @@ export function FichaPlantaPage({
           {primaryLocation && (
             <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
               <MapPin size={14} aria-hidden="true" />
-              {primaryLocation.name}
+              {primaryLocation.neighborhood ?? primaryLocation.district}
+            </li>
+          )}
+          {species.locationTotal > 0 && (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+              <Trees size={14} aria-hidden="true" />
+              {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
             </li>
           )}
         </ul>
@@ -199,6 +223,31 @@ export function FichaPlantaPage({
             <SourceCard key={source.name} source={source} />
           ))}
         </ul>
+
+        {/* Navegación entre las especies del catálogo (Anterior/Siguiente). */}
+        <div className="mt-6 flex items-center justify-between gap-2" aria-label="Navegar entre especies">
+          <button
+            type="button"
+            onClick={onPrevious}
+            disabled={!onPrevious}
+            aria-label="Especie anterior"
+            className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+            Anterior
+          </button>
+          <span className="text-xs font-medium text-neutral-500">{position + 1} / {total}</span>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!onNext}
+            aria-label="Especie siguiente"
+            className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Siguiente
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </div>
       </section>
 
       {/* El botón va al final de la ficha, no fijo: así nunca tapa el contenido

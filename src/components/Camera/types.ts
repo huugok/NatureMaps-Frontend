@@ -29,5 +29,12 @@ export interface CameraScreenProps {
   identificationStatus?: 'idle' | 'identifying' | 'completed' | 'error';
   identificationResults?: PlantIdentification | null;
   identificationError?: string | null;
+  /**
+   * Especie identificada cuya ficha existe en el catálogo (match client-side
+   * del nombre científico contra GET /species). Null si no hay match aún.
+   */
+  identifiedSpecies?: { name: string } | null;
+  /** Callback al pulsar "Ver ficha de …" con la especie identificada. */
+  onOpenSpeciesFicha?: () => void;
 }
 

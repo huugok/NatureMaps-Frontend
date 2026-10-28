@@ -17,6 +17,8 @@ export interface CameraActiveProps {
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
   identificationError: string | null;
+  identifiedSpecies?: { name: string } | null;
+  onOpenSpeciesFicha?: () => void;
 }
 
 export const CameraActive: React.FC<CameraActiveProps> = ({
@@ -30,6 +32,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   identificationStatus,
   identificationResults,
   identificationError,
+  identifiedSpecies,
+  onOpenSpeciesFicha,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -388,6 +392,15 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                           </li>
                         ))}
                       </ol>
+                    )}
+                    {identifiedSpecies && onOpenSpeciesFicha && (
+                      <button
+                        type="button"
+                        onClick={onOpenSpeciesFicha}
+                        className="mt-2 inline-flex min-h-9 items-center rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                      >
+                        Ver ficha de {identifiedSpecies.name}
+                      </button>
                     )}
                   </>
                 )}

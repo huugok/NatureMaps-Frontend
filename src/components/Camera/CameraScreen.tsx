@@ -12,6 +12,8 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   identificationStatus = 'idle',
   identificationResults = null,
   identificationError = null,
+  identifiedSpecies = null,
+  onOpenSpeciesFicha,
 }) => {
   const [permission, setPermission] = useState<PermissionStatus>('checking');
   const [mode, setMode] = useState<CameraMode>(initialMode);
@@ -167,6 +169,8 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           identificationStatus={identificationStatus}
           identificationResults={identificationResults}
           identificationError={identificationError}
+          identifiedSpecies={identifiedSpecies}
+          onOpenSpeciesFicha={onOpenSpeciesFicha}
         />
       )}
     </div>

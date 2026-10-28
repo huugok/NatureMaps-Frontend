@@ -51,20 +51,30 @@ La ficha de planta (`src/pages/FichaPlanta/`) existe como pantalla completa: fot
 y científico, familia, descripción breve, dato de interés, fuentes y botón "Ver en el mapa".
 El escaneo (`src/pages/Scan/`) envía la foto al backend y muestra las especies candidatas.
 
-La ficha sigue siendo **solo la parte visual**: como las clases del modelo de dominio
-(`Planta`, `Ubicacion`, `LugarHistoricoCultural`, `Observacion`) todavía **no existen**, no se
-ha creado ningún tipo, servicio ni clase para representarlas. Los textos de las 6 especies de
-la demo viven en `src/pages/FichaPlanta/constants.ts` (UT 918), con la fuente de cada texto y
-foto documentada en `docs/contenido-especies-demo.md`; llegarán de la API cuando exista el
-endpoint de ficha. La entrada a la ficha es una tarjeta provisional en la pantalla de pestañas
-(`src/App.tsx`): desaparecerá cuando existan las pantallas de mapa o de búsqueda, que son las
-que abrirán una ficha de verdad.
+La ficha está **conectada al backend** (UT F06): `src/services/ficha.ts` consume `GET /species`
+(lista para la navegación Anterior/Siguiente) y `GET /species/:id` (ficha completa con
+ubicaciones paginadas), y mapea la respuesta al modelo de vista `EspecieFicha` que pinta
+`FichaPlantaPage` (pantalla presentacional: recibe `species` por props, no carga nada). App
+gestiona los estados de lista y detalle (loading/error/ready, con Reintentar) y vuelve a pedir
+los datos si cambia el idioma. **No hay fallback a `constants.ts`**: si la API falla, la ficha
+muestra el error; la UT de sin-conexión decidirá el modo offline. Los textos curados ya viven
+en la base de datos (tabla `species_profiles` del backend, sembrada con `npm run db:seed`,
+idempotente); `constants.ts` conserva solo `IDENTIFICATION_NOTICE` y los datos de ejemplo
+quedan sin usar de reserva para esa UT, con su trazabilidad en
+`docs/contenido-especies-demo.md`. La entrada a la ficha sigue siendo la tarjeta provisional en
+la pantalla de pestañas (`src/App.tsx`): desaparecerá cuando existan las pantallas de mapa o de
+búsqueda, que son las que abrirán una ficha de verdad.
+
+Cuando Pl@ntNet identifica una foto, App busca el nombre científico del resultado en el
+catálogo ya cargado (match client-side, `findSpeciesIndexByScientificName`, inmune a
+mayúsculas y a la notación de híbrido `×`): si hay ficha, la cámara ofrece "Ver ficha de…" y
+navega a esa especie; si no, los resultados quedan como estaban (UT 931).
 
 Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
 `localStorage`, pero **no traduce los textos**: eso corresponde a la UT44 (rama
-`feat/traduccion-pantallas`, PR #12). El frontend consume el backend solo para la identificación
-por foto (`src/services/identify.ts` → `POST /plants/identify`); la ficha de planta no tiene
-servicio todavía.
+`feat/traduccion-pantallas`, PR #12). El frontend consume el backend para la identificación por
+foto (`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
+(`src/services/ficha.ts` → `GET /species` y `GET /species/:id`).
 
 ## Stack
 
