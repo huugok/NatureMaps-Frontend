@@ -10,6 +10,8 @@ export interface EspeciesAlternativasProps {
   selectedName: string | null;
   /** Se llama con el nombre científico de la fila que pulsa el usuario. */
   onSelect: (scientificName: string) => void;
+  /** Abre la ficha de la candidata pulsada, si la pantalla lo permite. */
+  onOpenMatch?: (match: PlantMatch) => void;
   /** Número máximo de filas a mostrar. Por defecto, `MAX_ALTERNATIVAS`. */
   max?: number;
   /** Cabecera de la sección. Por defecto, «¿No es esta? Otras posibles». */
@@ -27,17 +29,17 @@ function porcentaje(score: number): number {
  * mayor a menor confianza**, con su porcentaje y una barra proporcional, y
  * deja elegir una.
  *
- * Es un `radiogroup` nativo (inputs `radio` ocultos tras la fila), así que se
- * navega con las flechas y las etiquetas quedan asociadas sin ARIA extra.
+ * Cada candidata es un botón de selección dentro de un `radiogroup`, con
+ * estado anunciado y feedback de foco/selección también en pantallas táctiles.
  */
 export function EspeciesAlternativas({
   matches,
   selectedName,
   onSelect,
+  onOpenMatch,
   max = MAX_ALTERNATIVAS,
   title = TITULO,
 }: EspeciesAlternativasProps) {
-  const groupName = useId();
   const titleId = useId();
   const ordenadas = [...matches].sort((a, b) => b.score - a.score).slice(0, max);
 
@@ -56,15 +58,41 @@ export function EspeciesAlternativas({
           const pct = porcentaje(match.score);
 
           return (
-            <label key={match.scientificName} className="block">
-              <input
-                type="radio"
-                name={groupName}
-                className="peer sr-only"
-                checked={seleccionada}
-                onChange={() => onSelect(match.scientificName)}
-              />
-              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-white py-2.5 pl-3.5 pr-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors peer-checked:border-[#1f4d2e] peer-checked:bg-[#f2f7ec] peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-800 peer-focus-visible:ring-offset-2">
+              <button
+                key={match.scientificName}
+                type="button"
+                role="radio"
+                aria-checked={seleccionada}
+                tabIndex={seleccionada || (selectedName === null && ordenadas[0] === match) ? 0 : -1}
+                onClick={() => {
+                  if (onOpenMatch !== undefined) {
+                    onOpenMatch(match);
+                  } else {
+                    onSelect(match.scientificName);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  const radios = Array.from(
+                    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [],
+                  );
+                  const index = radios.indexOf(event.currentTarget);
+                  let nextIndex: number | null = null;
+                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % radios.length;
+                  if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + radios.length) % radios.length;
+                  if (event.key === 'Home') nextIndex = 0;
+                  if (event.key === 'End') nextIndex = radios.length - 1;
+                  if (nextIndex !== null) {
+                    event.preventDefault();
+                    radios[nextIndex]?.focus();
+                    const nextMatch = ordenadas[nextIndex];
+                    if (nextMatch) {
+                      if (onOpenMatch !== undefined) onOpenMatch(nextMatch);
+                      else onSelect(nextMatch.scientificName);
+                    }
+                  }
+                }}
+                className={`flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl border py-2.5 pl-3.5 pr-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2 ${seleccionada ? 'border-[#1f4d2e] bg-[#f2f7ec]' : 'border-neutral-200 bg-white'}`}
+              >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-semibold text-neutral-900">
                     {match.commonNames[0] !== undefined && (
@@ -96,8 +124,7 @@ export function EspeciesAlternativas({
                     aria-hidden="true"
                   />
                 )}
-              </span>
-            </label>
+              </button>
           );
         })}
       </div>
