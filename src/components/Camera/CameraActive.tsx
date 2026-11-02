@@ -391,7 +391,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 photo={photo}
                 onRetry={handleIdentify}
                 onOpenSpecies={(match) => onOpenSpecies?.(match, photo)}
-                onBack={onClose}
+                onBack={handleDiscardPhoto}
                 onRepeatPhoto={handleDiscardPhoto}
               />
             )}

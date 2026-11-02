@@ -117,7 +117,7 @@ export function FichaPlantaPage({
   };
 
   return (
-    <article className="mx-auto w-full max-w-md bg-white shadow-sm">
+    <article className="mx-auto flex min-h-full w-full max-w-md flex-col touch-pan-y bg-white shadow-sm">
       <div className="relative h-64 w-full overflow-hidden bg-emerald-100 sm:h-72">
         {species.photoUrl ? (
           <img
@@ -162,7 +162,7 @@ export function FichaPlantaPage({
         </header>
       </div>
 
-      <section className="relative z-10 -mt-6 rounded-t-3xl bg-white px-5 pt-5">
+      <section className="relative z-10 -mt-6 flex-1 rounded-t-3xl bg-white px-5 pt-5">
         <h1 className="break-words text-2xl font-bold tracking-tight text-neutral-900">
           {species.scientificName}
         </h1>
@@ -179,9 +179,16 @@ export function FichaPlantaPage({
         {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
           <ul className="mt-4 flex flex-wrap gap-2">
             {identification && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
-                <ScanSearch size={14} aria-hidden="true" />
-                Identificada con {Math.round(identification.score * 100)}% de confianza
+              <li>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  disabled={onBack === undefined}
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white enabled:cursor-pointer enabled:hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:cursor-default"
+                >
+                  <ScanSearch size={14} aria-hidden="true" />
+                  Confianza: {Math.round(identification.score * 100)}%
+                </button>
               </li>
             )}
             {species.flowering && (
@@ -289,7 +296,7 @@ export function FichaPlantaPage({
       {/* El botón va al final de la ficha, no fijo: así nunca tapa el contenido
           (la última fuente, la descripción…). El relleno inferior de la tarjeta
           lo deja por encima de la barra de navegación al final del scroll. */}
-      <div className="border-t border-neutral-200 bg-white px-4 py-3">
+      <div className="mt-auto border-t border-neutral-200 bg-white px-4 py-3">
         <button
           type="button"
           onClick={handleViewOnMap}

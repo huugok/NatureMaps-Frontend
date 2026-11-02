@@ -69,17 +69,6 @@ export function CameraIdentificationResult({
     );
   }
 
-  if (status === 'identifying') {
-    return (
-      <div
-        aria-live="polite"
-        className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
-      >
-        <p role="status">Enviando la foto a Pl@ntNet…</p>
-      </div>
-    );
-  }
-
   if (status === 'error' && mode === 'planta') {
     return (
       <div
