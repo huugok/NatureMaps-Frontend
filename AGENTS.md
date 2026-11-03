@@ -3,9 +3,9 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-10-26 · `main` @ `1289d1e` (scaffold + F16 + ficha RF3 + envío de
-> foto a Pl@ntNet F04 + textos de especies F06, mergeados) · Rama de trabajo:
-> `feat/selector-idioma` (F10.1, PR #6, selector de idioma en Ajustes).
+> Última verificación: 2026-11-03 · `main` @ `8b59038` · Rama de trabajo:
+> `feat/concilacion-ui` @ `37399dc` (worktree `wt-concilacion-ui`, 175 tests en verde).
+> Integra #11, #20, #22 y #23; reimplementa #12 y deja #19 superada. Sin push ni PR.
 
 ## Qué es este proyecto
 
@@ -34,22 +34,20 @@ No hay monorepo ni workspace: cada repo se instala y ejecuta por separado con `n
 
 El resto de pantallas (mapa, rutas, búsqueda…) llegan con sus propias UTs.
 
-Ramas con PR abierta (a 26/10/2026):
+**Rama de conciliación** (`feat/concilacion-ui`, worktree `wt-concilacion-ui`): integra las
+pantallas de #11, la ficha de #21, el escáner real, la traducción es/va/en, el mapa interactivo
+(#22), la respuesta sin conexión (#20) y la confianza en ficha/alternativas (#23). Las PRs
+#11, #20, #22 y #23 ya son ancestros de la rama; #12 (traducción) y #19 (ficha desde
+alternativa) están superadas y no se pueden mergear sin rehacerlas. No se ha hecho push.
 
-- `feat/selector-idioma` (F10.1, PR #6): selector de idioma en Ajustes.
-- `feat/pantallas-iniciales` (PR #11): pantallas iniciales con rutas, selector de modo y kit
-  de UI.
-- `feat/traduccion-pantallas` (PR #12): traducción de pantallas a es/va/en.
-- `feat/camara` (PR #13): pantallas de cámara y permisos.
+Pantallas actuales: `/inicio`, `/mapa` (`MapPage`), `/rutas`, `/buscar`, `/escanear`
+(`CameraScreen`), `/modo`, `/ajustes`, `/ajustes/idioma`, `/ficha` (`FichaRoute`) y
+`/componentes`. `ScanPage` y su carpeta `src/pages/Scan/` se eliminaron: el escaneo es
+`CameraScreen` directo y la ficha se abre como overlay sobre él o en `/ficha`.
 
-Otras ramas remotas sin PR activa: `feat/mapa-base`, `feat/porcentaje-confianza`,
-`feat/respuesta-sinconexionPlantNet`. `feat/ficha-planta` y `feat/envio-foto-plantnet`
-quedaron mergeadas (PRs #8 y #9); la PR #10 (UT 931, especie más probable) se cerró sin
-mergear (rama `feat/mostrar-especie-probable`).
-
-La ficha de planta (`src/pages/FichaPlanta/`) existe como pantalla completa: foto, nombre común
-y científico, familia, descripción breve, dato de interés, fuentes y botón "Ver en el mapa".
-El escaneo (`src/pages/Scan/`) envía la foto al backend y muestra las especies candidatas.
+Ramas con PR abierta (a 3/11/2026): #12 (`feat/traduccion-pantallas`, superada), #19
+(`feat/ficha-desde-alternativa`, superada) y la PR de backend #12 (`feat/arbolado-licencia`,
+fuera de este repo). #11, #20, #22 y #23 se pueden cerrar cuando entre la PR nueva.
 
 La ficha está **conectada al backend** (UT F06): `src/services/ficha.ts` consume `GET /species`
 (lista para la navegación Anterior/Siguiente) y `GET /species/:id` (ficha completa con
@@ -61,19 +59,19 @@ muestra el error; la UT de sin-conexión decidirá el modo offline. Los textos c
 en la base de datos (tabla `species_profiles` del backend, sembrada con `npm run db:seed`,
 idempotente); `constants.ts` conserva solo `IDENTIFICATION_NOTICE` y los datos de ejemplo
 quedan sin usar de reserva para esa UT, con su trazabilidad en
-`docs/contenido-especies-demo.md`. La entrada a la ficha sigue siendo la tarjeta provisional en
-la pantalla de pestañas (`src/App.tsx`): desaparecerá cuando existan las pantallas de mapa o de
-búsqueda, que son las que abrirán una ficha de verdad.
+`docs/contenido-especies-demo.md`. La ficha se abre desde el escaneo como overlay (conserva
+foto, resultado y especie marcada) o en la ruta `/ficha` con navegación Anterior/Siguiente.
 
 Cuando Pl@ntNet identifica una foto, App busca el nombre científico del resultado en el
 catálogo ya cargado (match client-side, `findSpeciesIndexByScientificName`, inmune a
-mayúsculas y a la notación de híbrido `×`): si hay ficha, la cámara ofrece "Ver ficha de…" y
-navega a esa especie; si no, los resultados quedan como estaban (UT 931).
+mayúsculas y a la notación de híbrido `×`): si hay ficha, «Ver ficha» abre la especie real; si
+no, se construye una ficha honesta con `fichaDesdeIdentificacion`. Tocar una alternativa abre
+su ficha y la deja marcada.
 
 Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
-`localStorage`, pero **no traduce los textos**: eso corresponde a la UT44 (rama
-`feat/traduccion-pantallas`, PR #12). El frontend consume el backend para la identificación por
-foto (`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
+`localStorage` con `languagePreference`; la UI está traducida con `t()` y los diccionarios de
+`src/i18n/strings.ts`. El frontend consume el backend para la identificación por foto
+(`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
 (`src/services/ficha.ts` → `GET /species` y `GET /species/:id`).
 
 ## Stack
@@ -106,8 +104,8 @@ src/main.tsx          Bootstrap: createRoot + <StrictMode>
 src/App.tsx           Shell de la app
 src/index.css         @import "tailwindcss"
 src/components/       Componentes (una carpeta por componente)
-src/pages/            Vistas por ruta (FichaPlanta: ficha de planta; Scan: escaneo/identificación;
-                      Settings: Ajustes e Idioma)
+src/pages/            Vistas por ruta (Home, Map, RoutesList, Search, FichaPlanta,
+                      Camera dentro de components/, Settings, ModeSelect, Components)
 src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de idioma)
 src/types/            Tipos compartidos (navigation.ts, language.ts)
 public/               Assets estáticos (favicon, icons.svg)
@@ -215,13 +213,12 @@ BottomNavigation/
   `GET /species`, `POST /species/enrich` (implementados en `origin/explore_open_data`).
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
 - La identificación por foto (`src/services/identify.ts`) consume `POST /plants/identify` con la
-  base URL `VITE_API_URL` (por defecto `http://localhost:3000`); el resto de pantallas siguen
-  sin consumir el backend.
-- La ficha de planta todavía no tiene servicio: no se crea ninguno hasta que existan las clases
-  del modelo de dominio y un endpoint de ficha. La extracción de la información de planta
-  (consulta a Neon y enriquecimiento con Wikipedia/Wikidata) es del backend, no del frontend.
-- Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta) ni variable para los
-  endpoints nuevos de ficha.
+  base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
+- La ficha (`src/services/ficha.ts`) consume `GET /species` y `GET /species/:id` con la misma
+  base URL. El contenido editorial (descripciones, curiosidades, fuentes) lo sirve el backend.
+- El mapa (`src/pages/Map/MapPage.tsx`) es la única pantalla que llama a servicios externos:
+  teselas de OpenStreetMap y búsqueda en Nominatim. No usa el backend.
+- Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta).
 
 ## Git
 
