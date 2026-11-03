@@ -124,6 +124,7 @@
   --app-height: 874px;
   --app-frame-border: 8px;
   --app-frame-radius: 54px;
+  --app-top-inset: 8px;
 }
 
 .app-shell {
@@ -132,10 +133,6 @@
   padding: 4px;
   overflow: hidden;
   background: #e7e7e2;
-}
-
-.app-content {
-  padding-top: 8px;
 }
 
 .app-frame {
@@ -154,11 +151,11 @@
 }
 
 @media (max-width: 480px), (max-width: 900px) and (max-height: 500px) {
+  :root {
+    --app-top-inset: 0px;
+  }
   .app-shell {
     padding: 0;
-  }
-  .app-content {
-    padding-top: 0;
   }
   .app-frame {
     box-sizing: border-box;

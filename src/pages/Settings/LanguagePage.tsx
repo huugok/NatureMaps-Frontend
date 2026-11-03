@@ -19,7 +19,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
   };
 
   return (
-    <section className="w-full px-4 pt-[max(28px,calc(env(safe-area-inset-top)+8px))] pb-[calc(24px+env(safe-area-inset-bottom,0px))]">
+    <section className="w-full px-4 pt-[max(28px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] pb-[calc(24px+env(safe-area-inset-bottom,0px))]">
       <header className="mb-6 flex items-center gap-2">
         <button
           type="button"

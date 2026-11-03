@@ -104,7 +104,7 @@ export function ResultadoEscaneo({
             onClick={onBack}
             autoFocus
             aria-label={t('result.back')}
-            className="absolute left-4 top-[max(24px,calc(env(safe-area-inset-top)+8px))] flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-raised transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-accent-2"
+            className="absolute left-4 top-[max(24px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-raised transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-accent-2"
           >
             <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>

@@ -17,7 +17,7 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
 }) => {
   const { t } = useApp();
   return (
-    <div className="flex flex-col h-full w-full bg-white text-neutral-900 justify-between p-5 pt-[max(40px,calc(env(safe-area-inset-top)+8px))] overflow-y-auto overscroll-contain">
+    <div className="flex flex-col h-full w-full bg-white text-neutral-900 justify-between p-5 pt-[max(40px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] overflow-y-auto overscroll-contain">
       <div>
         <button
           type="button"

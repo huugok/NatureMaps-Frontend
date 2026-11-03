@@ -34,7 +34,7 @@ export function Page({ title, subtitle, back, onBack, actions, settings = true, 
   const navigate = useNavigate()
   return (
     <div className={cn('flex min-h-full flex-col pt-[env(safe-area-inset-top)]', flush && 'h-full')}>
-      <header className="flex items-center gap-3 px-4 pt-5 pb-4">
+      <header className="flex items-center gap-3 px-4 pt-[calc(20px+var(--app-top-inset))] pb-4">
         {back && <IconButton icon={ArrowLeft} label={t('common.back')} onClick={onBack ?? (() => navigate(-1))} />}
         <div className="min-w-0 flex-1">
           <h1 className="text-title text-balance">{title}</h1>

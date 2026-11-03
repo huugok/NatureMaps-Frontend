@@ -138,7 +138,7 @@ export function FichaPlantaPage({
           </p>
         )}
 
-        <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pb-4 pt-[max(24px,calc(env(safe-area-inset-top)+8px))]">
+        <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pb-4 pt-[max(24px,calc(env(safe-area-inset-top)+var(--app-top-inset)))]">
           <button
             type="button"
             onClick={onBack}

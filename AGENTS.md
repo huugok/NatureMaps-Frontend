@@ -161,7 +161,8 @@ BottomNavigation/
 - Los contenedores de pantalla van a `w-full`; no añadir `max-w-*` a nivel de pantalla. Los
   `max-w-*` solo valen para tarjetas o modales internos.
 - Padding horizontal de pantalla: **16 px** (`px-4`), preferiblemente a través de `Page`.
-- En el marco simulado hay un inset superior de **8 px**; en móvil real se sustituye por la safe area.
+- `--app-top-inset` vale **8 px** en escritorio y **0** en móvil; se aplica en las cabeceras,
+  no en el contenedor, para que cámara y ficha lleguen al borde del marco.
 - La paleta es verde y fija; no cambia por modo. Los radios siguen pendientes de unificar.
 
 ## Tipografía
