@@ -422,3 +422,73 @@ describe('PA 512 — ficha pendiente sin conexión', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('PA 574 — ficha con datos parciales de catálogo', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    withMode()
+    const especieParcial = {
+      id: 13,
+      scientificName: 'Tamarix africana',
+      names: [{ name: 'Taraje', language: 'es' }],
+      content: null,
+      profile: null,
+      enrichment: null,
+      image: null,
+    }
+    const detalleParcial = {
+      ...especieParcial,
+      locations: {
+        total: 36,
+        returned: 1,
+        nextAfterId: null,
+        items: [{
+          id: 23,
+          latitude: 39.46,
+          longitude: -0.37,
+          district: 'La Gran Via',
+          neighborhood: null,
+          source: 'VALENCIA_ARBOLADO',
+          sourceUrl: 'https://example.test/tree/23',
+        }],
+      },
+    }
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input)
+        return Promise.resolve(new Response(
+          JSON.stringify(url.includes('/species/13') ? detalleParcial : {
+            total: 1,
+            species: [especieParcial],
+          }),
+          respuestaJson,
+        ))
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('mantiene los datos disponibles y señala cada campo ausente', async () => {
+    renderWithProviders(<App />, { route: '/ficha' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tamarix africana' })).toBeInTheDocument()
+    expect(screen.getByText('Taraje')).toBeInTheDocument()
+    expect(screen.getByText('Sin foto disponible')).toBeInTheDocument()
+    expect(screen.getByText('familia no disponible')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument()
+    expect(screen.getByText('Descripción no disponible')).toBeInTheDocument()
+    expect(screen.getByText('Floración no disponible')).toBeInTheDocument()
+    expect(screen.getByText('Dato curioso no disponible')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument()
+    expect(screen.getByText('Fuentes no disponibles')).toBeInTheDocument()
+
+    expect(screen.getByText('La Gran Via')).toBeInTheDocument()
+    expect(screen.getByText('36 ejemplares')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})

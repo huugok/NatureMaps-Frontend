@@ -108,6 +108,12 @@ const es = {
   'ficha.notice':
     'El servicio de identificación de especies por imagen se basa en una API de reconocimiento de Plantnet, actualizable regularmente y accesible en',
   'ficha.plantnetDesc': 'Identificación por imagen · Consulta realizada desde el escaneo',
+  'ficha.noPhoto': 'Sin foto disponible',
+  'ficha.noFamily': 'familia no disponible',
+  'ficha.noDescription': 'Descripción no disponible',
+  'ficha.noFlowering': 'Floración no disponible',
+  'ficha.noCuriosity': 'Dato curioso no disponible',
+  'ficha.noSources': 'Fuentes no disponibles',
 
   'camera.checking': 'Comprobando permiso de cámara',
   'camera.promptTitle': 'Necesitamos tu cámara para reconocer plantas',
@@ -310,6 +316,12 @@ const va: Dict = {
   'ficha.notice':
     'El servici d’identificació d’espècies per imatge es basa en una API de reconeixement de Pl@ntNet, actualitzable regularment i accessible en',
   'ficha.plantnetDesc': 'Identificació per imatge · Consulta feta des de l’escaneig',
+  'ficha.noPhoto': 'Foto no disponible',
+  'ficha.noFamily': 'família no disponible',
+  'ficha.noDescription': 'Descripció no disponible',
+  'ficha.noFlowering': 'Floració no disponible',
+  'ficha.noCuriosity': 'Dada curiosa no disponible',
+  'ficha.noSources': 'Fonts no disponibles',
 
   'camera.checking': 'Comprovant el permís de càmera',
   'camera.promptTitle': 'Necessitem la teua càmera per a reconéixer plantes',
@@ -509,6 +521,12 @@ const en: Dict = {
   'ficha.notice':
     'The image-based species identification service uses the Pl@ntNet recognition API, regularly updated and available at',
   'ficha.plantnetDesc': 'Image identification · Queried from the scan',
+  'ficha.noPhoto': 'Photo not available',
+  'ficha.noFamily': 'family not available',
+  'ficha.noDescription': 'Description not available',
+  'ficha.noFlowering': 'Flowering not available',
+  'ficha.noCuriosity': 'Fun fact not available',
+  'ficha.noSources': 'Sources not available',
 
   'camera.checking': 'Checking camera permission',
   'camera.promptTitle': 'We need your camera to recognise plants',

@@ -103,6 +103,17 @@
     -webkit-tap-highlight-color: transparent;
     overflow: hidden;
   }
+  /* Sin raíles de scroll: en el marco curvo la barra se corta y en móvil
+     nunca se pinta. El scroll sigue funcionando con rueda, trackpad y gesto
+     táctil; solo desaparece la guía visual, como en una app nativa. */
+  .app-frame,
+  .app-frame * {
+    scrollbar-width: none;
+  }
+  .app-frame::-webkit-scrollbar,
+  .app-frame *::-webkit-scrollbar {
+    display: none;
+  }
   input,
   textarea,
   select {

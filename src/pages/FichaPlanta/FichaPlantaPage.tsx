@@ -11,6 +11,7 @@ import {
   MapPin,
   ScanSearch,
   Search,
+  Sprout,
   Trees,
 } from 'lucide-react';
 import { useApp } from '../../context/useApp';
@@ -88,8 +89,8 @@ function SourceCard({ source }: SourceCardProps) {
  * descripción, dato de interés, fuentes y acceso al mapa.
  *
  * Presentacional: recibe la especie por props —del catálogo del backend o
- * construida desde una identificación (PA 1250 y PA 692)— y pinta cada sección
- * únicamente si tiene datos. La fila Anterior/Siguiente solo se pinta cuando
+ * construida desde una identificación (PA 1250 y PA 692)— y muestra un aviso
+ * cuando falta información. La fila Anterior/Siguiente solo se pinta cuando
  * App pasa el total del catálogo.
  */
 export function FichaPlantaPage({
@@ -128,8 +129,11 @@ export function FichaPlantaPage({
             className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-accent">
-            <Trees size={56} aria-hidden="true" />
+          // RNF5: la ficha se muestra igual aunque no haya foto, con un hueco
+          // claro en lugar de una cabecera vacía.
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-accent">
+            <Sprout size={56} aria-hidden="true" />
+            <span className="text-small font-medium text-muted">{t('ficha.noPhoto')}</span>
           </div>
         )}
         {species.photoCredit && (
@@ -170,58 +174,74 @@ export function FichaPlantaPage({
         </h1>
         <p className="mt-1 break-words text-small text-muted">
           <span>{species.commonName}</span>
-          {species.family && (
+          {/* RNF5: la familia falta se dice, no se calla — la línea del
+              subtítulo es siempre la misma para que la ficha no "salte". */}
+          {species.family ? (
             <>
               {' · '}
               <span>{t('ficha.family')} {species.family}</span>
             </>
+          ) : (
+            <>
+              {' · '}
+              <span>{t('ficha.noFamily')}</span>
+            </>
           )}
         </p>
 
-        {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {identification && (
-              <li>
-                <button
-                  type="button"
-                  onClick={onBack}
-                  disabled={onBack === undefined}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-caption font-medium text-on-accent transition-colors enabled:hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-default"
-                >
-                  <ScanSearch size={14} aria-hidden="true" />
-                  {t('ficha.confidence', { score: Math.round(identification.score * 100) })}
-                </button>
-              </li>
-            )}
-            {species.flowering && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-warm/15 px-3 py-1 text-caption font-medium text-warm-strong">
-                <Flower2 size={14} aria-hidden="true" />
-                {t('ficha.flowering')}: {species.flowering}
-              </li>
-            )}
-            {primaryLocation && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-caption font-medium text-accent">
-                <MapPin size={14} aria-hidden="true" />
-                {primaryLocation.name}
-              </li>
-            )}
-            {(species.locationTotal ?? 0) > 0 && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-caption font-medium text-ink-2">
-                <Trees size={14} aria-hidden="true" />
-                {t((species.locationTotal ?? 0) === 1 ? 'ficha.specimen' : 'ficha.specimens', { count: species.locationTotal ?? 0 })}
-              </li>
-            )}
-          </ul>
+        {/* RNF5: la fila de chips siempre está — la floración que falta se
+            dice, no se calla (el resto de chips siguen siendo opcionales). */}
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {identification && (
+            <li>
+              <button
+                type="button"
+                onClick={onBack}
+                disabled={onBack === undefined}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-caption font-medium text-on-accent transition-colors enabled:hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-default"
+              >
+                <ScanSearch size={14} aria-hidden="true" />
+                {t('ficha.confidence', { score: Math.round(identification.score * 100) })}
+              </button>
+            </li>
+          )}
+          {species.flowering ? (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-warm/15 px-3 py-1 text-caption font-medium text-warm-strong">
+              <Flower2 size={14} aria-hidden="true" />
+              {t('ficha.flowering')}: {species.flowering}
+            </li>
+          ) : (
+            // RNF5: la floración que falta se dice, no se calla.
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-caption font-medium text-muted">
+              <Flower2 size={14} aria-hidden="true" />
+              {t('ficha.noFlowering')}
+            </li>
+          )}
+          {primaryLocation && (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-caption font-medium text-accent">
+              <MapPin size={14} aria-hidden="true" />
+              {primaryLocation.name}
+            </li>
+          )}
+          {(species.locationTotal ?? 0) > 0 && (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-caption font-medium text-ink-2">
+              <Trees size={14} aria-hidden="true" />
+              {t((species.locationTotal ?? 0) === 1 ? 'ficha.specimen' : 'ficha.specimens', { count: species.locationTotal ?? 0 })}
+            </li>
+          )}
+        </ul>
+
+        <h2 className="font-display mt-6 text-heading text-ink">{t('ficha.description')}</h2>
+        {species.description ? (
+          <p className="font-body mt-2 break-words whitespace-pre-line text-body text-muted text-pretty">{species.description}</p>
+        ) : (
+          // RNF5: la descripción que falta se dice, no se calla.
+          <p className="font-body mt-2 text-body text-muted" role="note">
+            {t('ficha.noDescription')}
+          </p>
         )}
 
-        {species.description && (
-          <>
-            <h2 className="font-display mt-6 text-heading text-ink">{t('ficha.description')}</h2>
-            <p className="font-body mt-2 break-words whitespace-pre-line text-body text-muted text-pretty">{species.description}</p>
-          </>
-        )}
-
-        {species.curiosity && (
+        {species.curiosity ? (
           <div className="mt-4 rounded-card border border-warm/30 bg-warm/10 p-4">
             <p className="flex gap-3 text-body text-ink-2">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-warm-strong" aria-hidden="true" />
@@ -229,6 +249,14 @@ export function FichaPlantaPage({
                 <strong className="font-semibold text-ink">{t('ficha.curiosity')}:</strong>{' '}
                 {species.curiosity.text}
               </span>
+            </p>
+          </div>
+        ) : (
+          // RNF5: el dato curioso que falta se dice, no se calla.
+          <div className="mt-4 rounded-card border border-dashed border-line bg-surface-2 p-4" role="note">
+            <p className="flex gap-3 text-body text-muted">
+              <Lightbulb size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {t('ficha.noCuriosity')}
             </p>
           </div>
         )}
@@ -250,20 +278,25 @@ export function FichaPlantaPage({
           </p>
         </div>
 
-        {sources.length > 0 && (
-          <>
-            <div className="mt-6 flex items-center gap-2">
-              <h2 className="font-display text-heading text-ink">{t('ficha.sources')}</h2>
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-caption tabular-nums text-on-accent">
-                {sources.length}
-              </span>
-            </div>
-            <ul className="mt-3 space-y-2">
-              {sources.map((source) => (
-                <SourceCard key={source.name} source={source} />
-              ))}
-            </ul>
-          </>
+        <div className="mt-6 flex items-center gap-2">
+          <h2 className="font-display text-heading text-ink">{t('ficha.sources')}</h2>
+          {sources.length > 0 && (
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-caption tabular-nums text-on-accent">
+              {sources.length}
+            </span>
+          )}
+        </div>
+        {sources.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {sources.map((source) => (
+              <SourceCard key={source.name} source={source} />
+            ))}
+          </ul>
+        ) : (
+          // RNF5: las fuentes que faltan se dicen, no se callan.
+          <p className="font-body mt-3 text-body text-muted" role="note">
+            {t('ficha.noSources')}
+          </p>
         )}
 
         {/* Navegación entre las especies del catálogo (Anterior/Siguiente):
