@@ -20,10 +20,9 @@ export interface BottomNavigationProps {
    */
   className?: string;
   /**
-   * Modo de posición. 'fixed' se conserva por compatibilidad, pero se renderiza como
-   * 'absolute' dentro del marco de la app. Por defecto, 'relative'.
+   * Modo de posición dentro del marco de la app. Por defecto, 'relative'.
    */
-  position?: 'fixed' | 'sticky' | 'relative' | 'absolute';
+  position?: 'sticky' | 'relative' | 'absolute';
   /**
    * Optional custom tab definitions if overriding the default 5 tabs.
    */
@@ -74,7 +73,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   };
 
   const positionClasses = {
-    fixed: 'absolute bottom-0 left-0 right-0 z-50',
     sticky: 'sticky bottom-0 left-0 right-0 z-40',
     relative: 'relative z-10 w-full',
     absolute: 'absolute bottom-0 left-0 right-0 z-40',
