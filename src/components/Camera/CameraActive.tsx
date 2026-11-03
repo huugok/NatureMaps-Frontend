@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
+import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
 import { useApp } from '../../context/useApp';
+import { IDENTIFICATION_UNREACHABLE } from '../../services/identify';
 import type { PlantIdentification, PlantMatch } from '../../types/identify';
 import { CameraIdentificationResult } from './CameraIdentificationResult';
 
@@ -51,6 +52,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [hasRealStream, setHasRealStream] = useState(false);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const isBackendConnectionError = identificationError === IDENTIFICATION_UNREACHABLE;
 
   useEffect(() => {
     // Con una foto elegida (por ejemplo, desde la galería) no hace falta abrir
@@ -189,6 +191,9 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
   const handleDiscardPhoto = () => {
     onPhotoChange(null);
+    // Reinicia el estado de identificación en App: la siguiente foto empieza
+    // limpia aunque la anterior se quedara en error.
+    onPhotoCaptured?.('', mode);
     setPhotoSaved(false);
     setSaveError(false);
   };
@@ -400,9 +405,11 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           {identificationStatus === 'completed' && <CameraIdentificationResult {...identificationResult} />}
 
           <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
-            {identificationStatus !== 'idle' && identificationStatus !== 'completed' && (
-              <CameraIdentificationResult {...identificationResult} />
-            )}
+            {!isBackendConnectionError &&
+              identificationStatus !== 'idle' &&
+              identificationStatus !== 'completed' && (
+                <CameraIdentificationResult {...identificationResult} />
+              )}
             {(photoSaved || saveError) && (
               <p className={`mb-3 text-center text-caption ${photoSaved ? 'text-white/80' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
                 {photoSaved ? t('camera.saved') : t('camera.saveError')}
@@ -444,6 +451,60 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Sin conexión con el backend se muestra una respuesta honesta:
+              la foto se conserva y se puede reintentar sin perder el flujo. */}
+          {isBackendConnectionError && identificationStatus === 'error' && mode === 'planta' && (
+            <section className="absolute inset-0 z-40 flex flex-col overflow-y-auto overscroll-contain bg-app text-ink">
+              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-accent-soft">
+                <img
+                  src={photo}
+                  alt={t('camera.pendingPhotoAlt')}
+                  className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10"
+                />
+                <header className="absolute inset-x-0 top-0 flex items-center gap-3 px-4 pt-[max(20px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] pb-4">
+                  <button
+                    type="button"
+                    onClick={handleDiscardPhoto}
+                    aria-label={t('camera.pendingBackAria')}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface/90 text-ink shadow-raised transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <ArrowLeft size={20} aria-hidden="true" />
+                  </button>
+                  <h1 className="rounded-full bg-surface/90 px-4 py-2 text-heading text-ink shadow-raised">
+                    {t('camera.pendingTitle')}
+                  </h1>
+                </header>
+              </div>
+
+              <div className="flex flex-1 flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom,0px))]">
+                <div className="rounded-card bg-surface p-5 text-center shadow-raised">
+                  <span
+                    aria-hidden="true"
+                    className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent"
+                  >
+                    <ScanSearch size={24} />
+                  </span>
+                  <h2 className="mt-3 text-heading text-ink">{t('camera.pendingHeading')}</h2>
+                  <p className="mt-2 text-small text-muted text-pretty">{t('camera.pendingDesc')}</p>
+                  <button
+                    type="button"
+                    onClick={handleIdentify}
+                    className="mt-5 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  >
+                    {t('camera.pendingRetry')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDiscardPhoto}
+                    className="mt-2 flex min-h-12 w-full items-center justify-center rounded-card bg-surface px-4 text-body font-semibold text-ink shadow-raised transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {t('camera.pendingBack')}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

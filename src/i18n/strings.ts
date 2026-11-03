@@ -136,6 +136,14 @@ const es = {
   'camera.manualSoon': 'Identificación manual próximamente',
   'camera.error': 'No se ha podido identificar la foto.',
   'camera.retry': 'Reintentar',
+  'camera.pendingTitle': 'Planta sin identificar',
+  'camera.pendingHeading': 'Identificación pendiente',
+  'camera.pendingDesc':
+    'Aún no tenemos información verificada sobre esta planta. Puedes volver a intentarlo.',
+  'camera.pendingRetry': 'Reintentar identificación',
+  'camera.pendingBack': 'Volver a la cámara',
+  'camera.pendingPhotoAlt': 'Foto de la planta',
+  'camera.pendingBackAria': 'Volver a la cámara',
 
   'result.title': 'Resultado de la identificación',
   'result.photoAlt': 'Foto escaneada de la planta',
@@ -315,8 +323,15 @@ const va: Dict = {
   'camera.identifyUnavailable': 'La identificació només està disponible en mode Planta',
   'camera.manualSoon': 'Identificació manual pròximament',
   'camera.error': 'No s’ha pogut identificar la foto.',
-  'camera.sending': 'Enviant la foto a Pl@ntNet…',
   'camera.retry': 'Reintentar',
+  'camera.pendingTitle': 'Planta sense identificar',
+  'camera.pendingHeading': 'Identificació pendent',
+  'camera.pendingDesc':
+    'Encara no tenim informació verificada sobre esta planta. Pots tornar a intentar-ho.',
+  'camera.pendingRetry': 'Reintentar la identificació',
+  'camera.pendingBack': 'Tornar a la càmera',
+  'camera.pendingPhotoAlt': 'Foto de la planta',
+  'camera.pendingBackAria': 'Tornar a la càmera',
 
   'result.title': 'Resultat de la identificació',
   'result.photoAlt': 'Foto escanejada de la planta',
@@ -493,8 +508,15 @@ const en: Dict = {
   'camera.identifyUnavailable': 'Identification is only available in Plant mode',
   'camera.manualSoon': 'Manual identification coming soon',
   'camera.error': 'The photo could not be identified.',
-  'camera.sending': 'Sending the photo to Pl@ntNet…',
   'camera.retry': 'Retry',
+  'camera.pendingTitle': 'Unidentified plant',
+  'camera.pendingHeading': 'Identification pending',
+  'camera.pendingDesc':
+    'We do not have verified information about this plant yet. You can try again.',
+  'camera.pendingRetry': 'Retry identification',
+  'camera.pendingBack': 'Back to camera',
+  'camera.pendingPhotoAlt': 'Photo of the plant',
+  'camera.pendingBackAria': 'Back to camera',
 
   'result.title': 'Identification result',
   'result.photoAlt': 'Scanned photo of the plant',
