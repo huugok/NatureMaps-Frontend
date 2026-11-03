@@ -18,15 +18,15 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants = {
-  primary: 'bg-accent text-on-accent',
-  secondary: 'border-[1.5px] border-line bg-surface text-accent',
-  ghost: 'text-accent',
+  primary: 'bg-accent text-on-accent shadow-raised hover:brightness-95',
+  secondary: 'bg-surface text-accent shadow-raised hover:bg-neutral-50',
+  ghost: 'text-accent hover:bg-accent-soft',
 }
 
 export function Button({ variant = 'primary', size = 'md', block, icon: Icon, to, className, children, onClick, ...rest }: ButtonProps) {
   const small = size === 'sm'
   const cls = cn(
-    'inline-flex items-center justify-center gap-2 font-semibold transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex items-center justify-center gap-2 font-semibold transition active:scale-[0.97] disabled:pointer-events-none disabled:bg-line disabled:text-muted-2 disabled:shadow-none',
     variants[variant],
     small ? 'rounded-control py-2 text-small' : 'rounded-card py-3.5 text-body',
     variant === 'ghost' ? 'px-2' : small ? 'px-3.5' : 'px-5',

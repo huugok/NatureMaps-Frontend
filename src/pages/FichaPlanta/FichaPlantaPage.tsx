@@ -56,7 +56,7 @@ function SourceCard({ source }: SourceCardProps) {
   const Icon = source.icon === 'landmark' ? Landmark : Search;
 
   return (
-    <li className="rounded-card border border-line bg-white p-4">
+    <li className="rounded-card bg-surface p-4 shadow-raised">
       <div className="flex gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
           <Icon size={18} aria-hidden="true" />
@@ -119,13 +119,13 @@ export function FichaPlantaPage({
   };
 
   return (
-    <article className="w-full bg-white shadow-sm">
+    <article className="w-full bg-white">
       <div className="relative h-64 w-full overflow-hidden bg-accent-soft sm:h-72">
         {species.photoUrl ? (
           <img
             src={species.photoUrl}
             alt={species.photoAlt ?? t('ficha.photoAlt', { name: species.commonName })}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-accent">
@@ -138,12 +138,12 @@ export function FichaPlantaPage({
           </p>
         )}
 
-        <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
+        <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pb-4 pt-[max(24px,calc(env(safe-area-inset-top)+8px))]">
           <button
             type="button"
             onClick={onBack}
             aria-label={t('common.back')}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-raised transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <ArrowLeft size={22} aria-hidden="true" />
           </button>
@@ -152,7 +152,7 @@ export function FichaPlantaPage({
             onClick={handleToggleFavorite}
             aria-pressed={isFavorite}
             aria-label={isFavorite ? t('ficha.favoriteRemove') : t('ficha.favoriteAdd')}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-raised transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <Heart
               size={22}
@@ -227,8 +227,8 @@ export function FichaPlantaPage({
         )}
 
         <div className="mt-4 flex gap-3 rounded-card bg-neutral-100 p-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[8px] font-bold text-neutral-500">
-            LOGO
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-accent shadow-raised">
+            <ScanSearch size={18} aria-hidden="true" />
           </span>
           <p className="text-small text-muted">
             {t('ficha.notice')}{' '}
@@ -268,7 +268,7 @@ export function FichaPlantaPage({
               onClick={onPrevious}
               disabled={!onPrevious}
               aria-label={t('ficha.previousAria')}
-              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 rounded-card bg-surface px-4 text-body font-semibold text-neutral-700 shadow-raised transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={16} aria-hidden="true" />
               {t('ficha.previous')}
@@ -279,7 +279,7 @@ export function FichaPlantaPage({
               onClick={onNext}
               disabled={!onNext}
               aria-label={t('ficha.nextAria')}
-              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 rounded-card bg-surface px-4 text-body font-semibold text-neutral-700 shadow-raised transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t('ficha.next')}
               <ChevronRight size={16} aria-hidden="true" />
@@ -295,7 +295,7 @@ export function FichaPlantaPage({
         <button
           type="button"
           onClick={handleViewOnMap}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-accent px-4 py-3 text-body font-semibold text-white shadow-sm transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-accent px-4 py-3 text-body font-semibold text-white shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
         >
           <MapPin size={18} aria-hidden="true" />
           {t('ficha.viewOnMap')}

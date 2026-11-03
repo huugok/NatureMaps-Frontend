@@ -67,7 +67,7 @@ export function EspeciesAlternativas({
                 checked={seleccionada}
                 onChange={() => onSelect(match.scientificName)}
               />
-              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card border border-line bg-white py-2.5 pl-3.5 pr-3 transition-colors peer-checked:border-accent peer-checked:bg-accent-soft peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2">
+              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card bg-white py-2.5 shadow-raised pl-3.5 pr-3 transition-colors peer-checked:bg-accent-soft peer-checked:ring-2 peer-checked:ring-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body font-semibold text-ink">
                     {match.commonNames[0] !== undefined && (

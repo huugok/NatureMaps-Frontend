@@ -161,6 +161,7 @@ BottomNavigation/
 - Los contenedores de pantalla van a `w-full`; no añadir `max-w-*` a nivel de pantalla. Los
   `max-w-*` solo valen para tarjetas o modales internos.
 - Padding horizontal de pantalla: **16 px** (`px-4`), preferiblemente a través de `Page`.
+- En el marco simulado hay un inset superior de **8 px**; en móvil real se sustituye por la safe area.
 - La paleta es verde y fija; no cambia por modo. Los radios siguen pendientes de unificar.
 
 ## Tipografía
@@ -180,9 +181,10 @@ BottomNavigation/
 - Sin gradientes decorativos. Solo se admiten scrims funcionales sobre cámara o foto para que
   el texto sea legible.
 - Sin `backdrop-blur` ni glassmorphism: fondos sólidos con opacidad.
-- Sombras solo con `shadow-float` en diálogos y `shadow-xs`/`shadow-2xs` para elevación mínima.
+- Tarjetas y paneles usan `shadow-raised`; diálogos, `shadow-float`. Nada de sombras pesadas sueltas.
 - Colores siempre con tokens (`accent`, `warm`, `night`, `line`); nada de hex en JSX salvo el
   canvas de la cámara.
+- Las fotos llevan un outline interior de 1 px negro al 10 %.
 
 ## Móvil
 

@@ -15,8 +15,10 @@ export function IconButton({ icon: Icon, label, variant = 'default', className, 
       type="button"
       aria-label={label}
       className={cn(
-        'grid size-11 shrink-0 place-items-center rounded-full border transition-transform active:scale-95',
-        variant === 'accent' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-surface',
+        'grid size-11 shrink-0 place-items-center rounded-full transition-[transform,background-color,box-shadow] active:scale-95 disabled:pointer-events-none disabled:bg-line disabled:text-muted-2 disabled:shadow-none',
+        variant === 'accent'
+          ? 'bg-accent text-on-accent hover:brightness-95'
+          : 'bg-surface shadow-raised hover:bg-neutral-50',
         className,
       )}
       {...rest}

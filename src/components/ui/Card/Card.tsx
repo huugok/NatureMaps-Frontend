@@ -12,7 +12,7 @@ export function Card({ variant = 'default', className, ...rest }: Props) {
         'rounded-card p-4',
         variant === 'accent'
           ? 'bg-accent text-on-accent'
-          : 'border border-line bg-surface',
+          : 'bg-surface shadow-raised',
         className,
       )}
       {...rest}

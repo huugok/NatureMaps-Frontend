@@ -19,7 +19,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
   };
 
   return (
-    <section className="w-full px-4 pt-[max(20px,env(safe-area-inset-top))] pb-[calc(24px+env(safe-area-inset-bottom,0px))]">
+    <section className="w-full px-4 pt-[max(28px,calc(env(safe-area-inset-top)+8px))] pb-[calc(24px+env(safe-area-inset-bottom,0px))]">
       <header className="mb-6 flex items-center gap-2">
         <button
           type="button"
@@ -59,7 +59,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
       <button
         type="button"
         onClick={handleSave}
-        className="mt-6 min-h-12 w-full rounded-card bg-accent px-4 py-3 text-body font-semibold text-on-accent shadow-sm transition-colors hover:bg-accent-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+        className="mt-6 min-h-12 w-full rounded-card bg-accent px-4 py-3 text-body font-semibold text-on-accent shadow-raised transition-colors hover:bg-accent-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       >
         {t('common.save')}
       </button>

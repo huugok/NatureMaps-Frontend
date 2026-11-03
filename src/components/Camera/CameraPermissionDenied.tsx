@@ -20,7 +20,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
 }) => {
   const { t } = useApp();
   return (
-    <div className="relative flex flex-col h-full w-full bg-night text-white justify-between p-5 pt-[max(32px,env(safe-area-inset-top))] overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-night text-white justify-between p-5 pt-[max(40px,calc(env(safe-area-inset-top)+8px))] overflow-hidden">
       <div className="relative flex items-center justify-between w-full z-10">
         <button
           type="button"

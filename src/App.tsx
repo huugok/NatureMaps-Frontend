@@ -200,7 +200,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="app-frame" style={{ zoom: frameScale }}>
-        <div className="flex h-full flex-col" inert={ficha !== null}>
+        <div className="app-content flex h-full flex-col" inert={ficha !== null}>
           <Routes>
             <Route path="/" element={<Navigate to={mode ? '/inicio' : '/modo'} replace />} />
 
