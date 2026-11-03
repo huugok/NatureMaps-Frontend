@@ -4,8 +4,8 @@ Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla act
 cambien los comandos, la estructura o las convenciones.
 
 > Última verificación: 2026-11-03 · `main` @ `8b59038` · Rama de trabajo:
-> `feat/color-lab` (worktree `wt-color-lab`, 179 tests en verde), basada en
-> `feat/tipografia-lab`. Aplica la tipografía “Guía para todos” y la paleta “Verde dehesa”.
+> `feat/concilacion-ui` (worktree `wt-concilacion-ui`, 179 tests en verde). Incluye la
+> conciliación de PRs, la tipografía “Guía para todos” y la paleta “Verde dehesa”.
 > Sin push ni PR.
 
 ## Qué es este proyecto
@@ -37,14 +37,16 @@ El resto de pantallas (mapa, rutas, búsqueda…) llegan con sus propias UTs.
 
 **Rama de conciliación** (`feat/concilacion-ui`, worktree `wt-concilacion-ui`): integra las
 pantallas de #11, la ficha de #21, el escáner real, la traducción es/va/en, el mapa interactivo
-(#22), la respuesta sin conexión (#20) y la confianza en ficha/alternativas (#23). Las PRs
-#11, #20, #22 y #23 ya son ancestros de la rama; #12 (traducción) y #19 (ficha desde
-alternativa) están superadas y no se pueden mergear sin rehacerlas. No se ha hecho push.
+(#22), la respuesta sin conexión (#20), la confianza en ficha/alternativas (#23), la tipografía
+“Guía para todos” y la paleta “Verde dehesa”. Las PRs #11, #20, #22 y #23 ya son ancestros de
+la rama; #12 (traducción) y #19 (ficha desde alternativa) están superadas y no se pueden
+mergear sin rehacerlas. **Todo va en una sola PR.** No se ha hecho push.
 
 Pantallas actuales: `/inicio`, `/mapa` (`MapPage`), `/rutas`, `/buscar`, `/escanear`
 (`CameraScreen`), `/modo`, `/ajustes`, `/ajustes/idioma`, `/ficha` (`FichaRoute`) y
-`/componentes`. `ScanPage` y su carpeta `src/pages/Scan/` se eliminaron: el escaneo es
-`CameraScreen` directo y la ficha se abre como overlay sobre él o en `/ficha`.
+`/componentes`; laboratorios internos `/tipografia` y `/color`. `ScanPage` y su carpeta
+`src/pages/Scan/` se eliminaron: el escaneo es `CameraScreen` directo y la ficha se abre como
+overlay sobre él o en `/ficha`.
 
 Ramas con PR abierta (a 3/11/2026): #12 (`feat/traduccion-pantallas`, superada), #19
 (`feat/ficha-desde-alternativa`, superada) y la PR de backend #12 (`feat/arbolado-licencia`,
