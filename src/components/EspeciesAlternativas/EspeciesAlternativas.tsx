@@ -11,6 +11,8 @@ export interface EspeciesAlternativasProps {
   selectedName: string | null;
   /** Se llama con el nombre científico de la fila que pulsa el usuario. */
   onSelect: (scientificName: string) => void;
+  /** Abre la ficha de la candidata pulsada, si la pantalla lo permite. */
+  onOpenMatch?: (match: PlantMatch) => void;
   /** Número máximo de filas a mostrar. Por defecto, `MAX_ALTERNATIVAS`. */
   max?: number;
   /** Cabecera de la sección. Por defecto, «¿No es esta? Otras posibles». */
@@ -29,12 +31,15 @@ function porcentaje(score: number): number {
  * deja elegir una.
  *
  * Es un `radiogroup` nativo (inputs `radio` ocultos tras la fila), así que se
- * navega con las flechas y las etiquetas quedan asociadas sin ARIA extra.
+ * navega con las flechas y las etiquetas quedan asociadas sin ARIA extra. Pulsar
+ * una fila la selecciona y, si la pantalla lo permite, abre su ficha; las
+ * flechas solo cambian la selección.
  */
 export function EspeciesAlternativas({
   matches,
   selectedName,
   onSelect,
+  onOpenMatch,
   max = MAX_ALTERNATIVAS,
   title,
 }: EspeciesAlternativasProps) {
@@ -59,7 +64,11 @@ export function EspeciesAlternativas({
           const pct = porcentaje(match.score);
 
           return (
-            <label key={match.scientificName} className="block">
+            <label
+              key={match.scientificName}
+              className="block"
+              onClick={() => onOpenMatch?.(match)}
+            >
               <input
                 type="radio"
                 name={groupName}

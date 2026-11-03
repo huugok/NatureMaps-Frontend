@@ -19,7 +19,8 @@ export interface ResultadoEscaneoProps {
   onSelectAlternative?: (scientificName: string) => void;
   /**
    * Abre la ficha de la especie más probable. Si no se pasa, el botón «Ver
-   * ficha» no se pinta (por ejemplo, en pantallas sin navegación a la ficha).
+   * ficha» no se pinta. También abre la ficha de la candidata alternativa
+   * cuando se pulsa una fila.
    */
   onOpenPrimary?: (match: PlantMatch) => void;
   /** Vuelve a la pantalla anterior. */
@@ -193,6 +194,7 @@ export function ResultadoEscaneo({
               matches={alternativas}
               selectedName={selectedName ?? null}
               onSelect={seleccionar}
+              onOpenMatch={onOpenPrimary}
               max={maxAlternatives}
             />
           )}

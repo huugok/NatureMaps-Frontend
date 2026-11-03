@@ -315,7 +315,7 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Ver ficha' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).toBeInTheDocument()
-    expect(screen.getByText('Identificada con 91% de confianza')).toBeInTheDocument()
+    expect(screen.getByText('Confianza: 91%')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Especie anterior' })).not.toBeInTheDocument()
   })
 })

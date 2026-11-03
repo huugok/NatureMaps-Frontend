@@ -207,7 +207,9 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     photo,
     onRetry: handleIdentify,
     onOpenSpecies: (match: PlantMatch) => onOpenSpecies?.(match, photo),
-    onBack: onClose,
+    // Volver desde el resultado devuelve a la cámara con la foto descartada,
+    // no cierra el escáner entero: el usuario sigue en el mismo flujo.
+    onBack: handleDiscardPhoto,
     onRepeatPhoto: handleDiscardPhoto,
   };
 

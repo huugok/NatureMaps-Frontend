@@ -71,17 +71,6 @@ export function CameraIdentificationResult({
     );
   }
 
-  if (status === 'identifying') {
-    return (
-      <div
-        aria-live="polite"
-        className="mb-4 rounded-card bg-black/70 p-3 text-body text-white"
-      >
-        <p role="status">{t('camera.sending')}</p>
-      </div>
-    );
-  }
-
   if (status === 'error' && mode === 'planta') {
     return (
       <div
