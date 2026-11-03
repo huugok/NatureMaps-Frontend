@@ -292,6 +292,15 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
                     commonNames: ['Jacaranda'],
                     gbifId: null,
                   },
+                  {
+                    score: 0.42,
+                    scientificName: 'Ficus benjamina',
+                    author: null,
+                    family: null,
+                    genus: null,
+                    commonNames: ['Ficus'],
+                    gbifId: null,
+                  },
                 ],
               }),
               respuestaJson,
@@ -317,5 +326,25 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).toBeInTheDocument()
     expect(screen.getByText('Confianza: 91%')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Especie anterior' })).not.toBeInTheDocument()
+
+    // PA 516: el porcentaje de confianza es el camino de vuelta al resultado.
+    fireEvent.click(screen.getByRole('button', { name: 'Confianza: 91%' }))
+
+    expect(
+      await screen.findByRole('dialog', { name: 'Resultado de la identificación' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Especie más probable')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Ficus/ })).toBeInTheDocument()
+
+    // Y una alternativa abre su propia ficha con su porcentaje.
+    fireEvent.click(screen.getByRole('radio', { name: /Ficus/ }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ficus benjamina' })).toBeInTheDocument()
+    expect(screen.getByText('Confianza: 42%')).toBeInTheDocument()
+
+    // Al volver, la alternativa sigue marcada en el resultado.
+    fireEvent.click(screen.getByRole('button', { name: 'Confianza: 42%' }))
+
+    expect(await screen.findByText(/Especie elegida/)).toHaveTextContent('Ficus benjamina')
   })
 })
