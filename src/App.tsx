@@ -46,6 +46,18 @@ const MapPage = lazy(() =>
   import('./pages/Map').then((module) => ({ default: module.MapPage })),
 );
 
+const TypographyLab = lazy(() =>
+  import('./pages/TypographyLab').then((module) => ({ default: module.TypographyLab })),
+);
+
+function LabFallback() {
+  return (
+    <p role="status" className="p-4 text-small text-muted">
+      Cargando laboratorio…
+    </p>
+  );
+}
+
 function MapFallback() {
   const { t } = useApp();
   return (
@@ -270,6 +282,14 @@ export default function App() {
                 }
               />
               <Route path="/componentes" element={<Components />} />
+              <Route
+                path="/tipografia"
+                element={
+                  <Suspense fallback={<LabFallback />}>
+                    <TypographyLab />
+                  </Suspense>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Leaf, MapPin, Route, Settings as SettingsIcon } from 'lucide-react'
+import { ArrowLeft, Bell, Leaf, MapPin, Route, Settings as SettingsIcon, Type } from 'lucide-react'
 import { useState } from 'react'
 import { Page } from '../../components/Page'
 import { Badge } from '../../components/ui/Badge'
@@ -32,6 +32,16 @@ export function Components() {
 
   return (
     <Page title={t('catalog.title')} subtitle={t('catalog.subtitle')} back>
+      <SectionLabel>Tipografía</SectionLabel>
+      <List>
+        <ListItem
+          icon={Type}
+          title="Laboratorio tipográfico"
+          subtitle="Cinco direcciones para comparar en contexto"
+          to="/tipografia"
+        />
+      </List>
+
       <SectionLabel>{t('catalog.colors')}</SectionLabel>
       <div className="grid grid-cols-4 gap-2">
         {SWATCHES.map((cls) => (
