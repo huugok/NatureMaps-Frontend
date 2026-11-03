@@ -211,13 +211,15 @@
 
 /* Marcadores de Leaflet: círculo de ubicación y punto buscado. */
 .user-location-icon,
-.searched-place-icon {
+.searched-place-icon,
+.plant-location-icon {
   background: transparent;
   border: 0;
 }
 
 .user-location-icon span,
-.searched-place-icon span {
+.searched-place-icon span,
+.plant-location-icon span {
   position: absolute;
   border: 2px solid var(--color-surface);
   border-radius: 9999px;
@@ -232,4 +234,9 @@
 .searched-place-icon span {
   inset: 4px;
   background: var(--color-place);
+}
+
+.plant-location-icon span {
+  inset: 5px;
+  background: var(--color-accent);
 }

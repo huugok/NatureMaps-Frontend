@@ -2,8 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LocateFixed, Search, X } from 'lucide-react';
+import { LocateFixed, MapPinOff, Search, X } from 'lucide-react';
 import { useApp } from '../../context/useApp';
+import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
+import { formatDistance } from '../../i18n/format';
+import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
+import type { NearbyPlant } from '../../services/nearby';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const LOCATION_COLOR = '#3b7ddd';
@@ -40,13 +44,46 @@ function zoomToKeepUserAndPlaceVisible(map: L.Map, user: Coordinates, place: L.L
   return Math.min(16, Math.max(3, map.getBoundsZoom(bounds, false, L.point(48, 112)) - 1));
 }
 
+const NEARBY_LIMIT = 100;
+// Refresco de plantas cercanas: si el usuario se ha movido menos que esto
+// desde la última consulta, la lista anterior sigue siendo válida.
+const NEARBY_REFRESH_METERS = 200;
+
+const plantIcon = L.divIcon({
+  className: 'plant-location-icon',
+  html: '<span aria-hidden="true"></span>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+
+function metersBetween(a: Coordinates, b: Coordinates): number {
+  const dLat = (b.latitude - a.latitude) * 111_320;
+  const dLon = (b.longitude - a.longitude) * 111_320 * Math.max(Math.cos((a.latitude * Math.PI) / 180), 0.01);
+  return Math.hypot(dLat, dLon);
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+}
+
+// TODO(RF5/RNF8): la UT de puntos en el mapa definirá icono y texto por
+// especie y agrupación de puntos cercanos; este marcador neutral es
+// provisional y vive aislado para sustituirlo sin tocar el resto.
+function createPlantMarker(plant: NearbyPlant): L.Marker {
+  return L.marker([plant.latitude, plant.longitude], {
+    icon: plantIcon,
+    title: plant.displayName,
+    alt: plant.displayName,
+  });
+}
+
 /**
  * Mapa interactivo de Valencia: capa base de OpenStreetMap, ubicación del
  * usuario y búsqueda de lugares (Nominatim). El mapa base anterior
  * (`MapView`) sigue disponible para incrustar capas de especies.
  */
 export function MapPage() {
-  const { t, lang } = useApp();
+  const { t, lang, mode } = useApp();
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -61,6 +98,55 @@ export function MapPage() {
   const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
   const lastNominatimSearchAt = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
+
+  // Plantas cercanas (RF2): radio configurable en Ajustes, cargadas al tener
+  // ubicación y refrescadas si cambia el radio, el idioma o el modo.
+  const [radius] = useState(readNearbyRadius);
+  const [nearbyPlants, setNearbyPlants] = useState<NearbyPlant[] | null>(null);
+  const nearbyPlantsRef = useRef<NearbyPlant[] | null>(null);
+  const plantsAbortRef = useRef<AbortController | null>(null);
+  const lastFetchCenterRef = useRef<Coordinates | null>(null);
+  const plantsLayerRef = useRef<L.LayerGroup | null>(null);
+  const {
+    status: locationPermission,
+    position: locatedPosition,
+    allow: allowLocation,
+    deny: denyLocation,
+    retry: retryLocation,
+  } = useLocationPermission();
+  // El modo `educativo` no muestra plantas del inventario (pendiente de la UT
+  // de contenidos por modo).
+  const showPlants = mode !== 'educativo';
+
+  const setPlants = useCallback((plants: NearbyPlant[] | null) => {
+    nearbyPlantsRef.current = plants;
+    setNearbyPlants(plants);
+  }, []);
+
+  // Cargador reasignado tras cada render para que updateUserLocation
+  // (memoizado) use siempre el radio, idioma y modo vigentes.
+  const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
+  useEffect(() => {
+    loadPlantsRef.current = (coords: Coordinates) => {
+      if (!showPlants) return;
+      const last = lastFetchCenterRef.current;
+      if (last && nearbyPlantsRef.current !== null && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
+      plantsAbortRef.current?.abort();
+      const controller = new AbortController();
+      plantsAbortRef.current = controller;
+      lastFetchCenterRef.current = coords;
+      fetchNearbyTrees(
+        { latitude: coords.latitude, longitude: coords.longitude, radius, limit: NEARBY_LIMIT, lang },
+        controller.signal,
+      )
+        .then((response) => {
+          if (!controller.signal.aborted) setPlants(response.trees);
+        })
+        .catch(() => {
+          // Fallo de red silencioso: el mapa sigue con lo último mostrado.
+        });
+    };
+  });
 
   const updateUserLocation = useCallback((position: GeolocationPosition) => {
     const coords = {
@@ -109,6 +195,8 @@ export function MapPage() {
         { animate: true },
       );
     }
+
+    loadPlantsRef.current(coords);
   }, []);
 
   useEffect(() => {
@@ -140,6 +228,7 @@ export function MapPage() {
   }, []);
 
   useEffect(() => {
+    if (locationPermission !== 'granted') return;
     if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
       updateUserLocation,
@@ -149,7 +238,49 @@ export function MapPage() {
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [updateUserLocation]);
+  }, [updateUserLocation, locationPermission]);
+
+  // Plantas cercanas: la primera carga (o el refresco tras cambios de radio,
+  // idioma o modo) usa la posición del permiso o la última conocida; los
+  // siguientes refrescos por movimiento los decide el propio cargador.
+  useEffect(() => {
+    if (locationPermission !== 'granted' || !showPlants) {
+      plantsAbortRef.current?.abort();
+      plantsAbortRef.current = null;
+      lastFetchCenterRef.current = null;
+      return;
+    }
+    const current = locatedPosition ?? currentPositionRef.current;
+    if (current) {
+      lastFetchCenterRef.current = null;
+      loadPlantsRef.current(current);
+    }
+  }, [locationPermission, locatedPosition, showPlants, radius, lang]);
+
+  useEffect(() => () => plantsAbortRef.current?.abort(), []);
+
+  // Capa de marcadores de plantas: se reconstruye cuando llegan datos nuevos,
+  // cambia el idioma (textos del popup) o se ocultan por modo o sin permiso.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (plantsLayerRef.current) {
+      plantsLayerRef.current.remove();
+      plantsLayerRef.current = null;
+    }
+    if (locationPermission !== 'granted' || !showPlants || !nearbyPlants || nearbyPlants.length === 0) return;
+    const layer = L.layerGroup();
+    for (const plant of nearbyPlants) {
+      layer.addLayer(
+        createPlantMarker(plant).bindPopup(
+          `<strong>${escapeHtml(plant.displayName)}</strong><br>${escapeHtml(formatDistance(plant.distance, lang))}`,
+          { closeButton: false, autoPan: false },
+        ),
+      );
+    }
+    layer.addTo(map);
+    plantsLayerRef.current = layer;
+  }, [nearbyPlants, lang, showPlants, locationPermission]);
 
   const selectPlace = (place: PlaceResult) => {
     const target: Coordinates = {
@@ -391,6 +522,24 @@ export function MapPage() {
       >
         <LocateFixed size={21} aria-hidden="true" />
       </button>
+
+      {locationPermission === 'denied' && (
+        <button
+          type="button"
+          onClick={retryLocation}
+          aria-label={t('location.retryAria')}
+          title={t('location.retryAria')}
+          className="absolute right-4 bottom-20 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <MapPinOff size={21} aria-hidden="true" />
+        </button>
+      )}
+
+      {locationPermission === 'prompt' && (
+        <div className="absolute inset-0 z-[1100]">
+          <LocationPermissionPrompt onAllow={allowLocation} onDeny={denyLocation} />
+        </div>
+      )}
 
       <a
         href="https://www.openstreetmap.org/copyright"

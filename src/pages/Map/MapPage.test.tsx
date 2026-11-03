@@ -24,10 +24,16 @@ const leaflet = vi.hoisted(() => {
     setLatLng: vi.fn(),
     bindTooltip: vi.fn(function (this: unknown) { return this; }),
     unbindTooltip: vi.fn(function (this: unknown) { return this; }),
+    bindPopup: vi.fn(function (this: unknown) { return this; }),
     getElement: vi.fn(() => null),
     getLatLng: vi.fn(() => ({ lat: 39.47, lng: -0.37 })),
     remove: vi.fn(),
     options: {} as Record<string, unknown>,
+  };
+  const layerGroup = {
+    addLayer: vi.fn(function (this: unknown) { return this; }),
+    addTo: vi.fn(function (this: unknown) { return this; }),
+    remove: vi.fn(),
   };
   const circle = {
     addTo: vi.fn(function (this: unknown) { return this; }),
@@ -38,10 +44,12 @@ const leaflet = vi.hoisted(() => {
     map,
     marker,
     circle,
+    layerGroup,
     mapFactory: vi.fn(() => map),
     tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
     markerFactory: vi.fn(() => marker),
     circleFactory: vi.fn(() => circle),
+    layerGroupFactory: vi.fn(() => layerGroup),
     divIcon: vi.fn(() => ({})),
     latLngBounds: vi.fn(() => ({})),
     latLng: vi.fn((point: [number, number]) => ({ lat: point[0], lng: point[1] })),
@@ -55,6 +63,7 @@ vi.mock('leaflet', () => ({
     tileLayer: leaflet.tileLayer,
     marker: leaflet.markerFactory,
     circle: leaflet.circleFactory,
+    layerGroup: leaflet.layerGroupFactory,
     divIcon: leaflet.divIcon,
     latLngBounds: leaflet.latLngBounds,
     latLng: leaflet.latLng,
@@ -135,5 +144,77 @@ describe('MapPage', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('No se encontraron lugares con ese nombre.');
     await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+  });
+
+  it('pide permiso antes de usar la ubicación y arranca el seguimiento al concederlo', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'prompt' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+
+    render(<MapPage />);
+
+    expect(await screen.findByRole('button', { name: 'Permitir ubicación' })).toBeInTheDocument();
+    expect(geo.watchPosition).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Permitir ubicación' }));
+
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('con el permiso denegado muestra el botón para reactivar la ubicación y no sigue al usuario', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'denied' })) },
+    });
+
+    render(<MapPage />);
+
+    expect(await screen.findByRole('button', { name: 'Volver a pedir la ubicación' })).toBeInTheDocument();
+    expect(geo.watchPosition).not.toHaveBeenCalled();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('muestra las plantas cercanas del backend como marcadores con distancia en el popup', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        center: { latitude: 39.48, longitude: -0.38 },
+        radius: 1000,
+        returned: 1,
+        limit: 100,
+        language: 'es',
+        trees: [{
+          id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
+          displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 250,
+        }],
+      }),
+    } as Response);
+
+    render(<MapPage />);
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+
+    await waitFor(() => expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(
+      expect.stringContaining('Almez'),
+      expect.anything(),
+    ));
+    expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(expect.stringContaining('250 m'), expect.anything());
+    expect(leaflet.layerGroupFactory).toHaveBeenCalled();
+    expect(leaflet.layerGroup.addTo).toHaveBeenCalledWith(leaflet.map);
+    // El marcador de planta es interactivo (tiene popup), a diferencia del de usuario.
+    expect(leaflet.markerFactory).toHaveBeenCalledWith([39.4795, -0.3795], expect.objectContaining({
+      title: 'Almez',
+    }));
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 });
