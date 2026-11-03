@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkHealth } from '../../services/api'
 import { renderWithProviders } from '../../test/renderWithProviders'
@@ -44,5 +44,29 @@ describe('Settings', () => {
     renderWithProviders(<Settings language="es" onBack={onBack} />)
     expect(screen.getByText('Comprobando…')).toBeInTheDocument()
     expect(await screen.findByText('Sin conexión')).toBeInTheDocument()
+  })
+
+  it('guarda el radio de plantas cercanas al mover el deslizador', () => {
+    vi.mocked(checkHealth).mockResolvedValue(true)
+    renderWithProviders(<Settings language="es" onBack={onBack} />)
+
+    const slider = screen.getByLabelText('Radio para mostrar plantas cercanas')
+    expect(slider).toHaveValue('1000')
+    expect(screen.getByText('1 km')).toBeInTheDocument()
+
+    fireEvent.change(slider, { target: { value: '2500' } })
+
+    expect(localStorage.getItem('naturemaps:radius')).toBe('2500')
+    expect(screen.getByText('2,5 km')).toBeInTheDocument()
+  })
+
+  it('recupera el radio guardado y lo muestra formateado', async () => {
+    localStorage.setItem('naturemaps:radius', '700')
+    vi.mocked(checkHealth).mockResolvedValue(true)
+    renderWithProviders(<Settings language="es" onBack={onBack} />)
+
+    expect(screen.getByLabelText('Radio para mostrar plantas cercanas')).toHaveValue('700')
+    expect(screen.getByText('700 m')).toBeInTheDocument()
+    await screen.findByText('Conectado')
   })
 })
