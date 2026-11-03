@@ -8,7 +8,7 @@ export function Radio({ checked }: { checked: boolean }) {
       data-checked={checked}
       className={cn(
         'relative size-5 shrink-0 rounded-full border-2',
-        checked ? 'border-accent after:absolute after:inset-[3px] after:rounded-full after:bg-accent' : 'border-[#d8d8d2]',
+        checked ? 'border-accent after:absolute after:inset-[3px] after:rounded-full after:bg-accent' : 'border-line-strong',
       )}
     />
   )

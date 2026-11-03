@@ -67,7 +67,7 @@ export function EspeciesAlternativas({
                 checked={seleccionada}
                 onChange={() => onSelect(match.scientificName)}
               />
-              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card border border-line bg-white py-2.5 pl-3.5 pr-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors peer-checked:border-[#1f4d2e] peer-checked:bg-[#f2f7ec] peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-800 peer-focus-visible:ring-offset-2">
+              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card border border-line bg-white py-2.5 pl-3.5 pr-3 transition-colors peer-checked:border-accent peer-checked:bg-accent-soft peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body font-semibold text-ink">
                     {match.commonNames[0] !== undefined && (
@@ -80,7 +80,7 @@ export function EspeciesAlternativas({
                     className="mt-1.5 block h-1 w-20 overflow-hidden rounded-full bg-neutral-200"
                   >
                     <span
-                      className="block h-full rounded-full bg-[#1f4d2e]"
+                      className="block h-full rounded-full bg-accent"
                       style={{ width: `${pct}%` }}
                     />
                   </span>
@@ -89,7 +89,7 @@ export function EspeciesAlternativas({
                 {seleccionada ? (
                   <Check
                     size={16}
-                    className="shrink-0 text-[#1f4d2e]"
+                    className="shrink-0 text-accent"
                     aria-hidden="true"
                   />
                 ) : (

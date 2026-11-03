@@ -87,7 +87,7 @@ export function ResultadoEscaneo({
       className="absolute inset-0 z-[65] flex justify-center overflow-y-auto overscroll-contain bg-neutral-950"
     >
       <div className="flex min-h-full w-full flex-col bg-white text-neutral-900">
-        <header className="relative h-48 shrink-0 overflow-hidden bg-[#7d9b58]">
+        <header className="relative h-48 shrink-0 overflow-hidden bg-accent-2">
           {photoUrl !== null ? (
             <img
               src={photoUrl}
@@ -99,24 +99,17 @@ export function ResultadoEscaneo({
               <Sprout size={64} strokeWidth={1.3} aria-hidden="true" />
             </div>
           )}
-          {photoUrl !== null && (
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/25"
-            />
-          )}
-
           <button
             type="button"
             onClick={onBack}
             autoFocus
             aria-label={t('result.back')}
-            className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#7d9b58]"
+            className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-sm transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-accent-2"
           >
             <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
-          <span className="absolute bottom-3 left-4 rounded-full bg-[#123a25] px-3 py-1 text-caption font-medium text-white shadow-sm">
+          <span className="absolute bottom-3 left-4 rounded-full bg-accent px-3 py-1 text-caption font-medium text-white shadow-sm">
             {t('result.yourPhoto')}
           </span>
         </header>
@@ -140,11 +133,11 @@ export function ResultadoEscaneo({
                 {t('result.best')}
               </h2>
 
-              <article className="mt-2.5 rounded-card border-2 border-[#1f4d2e] bg-white p-3.5 shadow-sm">
+              <article className="mt-2.5 rounded-card border-2 border-accent bg-white p-3.5 shadow-sm">
                 <div className="flex items-start gap-3">
                   <span
                     aria-hidden="true"
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e7efdd] text-[#1f4d2e]"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent"
                   >
                     <Sprout size={26} strokeWidth={1.7} />
                   </span>
@@ -160,7 +153,7 @@ export function ResultadoEscaneo({
                     )}
                   </div>
 
-                  <p className="shrink-0 text-title tabular-nums text-[#1f4d2e]">
+                  <p className="shrink-0 text-title tabular-nums text-accent">
                     {pct}%
                   </p>
                 </div>
@@ -171,10 +164,10 @@ export function ResultadoEscaneo({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={pct ?? 0}
-                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e7efdd]"
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-accent-soft"
                 >
                   <div
-                    className="h-full rounded-full bg-[#1f4d2e]"
+                    className="h-full rounded-full bg-accent"
                     style={{ width: `${pct ?? 0}%` }}
                   />
                 </div>
@@ -186,7 +179,7 @@ export function ResultadoEscaneo({
                   <button
                     type="button"
                     onClick={() => onOpenPrimary(principal)}
-                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-[#1f4d2e] px-4 text-body font-semibold text-white transition-colors hover:bg-[#173c24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
+                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
                     {t('result.viewCard')}
                   </button>
@@ -205,7 +198,7 @@ export function ResultadoEscaneo({
           )}
 
           {selectedName !== null && selectedName !== undefined && (
-            <p role="status" className="mt-3 text-body font-medium text-[#1f4d2e]">
+            <p role="status" className="mt-3 text-body font-medium text-accent">
               {t('result.selected')}: {selectedName}
             </p>
           )}
@@ -214,7 +207,7 @@ export function ResultadoEscaneo({
             <button
               type="button"
               onClick={onRepeatPhoto}
-              className="inline-flex min-h-12 items-center justify-center rounded-card px-4 text-body font-semibold text-[#1f4d2e] transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
+              className="inline-flex min-h-12 items-center justify-center rounded-card px-4 text-body font-semibold text-accent transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {t('result.none')}
             </button>
@@ -224,7 +217,7 @@ export function ResultadoEscaneo({
         <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-neutral-50 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-caption text-muted">
           <span
             aria-hidden="true"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[#1f4d2e] shadow-sm"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-accent shadow-sm"
           >
             <Sprout size={14} strokeWidth={2} />
           </span>

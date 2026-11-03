@@ -175,6 +175,15 @@ BottomNavigation/
   el `<input>` va a 16 px para evitar el zoom de iOS.
 - Bordes con `border-line` (negro al 8 %), no hex sólidos.
 
+## Superficies
+
+- Sin gradientes decorativos. Solo se admiten scrims funcionales sobre cámara o foto para que
+  el texto sea legible.
+- Sin `backdrop-blur` ni glassmorphism: fondos sólidos con opacidad.
+- Sombras solo con `shadow-float` en diálogos y `shadow-xs`/`shadow-2xs` para elevación mínima.
+- Colores siempre con tokens (`accent`, `warm`, `night`, `line`); nada de hex en JSX salvo el
+  canvas de la cámara.
+
 ## Móvil
 
 - `viewport` con `viewport-fit=cover` e `interactive-widget=resizes-content`; `theme-color`

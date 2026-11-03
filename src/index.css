@@ -9,6 +9,8 @@
   /* Marca */
   --color-green: #2b6942;
   --color-warm: #b8863b;
+  --color-warm-strong: #865727;
+  --color-night: #102416;
 
   /* Texto y superficies */
   --color-ink: #1f2937;
@@ -16,6 +18,7 @@
   --color-muted: #6b7273;
   --color-muted-2: #9aa0a0;
   --color-line: rgb(0 0 0 / 0.08);
+  --color-line-strong: #d8d8d2;
   --color-surface: #ffffff;
   --color-danger: #e85d5d;
 

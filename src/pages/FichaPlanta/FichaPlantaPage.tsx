@@ -71,7 +71,7 @@ function SourceCard({ source }: SourceCardProps) {
               href={source.url}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-small font-medium break-all text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+              className="mt-1 inline-flex items-center gap-1 text-small font-medium break-all text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {source.url}
               <ExternalLink size={12} aria-hidden="true" />
@@ -120,7 +120,7 @@ export function FichaPlantaPage({
 
   return (
     <article className="w-full bg-white shadow-sm">
-      <div className="relative h-64 w-full overflow-hidden bg-emerald-100 sm:h-72">
+      <div className="relative h-64 w-full overflow-hidden bg-accent-soft sm:h-72">
         {species.photoUrl ? (
           <img
             src={species.photoUrl}
@@ -128,7 +128,7 @@ export function FichaPlantaPage({
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-emerald-600">
+          <div className="flex h-full w-full items-center justify-center text-accent">
             <Trees size={56} aria-hidden="true" />
           </div>
         )}
@@ -143,7 +143,7 @@ export function FichaPlantaPage({
             type="button"
             onClick={onBack}
             aria-label={t('common.back')}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <ArrowLeft size={22} aria-hidden="true" />
           </button>
@@ -152,7 +152,7 @@ export function FichaPlantaPage({
             onClick={handleToggleFavorite}
             aria-pressed={isFavorite}
             aria-label={isFavorite ? t('ficha.favoriteRemove') : t('ficha.favoriteAdd')}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <Heart
               size={22}
@@ -181,7 +181,7 @@ export function FichaPlantaPage({
         {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
           <ul className="mt-4 flex flex-wrap gap-2">
             {identification && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-caption font-medium text-white">
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-caption font-medium text-white">
                 <ScanSearch size={14} aria-hidden="true" />
                 {t('ficha.identification', { score: Math.round(identification.score * 100) })}
               </li>
@@ -193,7 +193,7 @@ export function FichaPlantaPage({
               </li>
             )}
             {primaryLocation && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-caption font-medium text-emerald-900">
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-caption font-medium text-accent">
                 <MapPin size={14} aria-hidden="true" />
                 {primaryLocation.name}
               </li>
@@ -236,7 +236,7 @@ export function FichaPlantaPage({
               href={IDENTIFICATION_NOTICE.url}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+              className="font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {IDENTIFICATION_NOTICE.url}
             </a>
@@ -247,7 +247,7 @@ export function FichaPlantaPage({
           <>
             <div className="mt-6 flex items-center gap-2">
               <h2 className="text-heading text-ink">{t('ficha.sources')}</h2>
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-caption tabular-nums text-white">
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-caption tabular-nums text-white">
                 {sources.length}
               </span>
             </div>
@@ -268,7 +268,7 @@ export function FichaPlantaPage({
               onClick={onPrevious}
               disabled={!onPrevious}
               aria-label={t('ficha.previousAria')}
-              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={16} aria-hidden="true" />
               {t('ficha.previous')}
@@ -279,7 +279,7 @@ export function FichaPlantaPage({
               onClick={onNext}
               disabled={!onNext}
               aria-label={t('ficha.nextAria')}
-              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t('ficha.next')}
               <ChevronRight size={16} aria-hidden="true" />
@@ -295,7 +295,7 @@ export function FichaPlantaPage({
         <button
           type="button"
           onClick={handleViewOnMap}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-emerald-800 px-4 py-3 text-body font-semibold text-white shadow-sm transition-colors hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-accent px-4 py-3 text-body font-semibold text-white shadow-sm transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
         >
           <MapPin size={18} aria-hidden="true" />
           {t('ficha.viewOnMap')}

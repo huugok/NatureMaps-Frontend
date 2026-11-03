@@ -118,8 +118,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               tabIndex={isActive ? 0 : -1}
               onClick={() => handleSelectTab(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, index)}
-              className={`group relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 transition-all duration-150 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 active:scale-95 cursor-pointer ${
-                isActive ? 'text-emerald-800' : 'text-neutral-500 hover:text-neutral-700'
+              className={`group relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 transition duration-150 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 active:scale-95 cursor-pointer ${
+                isActive ? 'text-accent' : 'text-neutral-500 hover:text-neutral-700'
               }`}
             >
               {/* Icon Container with Badge */}
@@ -129,13 +129,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   strokeWidth={isActive ? 2.4 : 1.75}
                   className={`transition-colors duration-150 ${
                     isActive
-                      ? 'text-emerald-800 stroke-emerald-800'
+                      ? 'text-accent stroke-accent'
                       : 'text-neutral-500 stroke-neutral-500 group-hover:text-neutral-700 group-hover:stroke-neutral-700'
                   }`}
                 />
 
                 {tab.badge !== undefined && tab.badge !== false && (
-                  <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white shadow-xs">
+                  <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white shadow-xs">
                     {typeof tab.badge === 'boolean' ? '' : tab.badge}
                   </span>
                 )}
@@ -144,7 +144,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               {/* Tab Label */}
               <span
                 className={`text-[11px] leading-tight tracking-tight transition-colors duration-150 ${
-                  isActive ? 'font-bold text-emerald-800' : 'font-medium text-neutral-500 group-hover:text-neutral-700'
+                  isActive ? 'font-bold text-accent' : 'font-medium text-neutral-500 group-hover:text-neutral-700'
                 }`}
               >
                 {label}

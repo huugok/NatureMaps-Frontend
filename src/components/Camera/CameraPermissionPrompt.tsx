@@ -23,14 +23,14 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
           type="button"
           onClick={onBack}
           aria-label={t('common.back')}
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-colors cursor-pointer"
+          className="flex items-center justify-center w-11 h-11 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} strokeWidth={2.2} />
         </button>
       </div>
 
       <div className="flex flex-col items-center text-center my-auto py-4 max-w-sm mx-auto">
-        <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-[#e6efe4] text-[#1e5631] mb-5 shadow-xs">
+        <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-accent-soft text-accent mb-5 shadow-xs">
           <Camera size={38} strokeWidth={2} />
         </div>
 
@@ -44,14 +44,14 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
 
         <div className="w-full flex flex-col gap-2.5 text-left mb-2">
           <div className="flex items-center gap-3 p-3.5 rounded-card border border-line bg-neutral-50/60 shadow-2xs">
-            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-accent-soft text-accent shrink-0">
               <Check size={14} strokeWidth={2.5} />
             </div>
             <span className="text-small font-medium text-neutral-700">{t('camera.promptSetting')}</span>
           </div>
 
           <div className="flex items-center gap-3 p-3.5 rounded-card border border-line bg-neutral-50/60 shadow-2xs">
-            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-accent-soft text-accent shrink-0">
               <Check size={14} strokeWidth={2.5} />
             </div>
             <span className="text-small font-medium text-neutral-700">{t('camera.promptGallery')}</span>
@@ -63,7 +63,7 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
         <button
           type="button"
           onClick={onAllow}
-          className="w-full py-3.5 px-4 rounded-card bg-[#1e5631] hover:bg-[#164326] text-white text-body font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+          className="w-full py-3.5 px-4 rounded-card bg-accent hover:brightness-95 text-white text-body font-semibold transition shadow-xs cursor-pointer active:scale-[0.98]"
         >
           {t('camera.allowButton')}
         </button>
@@ -71,7 +71,7 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
         <button
           type="button"
           onClick={onDeny}
-          className="w-full py-3.5 px-4 rounded-card bg-[#865727] hover:bg-[#724920] text-white text-body font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+          className="w-full py-3.5 px-4 rounded-card bg-warm-strong hover:brightness-95 text-white text-body font-semibold transition shadow-xs cursor-pointer active:scale-[0.98]"
         >
           {t('camera.denyButton')}
         </button>
@@ -79,7 +79,7 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
         <button
           type="button"
           onClick={onSelectFromGallery}
-          className="w-full py-3.5 px-4 rounded-card bg-white border border-line hover:bg-neutral-50 text-neutral-800 text-body font-semibold transition-all shadow-2xs cursor-pointer active:scale-[0.98]"
+          className="w-full py-3.5 px-4 rounded-card bg-white border border-line hover:bg-neutral-50 text-neutral-800 text-body font-semibold transition shadow-2xs cursor-pointer active:scale-[0.98]"
         >
           {t('camera.galleryButton')}
         </button>

@@ -141,7 +141,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       />
 
       {permission === 'checking' && (
-        <div className="flex h-full w-full items-center justify-center bg-[#102416]" role="status" aria-label={t('camera.checking')}>
+        <div className="flex h-full w-full items-center justify-center bg-night" role="status" aria-label={t('camera.checking')}>
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         </div>
       )}

@@ -25,7 +25,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
           type="button"
           onClick={onBack}
           aria-label={t('common.back')}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-neutral-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-neutral-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
@@ -49,7 +49,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
               value={option}
               checked={draft === option}
               onChange={() => setDraft(option)}
-              className="h-5 w-5 accent-emerald-700"
+              className="h-5 w-5 accent-[var(--color-accent)]"
             />
             <span className="text-body text-ink">{LANGUAGE_NAMES[option]}</span>
           </label>

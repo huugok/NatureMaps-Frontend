@@ -20,22 +20,22 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
 }) => {
   const { t } = useApp();
   return (
-    <div className="relative flex flex-col h-full w-full bg-[#102416] text-white justify-between p-5 pt-[max(32px,env(safe-area-inset-top))] overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-night text-white justify-between p-5 pt-[max(32px,env(safe-area-inset-top))] overflow-hidden">
       <div className="relative flex items-center justify-between w-full z-10">
         <button
           type="button"
           onClick={onBack}
           aria-label={t('common.back')}
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+          className="flex items-center justify-center w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} strokeWidth={2.2} />
         </button>
 
-        <div className="inline-flex items-center bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/10 text-caption font-medium">
+        <div className="inline-flex items-center bg-black/45 p-1 rounded-full border border-white/10 text-caption font-medium">
           <button
             type="button"
             onClick={() => onModeChange('planta')}
-            className={`px-3 py-1 rounded-full transition-all duration-150 cursor-pointer ${
+            className={`min-h-11 px-3 rounded-full transition duration-150 cursor-pointer ${
               mode === 'planta'
                 ? 'bg-white text-neutral-900 font-bold shadow-xs'
                 : 'text-white/80 hover:text-white'
@@ -46,7 +46,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <button
             type="button"
             onClick={() => onModeChange('monumento')}
-            className={`px-3 py-1 rounded-full transition-all duration-150 cursor-pointer ${
+            className={`min-h-11 px-3 rounded-full transition duration-150 cursor-pointer ${
               mode === 'monumento'
                 ? 'bg-white text-neutral-900 font-bold shadow-xs'
                 : 'text-white/80 hover:text-white'
@@ -59,8 +59,8 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
         <div className="w-10" />
       </div>
 
-      <div className="relative z-10 w-full max-w-xs mx-auto bg-white rounded-3xl p-6 shadow-2xl text-center text-neutral-900 my-auto">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#faebd7] text-amber-800 mb-3 shadow-xs">
+      <div className="relative z-10 w-full max-w-xs mx-auto bg-white rounded-3xl p-6 shadow-float text-center text-neutral-900 my-auto">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-warm/15 text-warm-strong mb-3 shadow-xs">
           <CameraOff size={28} strokeWidth={2.2} />
         </div>
 
@@ -72,7 +72,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="w-full py-3 px-4 rounded-card bg-[#1e5631] hover:bg-[#164326] text-white text-body font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+            className="w-full py-3 px-4 rounded-card bg-accent hover:brightness-95 text-white text-body font-semibold transition shadow-xs cursor-pointer active:scale-[0.98]"
           >
             {t('camera.openSettings')}
           </button>
@@ -80,7 +80,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <button
             type="button"
             onClick={onSelectFromGallery}
-            className="w-full py-3 px-4 rounded-card bg-white border border-line hover:bg-neutral-50 text-neutral-800 text-body font-semibold transition-all shadow-2xs cursor-pointer active:scale-[0.98]"
+            className="w-full py-3 px-4 rounded-card bg-white border border-line hover:bg-neutral-50 text-neutral-800 text-body font-semibold transition shadow-2xs cursor-pointer active:scale-[0.98]"
           >
             {t('camera.galleryButton')}
           </button>

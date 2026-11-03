@@ -20,7 +20,7 @@ export interface MapViewProps {
 export function MapView({ children, zoom = 14, initialCenter = VALENCIA_CENTER }: MapViewProps) {
   return (
     <div className="relative min-h-[300px] flex-1">
-      <MapContainer center={initialCenter} zoom={zoom} zoomControl={false} className="absolute inset-0 bg-[#dce8d3]">
+      <MapContainer center={initialCenter} zoom={zoom} zoomControl={false} className="absolute inset-0 bg-accent-soft">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

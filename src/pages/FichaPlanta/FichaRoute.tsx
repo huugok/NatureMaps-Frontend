@@ -29,7 +29,7 @@ export interface FichaRouteProps {
 function FichaEstado({ mensaje }: { mensaje: string }) {
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 bg-neutral-100 px-6 text-center" role="status">
-      <Trees size={40} className="text-emerald-700" aria-hidden="true" />
+      <Trees size={40} className="text-accent" aria-hidden="true" />
       <p className="text-body text-muted">{mensaje}</p>
     </div>
   );
@@ -55,14 +55,14 @@ function FichaError({
         <button
           type="button"
           onClick={onBack}
-          className="min-h-11 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+          className="min-h-11 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {t('common.back')}
         </button>
         <button
           type="button"
           onClick={onRetry}
-          className="min-h-11 rounded-card bg-emerald-800 px-4 text-body font-semibold text-white shadow-sm hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+          className="min-h-11 rounded-card bg-accent px-4 text-body font-semibold text-white shadow-sm hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {t('common.retry')}
         </button>
