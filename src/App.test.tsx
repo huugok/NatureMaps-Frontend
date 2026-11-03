@@ -348,3 +348,66 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
     expect(await screen.findByText(/Especie elegida/)).toHaveTextContent('Ficus benjamina')
   })
 })
+
+describe('PA 512 — ficha pendiente sin conexión', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    withMode()
+    const mockTrack = { stop: vi.fn(), applyConstraints: vi.fn() }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [mockTrack],
+          getVideoTracks: () => [mockTrack],
+        }),
+      },
+      writable: true,
+      configurable: true,
+    })
+    const canvasCtx = { drawImage: vi.fn(), fillRect: vi.fn(), fillText: vi.fn() }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      canvasCtx as unknown as CanvasRenderingContext2D,
+    )
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        if (String(input).includes('/plants/identify')) {
+          return Promise.reject(new TypeError('Failed to fetch'))
+        }
+        return Promise.resolve(new Response(JSON.stringify(catalogo), respuestaJson))
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('muestra la foto original y ningún dato de especie cuando la API no responde', async () => {
+    renderWithProviders(<App />, { route: '/inicio' })
+    fireEvent.click(screen.getByRole('tab', { name: /escanear e identificar/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^permitir cámara$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /hacer foto/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Identificar foto' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Planta sin identificar' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Identificación pendiente')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Foto de la planta' })).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+    expect(screen.getByRole('button', { name: 'Reintentar identificación' })).toBeInTheDocument()
+
+    expect(screen.queryByText('Especie más probable')).not.toBeInTheDocument()
+    expect(screen.queryByText('Jacaranda mimosifolia')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('No se ha podido contactar con el servidor de identificación'),
+    ).not.toBeInTheDocument()
+  })
+})
