@@ -5,6 +5,7 @@ import type { CameraMode } from './components/Camera';
 import { FullLayout } from './components/FullLayout';
 import { TabLayout } from './components/TabLayout';
 import { useApp } from './context/useApp';
+import { useAppFrameScale } from './hooks/useAppFrameScale';
 import { Components } from './pages/Components';
 import {
   FichaPlantaPage,
@@ -70,6 +71,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 export default function App() {
   const { mode } = useApp();
+  const frameScale = useAppFrameScale();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -200,7 +202,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <div className="app-frame">
+      <div className="app-frame" style={{ zoom: frameScale }}>
         <div className="flex h-full flex-col" inert={ficha !== null}>
           <Routes>
             <Route path="/" element={<Navigate to={mode ? '/inicio' : '/modo'} replace />} />

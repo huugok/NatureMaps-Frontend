@@ -5,7 +5,7 @@ import { ListItem } from '../../components/ui/ListItem'
 import { MODES } from '../../constants/modes'
 import { useApp } from '../../context/useApp'
 
-/** Selección de modo. Al elegir uno, toda la app cambia su color de acento. */
+/** Selección de modo. El modo condiciona el contenido; la paleta verde es fija. */
 export function ModeSelect() {
   const { mode, setMode } = useApp()
   const navigate = useNavigate()

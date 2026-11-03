@@ -21,10 +21,13 @@ describe('ModeSelect', () => {
 
   it('ofrece los cuatro modos', () => {
     renderModeSelect()
-    expect(screen.getAllByRole('button')).toHaveLength(4)
+    expect(screen.getByRole('button', { name: /modo aventura/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /paseo tranquilo/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /solo lo esencial/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /grupo escolar/i })).toBeInTheDocument()
   })
 
-  it('al elegir uno lo guarda, cambia el acento y va al inicio', () => {
+  it('al elegir uno lo guarda y va al inicio', () => {
     renderModeSelect()
     fireEvent.click(screen.getByRole('button', { name: /modo aventura/i }))
     expect(screen.getByText('Pantalla de inicio')).toBeInTheDocument()

@@ -30,7 +30,7 @@ export function Settings({ language, onBack }: SettingsProps) {
   }, [])
 
   return (
-    <Page title="Ajustes" back onBack={onBack}>
+    <Page title="Ajustes" back onBack={onBack} settings={false}>
       <List>
         <ListItem icon={Languages} title="Idioma" subtitle={LANGUAGE_NAMES[language]} to="/ajustes/idioma" />
         <ListItem icon={RefreshCw} title="Cambiar de modo" subtitle={mode ? getModeOption(mode).title : undefined} to="/modo" />

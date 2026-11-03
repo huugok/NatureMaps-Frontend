@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '../../utils/cn'
@@ -11,8 +11,10 @@ export interface PageProps {
   back?: boolean
   /** Callback de vuelta; si no se pasa, retrocede en el historial. */
   onBack?: () => void
-  /** Botones a la derecha de la cabecera. */
+  /** Acciones adicionales a la derecha de la cabecera. */
   actions?: ReactNode
+  /** Muestra el acceso a Ajustes. Por defecto, sí. */
+  settings?: boolean
   /** Contenido a ancho completo sin márgenes (p. ej. un mapa). */
   flush?: boolean
   children: ReactNode
@@ -26,7 +28,7 @@ export interface PageProps {
  *     ...contenido...
  *   </Page>
  */
-export function Page({ title, subtitle, back, onBack, actions, flush, children }: PageProps) {
+export function Page({ title, subtitle, back, onBack, actions, settings = true, flush, children }: PageProps) {
   const navigate = useNavigate()
   return (
     <div className={cn('flex min-h-full flex-col pt-[env(safe-area-inset-top)]', flush && 'h-full')}>
@@ -37,6 +39,14 @@ export function Page({ title, subtitle, back, onBack, actions, flush, children }
           {subtitle && <p className="mt-0.5 text-small text-muted">{subtitle}</p>}
         </div>
         {actions}
+        {settings && (
+          <IconButton
+            icon={SettingsIcon}
+            label="Ajustes"
+            variant="accent"
+            onClick={() => navigate('/ajustes')}
+          />
+        )}
       </header>
       <div className={cn('flex flex-1 flex-col', !flush && 'gap-3 px-4 pb-6')}>{children}</div>
     </div>
