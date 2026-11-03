@@ -61,6 +61,26 @@ describe('EspeciesAlternativas — UT F05 (PA 689)', () => {
     expect(onSelect).toHaveBeenCalledWith('Ficus benjamina');
   });
 
+  it('abre la ficha de la candidata pulsada cuando la pantalla lo permite', async () => {
+    const onSelect = vi.fn();
+    const onOpenMatch = vi.fn();
+    render(
+      <EspeciesAlternativas
+        matches={[candidata('Ficus benjamina', 0.25, ['Ficus'])]}
+        selectedName={null}
+        onSelect={onSelect}
+        onOpenMatch={onOpenMatch}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('radio', { name: /Ficus/ }));
+
+    expect(onSelect).toHaveBeenCalledWith('Ficus benjamina');
+    expect(onOpenMatch).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Ficus benjamina' }),
+    );
+  });
+
   it('marca como elegida la especie seleccionada', () => {
     renderLista(
       [

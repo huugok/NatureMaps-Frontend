@@ -49,10 +49,10 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('avisa de que la foto se está enviando', () => {
-    renderResultado({ status: 'identifying', results: null });
+  it('no muestra un aviso mientras se procesa la identificación', () => {
+    const { container } = renderResultado({ status: 'identifying', results: null });
 
-    expect(screen.getByRole('status')).toHaveTextContent(/enviando la foto a pl@ntnet/i);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('muestra la especie más probable y las alternativas ordenadas con su porcentaje', () => {

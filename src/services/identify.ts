@@ -4,6 +4,9 @@ import type { PlantIdentification } from '../types/identify';
 // por defecto apunta a localhost, como la API en desarrollo.
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
+/** Error de red: el backend no responde o no se puede alcanzar. */
+export const IDENTIFICATION_UNREACHABLE = 'No se ha podido contactar con el servidor de identificación';
+
 /** Envia la foto al backend (POST /plants/identify) y devuelve las especies candidatas con su puntuación. */
 export async function identifyPlant(image: Blob, filename = 'planta.jpg'): Promise<PlantIdentification> {
   const form = new FormData();
@@ -14,7 +17,7 @@ export async function identifyPlant(image: Blob, filename = 'planta.jpg'): Promi
     response = await fetch(`${API_URL}/plants/identify`, { method: 'POST', body: form });
   } catch {
     // Error de red / servidor caído: el mensaje no expone detalles internos.
-    throw new Error('No se ha podido contactar con el servidor de identificación');
+    throw new Error(IDENTIFICATION_UNREACHABLE);
   }
 
   if (!response.ok) {

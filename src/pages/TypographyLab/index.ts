@@ -1,0 +1,1 @@
+export { TypographyLab } from './TypographyLab';

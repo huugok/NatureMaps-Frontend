@@ -311,7 +311,22 @@ describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
   it('muestra la confianza cuando la ficha viene de una identificación', () => {
     render(<FichaPlantaPage species={DEMO_SPECIES[0]} identification={{ score: 0.83 }} />);
 
-    expect(screen.getByText('Identificada con 83% de confianza')).toBeInTheDocument();
+    expect(screen.getByText('Confianza: 83%')).toBeInTheDocument();
+  });
+
+  it('vuelve al resultado al pulsar el chip de confianza', async () => {
+    const onBack = vi.fn();
+    render(
+      <FichaPlantaPage
+        species={DEMO_SPECIES[0]}
+        identification={{ score: 0.83 }}
+        onBack={onBack}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confianza: 83%' }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 
   it('con una especie genérica usa la foto capturada y avisa de lo que falta', () => {
@@ -336,7 +351,9 @@ describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
     );
 
     expect(screen.getByRole('img', { name: /Rosal silvestre/ })).toBeInTheDocument();
-    expect(screen.getByText('Identificada con 46% de confianza')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Rosal silvestre/ })).toBeInTheDocument();
+    // La confianza es el botón de main (App.test lo usa como tal).
+    expect(screen.getByText('Confianza: 46%')).toBeInTheDocument();
     // Sin descripción curada: mensaje genérico SIN mención al inventario (no
     // hay ubicaciones que mostrar), pero con la sección siempre presente.
     expect(screen.getByText('Descripción no disponible')).toBeInTheDocument();

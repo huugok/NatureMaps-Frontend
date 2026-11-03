@@ -312,14 +312,3 @@ export const IDENTIFICATION_NOTICE = {
   text: 'El servicio de identificación de especies por imagen se basa en una API de reconocimiento de Plantnet, actualizable regularmente y accesible en',
   url: 'https://my.plantnet.org',
 };
-
-/**
- * Avisos de sección vacía (RNF5): cuando a la ficha le falta una sección se
- * muestra en su lugar este mensaje genérico, en vez de ocultar la sección.
- */
-export const SECCION_NO_DISPONIBLE = {
-  descripcion: 'Descripción no disponible',
-  floracion: 'Floración no disponible',
-  curiosidad: 'Dato curioso no disponible',
-  fuentes: 'Fuentes no disponible',
-} as const;

@@ -1,6 +1,16 @@
 import React from 'react';
 import type { TabConfig, TabId } from '../../types/navigation';
+import { useApp } from '../../context/useApp';
+import type { StringKey } from '../../i18n/strings';
 import { DEFAULT_TABS } from './constants';
+
+const TAB_TEXT: Record<TabId, { label: StringKey; aria: StringKey }> = {
+  inicio: { label: 'nav.home', aria: 'nav.home.aria' },
+  mapa: { label: 'nav.map', aria: 'nav.map.aria' },
+  escanear: { label: 'nav.scan', aria: 'nav.scan.aria' },
+  rutas: { label: 'nav.routes', aria: 'nav.routes.aria' },
+  buscar: { label: 'nav.search', aria: 'nav.search.aria' },
+};
 
 export interface BottomNavigationProps {
   /**
@@ -20,10 +30,9 @@ export interface BottomNavigationProps {
    */
   className?: string;
   /**
-   * Layout position mode: 'fixed' (viewport bottom), 'sticky', 'relative', or 'absolute'.
-   * Defaults to 'fixed'.
+   * Modo de posición dentro del marco de la app. Por defecto, 'relative'.
    */
-  position?: 'fixed' | 'sticky' | 'relative' | 'absolute';
+  position?: 'sticky' | 'relative' | 'absolute';
   /**
    * Optional custom tab definitions if overriding the default 5 tabs.
    */
@@ -35,9 +44,10 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   defaultTab = 'mapa',
   onChange,
   className = '',
-  position = 'fixed',
+  position = 'relative',
   tabs = DEFAULT_TABS,
 }) => {
+  const { t } = useApp();
   const [internalTab, setInternalTab] = React.useState<TabId>(defaultTab);
 
   const isControlled = controlledActiveTab !== undefined;
@@ -74,7 +84,6 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   };
 
   const positionClasses = {
-    fixed: 'fixed bottom-0 left-0 right-0 z-50',
     sticky: 'sticky bottom-0 left-0 right-0 z-40',
     relative: 'relative z-10 w-full',
     absolute: 'absolute bottom-0 left-0 right-0 z-40',
@@ -82,17 +91,20 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
   return (
     <nav
-      aria-label="Barra de navegación principal"
-      className={`${positionClasses} bg-white border-t border-neutral-200/90 shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
+      aria-label={t('nav.label')}
+      className={`${positionClasses} bg-surface border-t border-line shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
     >
       <div
         role="tablist"
         aria-orientation="horizontal"
-        className="max-w-md mx-auto grid grid-cols-5 h-[62px] items-center px-1 pb-[env(safe-area-inset-bottom,0px)]"
+        className="w-full grid grid-cols-5 h-[62px] items-center px-1 pb-[env(safe-area-inset-bottom,0px)]"
       >
         {tabs.map((tab, index) => {
           const isActive = currentTab === tab.id;
           const Icon = tab.icon;
+          const text = TAB_TEXT[tab.id];
+          const label = text ? t(text.label) : tab.label;
+          const ariaLabel = text ? t(text.aria) : tab.ariaLabel;
 
           return (
             <button
@@ -102,12 +114,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               id={`tab-${tab.id}`}
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
-              aria-label={tab.ariaLabel}
+              aria-label={ariaLabel}
               tabIndex={isActive ? 0 : -1}
               onClick={() => handleSelectTab(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, index)}
-              className={`group relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 transition-all duration-150 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 active:scale-95 cursor-pointer ${
-                isActive ? 'text-emerald-800' : 'text-neutral-500 hover:text-neutral-700'
+              className={`group relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 transition duration-150 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 active:scale-95 cursor-pointer ${
+                isActive ? 'text-accent' : 'text-muted hover:text-ink'
               }`}
             >
               {/* Icon Container with Badge */}
@@ -117,13 +129,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   strokeWidth={isActive ? 2.4 : 1.75}
                   className={`transition-colors duration-150 ${
                     isActive
-                      ? 'text-emerald-800 stroke-emerald-800'
-                      : 'text-neutral-500 stroke-neutral-500 group-hover:text-neutral-700 group-hover:stroke-neutral-700'
+                      ? 'text-accent stroke-accent'
+                      : 'text-muted stroke-muted group-hover:text-ink group-hover:stroke-ink'
                   }`}
                 />
 
                 {tab.badge !== undefined && tab.badge !== false && (
-                  <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white shadow-xs">
+                  <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent shadow-xs">
                     {typeof tab.badge === 'boolean' ? '' : tab.badge}
                   </span>
                 )}
@@ -131,15 +143,15 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
               {/* Tab Label */}
               <span
-                className={`text-[11px] leading-tight tracking-tight transition-colors duration-150 ${
-                  isActive ? 'font-bold text-emerald-800' : 'font-medium text-neutral-500 group-hover:text-neutral-700'
+                className={`text-caption leading-tight tracking-tight transition-colors duration-150 ${
+                  isActive ? 'font-bold text-accent' : 'font-medium text-muted group-hover:text-ink'
                 }`}
               >
-                {tab.label}
+                {label}
               </span>
 
               {/* Screen reader info for current page */}
-              {isActive && <span className="sr-only">(activo)</span>}
+              {isActive && <span className="sr-only">{t('nav.active')}</span>}
             </button>
           );
         })}

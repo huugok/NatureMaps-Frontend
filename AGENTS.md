@@ -3,9 +3,10 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-10-26 · `main` @ `1289d1e` (scaffold + F16 + ficha RF3 + envío de
-> foto a Pl@ntNet F04 + textos de especies F06, mergeados) · Rama de trabajo:
-> `feat/selector-idioma` (F10.1, PR #6, selector de idioma en Ajustes).
+> Última verificación: 2026-11-03 · `main` @ `8b59038` · Rama de trabajo:
+> `feat/concilacion-ui` (worktree `wt-concilacion-ui`, 179 tests en verde). Incluye la
+> conciliación de PRs, la tipografía “Guía para todos” y la paleta “Verde dehesa”.
+> Sin push ni PR.
 
 ## Qué es este proyecto
 
@@ -34,22 +35,22 @@ No hay monorepo ni workspace: cada repo se instala y ejecuta por separado con `n
 
 El resto de pantallas (mapa, rutas, búsqueda…) llegan con sus propias UTs.
 
-Ramas con PR abierta (a 26/10/2026):
+**Rama de conciliación** (`feat/concilacion-ui`, worktree `wt-concilacion-ui`): integra las
+pantallas de #11, la ficha de #21, el escáner real, la traducción es/va/en, el mapa interactivo
+(#22), la respuesta sin conexión (#20), la confianza en ficha/alternativas (#23), la tipografía
+“Guía para todos” y la paleta “Verde dehesa”. Las PRs #11, #20, #22 y #23 ya son ancestros de
+la rama; #12 (traducción) y #19 (ficha desde alternativa) están superadas y no se pueden
+mergear sin rehacerlas. **Todo va en una sola PR.** No se ha hecho push.
 
-- `feat/selector-idioma` (F10.1, PR #6): selector de idioma en Ajustes.
-- `feat/pantallas-iniciales` (PR #11): pantallas iniciales con rutas, selector de modo y kit
-  de UI.
-- `feat/traduccion-pantallas` (PR #12): traducción de pantallas a es/va/en.
-- `feat/camara` (PR #13): pantallas de cámara y permisos.
+Pantallas actuales: `/inicio`, `/mapa` (`MapPage`), `/rutas`, `/buscar`, `/escanear`
+(`CameraScreen`), `/modo`, `/ajustes`, `/ajustes/idioma`, `/ficha` (`FichaRoute`) y
+`/componentes`; laboratorios internos `/tipografia` y `/color`. `ScanPage` y su carpeta
+`src/pages/Scan/` se eliminaron: el escaneo es `CameraScreen` directo y la ficha se abre como
+overlay sobre él o en `/ficha`.
 
-Otras ramas remotas sin PR activa: `feat/mapa-base`, `feat/porcentaje-confianza`,
-`feat/respuesta-sinconexionPlantNet`. `feat/ficha-planta` y `feat/envio-foto-plantnet`
-quedaron mergeadas (PRs #8 y #9); la PR #10 (UT 931, especie más probable) se cerró sin
-mergear (rama `feat/mostrar-especie-probable`).
-
-La ficha de planta (`src/pages/FichaPlanta/`) existe como pantalla completa: foto, nombre común
-y científico, familia, descripción breve, dato de interés, fuentes y botón "Ver en el mapa".
-El escaneo (`src/pages/Scan/`) envía la foto al backend y muestra las especies candidatas.
+Ramas con PR abierta (a 3/11/2026): #12 (`feat/traduccion-pantallas`, superada), #19
+(`feat/ficha-desde-alternativa`, superada) y la PR de backend #12 (`feat/arbolado-licencia`,
+fuera de este repo). #11, #20, #22 y #23 se pueden cerrar cuando entre la PR nueva.
 
 La ficha está **conectada al backend** (UT F06): `src/services/ficha.ts` consume `GET /species`
 (lista para la navegación Anterior/Siguiente) y `GET /species/:id` (ficha completa con
@@ -61,19 +62,19 @@ muestra el error; la UT de sin-conexión decidirá el modo offline. Los textos c
 en la base de datos (tabla `species_profiles` del backend, sembrada con `npm run db:seed`,
 idempotente); `constants.ts` conserva solo `IDENTIFICATION_NOTICE` y los datos de ejemplo
 quedan sin usar de reserva para esa UT, con su trazabilidad en
-`docs/contenido-especies-demo.md`. La entrada a la ficha sigue siendo la tarjeta provisional en
-la pantalla de pestañas (`src/App.tsx`): desaparecerá cuando existan las pantallas de mapa o de
-búsqueda, que son las que abrirán una ficha de verdad.
+`docs/contenido-especies-demo.md`. La ficha se abre desde el escaneo como overlay (conserva
+foto, resultado y especie marcada) o en la ruta `/ficha` con navegación Anterior/Siguiente.
 
 Cuando Pl@ntNet identifica una foto, App busca el nombre científico del resultado en el
 catálogo ya cargado (match client-side, `findSpeciesIndexByScientificName`, inmune a
-mayúsculas y a la notación de híbrido `×`): si hay ficha, la cámara ofrece "Ver ficha de…" y
-navega a esa especie; si no, los resultados quedan como estaban (UT 931).
+mayúsculas y a la notación de híbrido `×`): si hay ficha, «Ver ficha» abre la especie real; si
+no, se construye una ficha honesta con `fichaDesdeIdentificacion`. Tocar una alternativa abre
+su ficha y la deja marcada.
 
 Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
-`localStorage`, pero **no traduce los textos**: eso corresponde a la UT44 (rama
-`feat/traduccion-pantallas`, PR #12). El frontend consume el backend para la identificación por
-foto (`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
+`localStorage` con `languagePreference`; la UI está traducida con `t()` y los diccionarios de
+`src/i18n/strings.ts`. El frontend consume el backend para la identificación por foto
+(`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
 (`src/services/ficha.ts` → `GET /species` y `GET /species/:id`).
 
 ## Stack
@@ -106,8 +107,8 @@ src/main.tsx          Bootstrap: createRoot + <StrictMode>
 src/App.tsx           Shell de la app
 src/index.css         @import "tailwindcss"
 src/components/       Componentes (una carpeta por componente)
-src/pages/            Vistas por ruta (FichaPlanta: ficha de planta; Scan: escaneo/identificación;
-                      Settings: Ajustes e Idioma)
+src/pages/            Vistas por ruta (Home, Map, RoutesList, Search, FichaPlanta,
+                      Camera dentro de components/, Settings, ModeSelect, Components)
 src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de idioma)
 src/types/            Tipos compartidos (navigation.ts, language.ts)
 public/               Assets estáticos (favicon, icons.svg)
@@ -136,16 +137,100 @@ BottomNavigation/
   `Language` y nombres de idioma). Reutilizar uniones de literales en vez de `enum`
   (`erasableSyntaxOnly` lo prohíbe). No añadir tipos de entidades que el modelo de dominio todavía
   no define.
-- **Tailwind inline**, sin archivos CSS por componente. Paleta actual: `emerald` para activo,
-  `neutral` para secundario, fondo `neutral-100`/`neutral-950`. Mobile-first.
+- **Tailwind inline**, sin archivos CSS por componente. La paleta es **Verde dehesa** y no
+  cambia por modo; no introducir colores nuevos a mano. Mobile-first.
 - **Accesibilidad no negociable**: `role="tablist"`/`role="tab"`, `aria-selected`, `aria-label` en
   cada pestaña, roving `tabIndex`, navegación con flechas/Home/End, `focus-visible:ring`, área táctil
   mínima de 48px y `pb-[env(safe-area-inset-bottom,0px)]` para el notch.
-- **Idioma de UI en español**; identificadores y código en inglés. El selector de Ajustes guarda
-  una preferencia (`es`/`va`/`en`) en `localStorage`, pero no cambia los textos: la traducción es
-  otra UT (UT44).
+- **Idioma de UI traducido a es/va/en**; identificadores y código en inglés. El idioma vive en
+  `AppContext` y se persiste siempre con `services/languagePreference.ts`.
 - Estilo: sin Prettier configurado; el scaffold usa comillas simples y sin punto y coma, la rama de
   feature usa punto y coma. Seguir el fichero que se toca y no reformatear código ajeno.
+
+## Layout y tamaño de pantalla
+
+- Todas las pantallas viven dentro de `.app-frame` (`src/App.tsx` + `src/index.css`).
+- Marco de tamaño **constante**: **402×874** (iPhone 17/18, 6,3"). No escala con la altura de la
+  ventana: si no cabe, la página hace scroll. En móvil ocupa `100vw × 100dvh`.
+- Los componentes usan px/rem con raíz fija de 16 px. No usar `vw`/`vh` para tipografía ni
+  tamaños de componente; el zoom del navegador escala todo por igual, sin recomponer el layout.
+- Los inputs van a 16 px para evitar el zoom automático de iOS.
+- Solo `.app-frame` puede usar `dvh`. Las pantallas usan `h-full`/`min-h-full`; nunca `h-dvh`,
+  `100dvh` ni `min-h-screen`.
+- Prohibido `position: fixed` dentro de la app: cámara, resultado, ficha y overlays usan
+  `absolute` sobre `.app-frame`.
+- Los contenedores de pantalla van a `w-full`; no añadir `max-w-*` a nivel de pantalla. Los
+  `max-w-*` solo valen para tarjetas o modales internos.
+- Padding horizontal de pantalla: **16 px** (`px-4`), preferiblemente a través de `Page`.
+- `--app-top-inset` vale **8 px** en escritorio y **0** en móvil; se aplica en las cabeceras,
+  no en el contenedor, para que cámara y ficha lleguen al borde del marco.
+- La paleta es **Verde dehesa** y no cambia por modo. Los radios siguen pendientes de unificar.
+
+## Tipografía
+
+Dirección **“Guía para todos”**: Literata para titulares y lectura, Atkinson Hyperlegible para
+la interfaz. Las fuentes se autoalojan con `@fontsource` (`main.tsx`), no se cargan desde un CDN
+en producto. El laboratorio `/tipografia` conserva las demás direcciones para comparar.
+
+- Tokens en `@theme`:
+  - `--font-sans`: `Atkinson Hyperlegible` (controles, labels, navegación, cifras).
+  - `--font-display`: `Literata Variable` (titulares).
+  - `--font-body`: `Literata Variable` (prosa de ficha y curiosidades).
+  - `text-title` 27/1.15/600/tracking 0; `text-heading` 19/1.3/600/tracking 0;
+    `text-body` 16.5/1.6; `text-small` 14/1.45; `text-caption` 12.5/1.2/700.
+- Los titulares llevan `font-display`; la prosa larga, `font-body`. La interfaz hereda
+  `--font-sans` del `body`; no hace falta clase.
+- `font-synthesis: none` y `font-optical-sizing: auto` en `body`.
+- Los títulos usan `text-balance`; los párrafos, `text-pretty`.
+- Las etiquetas en mayúsculas usan `text-caption uppercase tracking-wider`.
+- Los números (porcentajes, posiciones, recuentos) usan `tabular-nums`.
+- Los nombres científicos en prosa van en `<em>` (Literata tiene cursiva real).
+- No usar `text-sm`, `text-xs`, `text-base`, `text-lg` ni `text-2xl` en pantallas; excepción:
+  el `<input>` va a 16 px para evitar el zoom de iOS.
+- Bordes con `border-line` (negro al 8 %), no hex sólidos.
+
+## Color
+
+Paleta **Verde dehesa**, en OKLCH. Tokens en `@theme` (`src/index.css`):
+
+- Marca: `accent` (verde dehesa), `accent-2` (verde claro), `accent-soft` (salvia pálida),
+  `on-accent` (blanco), `warm` (ocre), `warm-strong` (ocre profundo), `night` (verde noche).
+- Texto: `ink`, `ink-2`, `muted`, `muted-2`.
+- Superficies: `app` (papel cálido), `surface` (blanco), `surface-2` (papel secundario),
+  `canvas` (fondo del marco en escritorio), `line`, `line-strong`.
+- Semánticos: `danger` para errores.
+- Mapa: `location` (azul funcional) y `place` (ocre de la paleta).
+
+Reglas:
+
+- Nada de `neutral-*`, `bg-white`, `text-white`, `amber-*`, `pink-*` ni `rose-*` en pantallas:
+  usar los tokens anteriores. `text-white` solo se admite sobre cámara/foto oscura.
+- Los estados de floración y curiosidad usan `warm`/`warm-strong`; los errores, `danger`.
+- No introducir hex en JSX; los valores nuevos van en OKLCH en `@theme`.
+- Security/contraste: AA 4.5:1 para texto normal. El laboratorio `/color` conserva las
+  alternativas y sus ratios.
+
+## Superficies
+
+- Sin gradientes decorativos. Solo se admiten scrims funcionales sobre cámara o foto para que
+  el texto sea legible.
+- Sin `backdrop-blur` ni glassmorphism: fondos sólidos con opacidad.
+- Tarjetas y paneles usan `shadow-raised`; diálogos, `shadow-float`. Nada de sombras pesadas sueltas.
+- Colores siempre con tokens (`accent`, `warm`, `night`, `line`, `surface-2`); nada de hex en
+  JSX salvo el canvas de la cámara.
+- Las fotos llevan un outline interior de 1 px negro al 10 %.
+
+## Móvil
+
+- `viewport` con `viewport-fit=cover` e `interactive-widget=resizes-content`; `theme-color`
+  a juego con el fondo de la app.
+- Safe areas con `env(safe-area-inset-*)` en `Page`, barra inferior, ficha, cámara y resultado.
+- Área táctil mínima de 44 px: `IconButton` es `size-11`; la barra inferior, 48 px.
+- Inputs a 16 px; `touch-action: manipulation`; sin tap highlight; `user-select: none` solo en
+  controles.
+- `overscroll-behavior: contain` en los scrolls internos y `none` en el body.
+- Hover solo con el variante `hover:` de Tailwind (ya va bajo `@media (hover: hover)`).
+- Respetar `prefers-reduced-motion`.
 
 ## Tests
 
@@ -163,13 +248,12 @@ BottomNavigation/
   `GET /species`, `POST /species/enrich` (implementados en `origin/explore_open_data`).
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
 - La identificación por foto (`src/services/identify.ts`) consume `POST /plants/identify` con la
-  base URL `VITE_API_URL` (por defecto `http://localhost:3000`); el resto de pantallas siguen
-  sin consumir el backend.
-- La ficha de planta todavía no tiene servicio: no se crea ninguno hasta que existan las clases
-  del modelo de dominio y un endpoint de ficha. La extracción de la información de planta
-  (consulta a Neon y enriquecimiento con Wikipedia/Wikidata) es del backend, no del frontend.
-- Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta) ni variable para los
-  endpoints nuevos de ficha.
+  base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
+- La ficha (`src/services/ficha.ts`) consume `GET /species` y `GET /species/:id` con la misma
+  base URL. El contenido editorial (descripciones, curiosidades, fuentes) lo sirve el backend.
+- El mapa (`src/pages/Map/MapPage.tsx`) es la única pantalla que llama a servicios externos:
+  teselas de OpenStreetMap y búsqueda en Nominatim. No usa el backend.
+- Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta).
 
 ## Git
 

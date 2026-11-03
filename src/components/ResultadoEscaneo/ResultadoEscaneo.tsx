@@ -1,20 +1,11 @@
 import { ArrowLeft, Sprout } from 'lucide-react';
+import { useApp } from '../../context/useApp';
 import type { PlantMatch } from '../../types/identify';
 import {
-  BOTON_VER_FICHA,
-  CERTEZA_ALTA,
-  CERTEZA_BAJA,
-  CERTEZA_MEDIA,
   CONFIANZA_ALTA,
   CONFIANZA_MINIMA,
-  CONFIRMACION_ELECCION,
   EspeciesAlternativas,
-  ETIQUETA_ESPECIE_MAS_PROBABLE,
-  ETIQUETA_TU_FOTO,
   MAX_ALTERNATIVAS,
-  PIE_IDENTIFICACION,
-  SIN_COINCIDENCIAS,
-  TEXTO_REPETIR_FOTO,
 } from '../EspeciesAlternativas';
 
 export interface ResultadoEscaneoProps {
@@ -28,7 +19,8 @@ export interface ResultadoEscaneoProps {
   onSelectAlternative?: (scientificName: string) => void;
   /**
    * Abre la ficha de la especie más probable. Si no se pasa, el botón «Ver
-   * ficha» no se pinta (por ejemplo, en pantallas sin navegación a la ficha).
+   * ficha» no se pinta. También abre la ficha de la candidata alternativa
+   * cuando se pulsa una fila.
    */
   onOpenPrimary?: (match: PlantMatch) => void;
   /** Vuelve a la pantalla anterior. */
@@ -44,15 +36,11 @@ function porcentaje(score: number): number {
   return Math.round(score * 100);
 }
 
-/** Texto de certeza de la especie principal, con su tono. */
-function certeza(score: number): { texto: string; tono: string } {
-  if (score >= CONFIANZA_ALTA) {
-    return { texto: CERTEZA_ALTA, tono: 'text-neutral-500' };
-  }
-  if (score >= CONFIANZA_MINIMA) {
-    return { texto: CERTEZA_MEDIA, tono: 'text-neutral-500' };
-  }
-  return { texto: CERTEZA_BAJA, tono: 'text-amber-700' };
+/** Clave de certeza de la especie principal. */
+function nivelCerteza(score: number): 'result.high' | 'result.medium' | 'result.low' {
+  if (score >= CONFIANZA_ALTA) return 'result.high';
+  if (score >= CONFIANZA_MINIMA) return 'result.medium';
+  return 'result.low';
 }
 
 /** Nombre común y familia bajo el nombre científico (`Jacaranda · Bignoniaceae`). */
@@ -81,6 +69,7 @@ export function ResultadoEscaneo({
   onRepeatPhoto,
   maxAlternatives = MAX_ALTERNATIVAS,
 }: ResultadoEscaneoProps) {
+  const { t } = useApp();
   // Si quien usa el resultado no ofrece selección, las filas siguen siendo
   // navegables pero no cambian nada.
   const seleccionar = onSelectAlternative ?? (() => {});
@@ -88,119 +77,112 @@ export function ResultadoEscaneo({
   const principal = ordenadas[0] ?? null;
   const alternativas = ordenadas.slice(1, 1 + maxAlternatives);
   const detalles = principal !== null ? subtitulo(principal) : null;
-  const nivel = principal !== null ? certeza(principal.score) : null;
+  const nivel = principal !== null ? nivelCerteza(principal.score) : null;
   const pct = principal !== null ? porcentaje(principal.score) : null;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Resultado de la identificación"
-      className="fixed inset-0 z-[65] flex justify-center overflow-y-auto bg-neutral-950"
+      aria-label={t('result.title')}
+      className="absolute inset-0 z-[65] flex justify-center overflow-y-auto overscroll-contain bg-night"
     >
-      <div className="flex min-h-full w-full max-w-md flex-col bg-white text-neutral-900">
-        <header className="relative h-48 shrink-0 overflow-hidden bg-[#7d9b58]">
+      <div className="flex min-h-full w-full flex-col bg-surface text-ink">
+        <header className="relative h-48 shrink-0 overflow-hidden bg-accent-2">
           {photoUrl !== null ? (
             <img
               src={photoUrl}
-              alt="Foto escaneada de la planta"
-              className="h-full w-full object-cover"
+              alt={t('result.photoAlt')}
+              className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-white/80">
               <Sprout size={64} strokeWidth={1.3} aria-hidden="true" />
             </div>
           )}
-          {photoUrl !== null && (
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/25"
-            />
-          )}
-
           <button
             type="button"
             onClick={onBack}
             autoFocus
-            aria-label="Volver"
-            className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full bg-white text-neutral-800 shadow-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#7d9b58]"
+            aria-label={t('result.back')}
+            className="absolute left-4 top-[max(24px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] flex h-11 w-11 items-center justify-center rounded-full bg-surface text-ink shadow-raised transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-accent-2"
           >
             <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
-          <span className="absolute bottom-3 left-4 rounded-full bg-[#123a25] px-3 py-1 text-[11px] font-medium text-white shadow-sm">
-            {ETIQUETA_TU_FOTO}
+          <span className="absolute bottom-3 left-4 rounded-full bg-accent px-3 py-1 text-caption font-medium text-on-accent">
+            {t('result.yourPhoto')}
           </span>
         </header>
 
         <div className="flex-1 px-4 pb-6 pt-4">
-          <h1 className="sr-only">Resultado de la identificación</h1>
+          <h1 className="sr-only">{t('result.title')}</h1>
 
           {principal === null ? (
             <p
               role="status"
-              className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600"
+              className="rounded-card bg-surface-2 p-4 text-body text-muted shadow-raised"
             >
-              {SIN_COINCIDENCIAS}
+              {t('result.noCandidates')}
             </p>
           ) : (
             <section aria-labelledby="especie-mas-probable">
               <h2
                 id="especie-mas-probable"
-                className="text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500"
+                className="text-caption uppercase tracking-wider text-muted"
               >
-                {ETIQUETA_ESPECIE_MAS_PROBABLE}
+                {t('result.best')}
               </h2>
 
-              <article className="mt-2.5 rounded-2xl border-2 border-[#1f4d2e] bg-white p-3.5 shadow-sm">
+              <article className="mt-2.5 rounded-card bg-surface p-3.5 shadow-raised ring-2 ring-accent">
                 <div className="flex items-start gap-3">
                   <span
                     aria-hidden="true"
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e7efdd] text-[#1f4d2e]"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent"
                   >
                     <Sprout size={26} strokeWidth={1.7} />
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <p className="break-words text-[17px] font-bold leading-snug text-neutral-900">
+                    <p className="font-display break-words text-heading text-ink">
                       {principal.scientificName}
                     </p>
                     {detalles !== null && (
-                      <p className="mt-0.5 break-words text-xs leading-snug text-neutral-500">
+                      <p className="mt-0.5 break-words text-small text-muted">
                         {detalles}
                       </p>
                     )}
                   </div>
 
-                  <p className="shrink-0 text-[22px] font-bold leading-none text-[#1f4d2e]">
+                  <p className="shrink-0 text-title tabular-nums text-accent">
                     {pct}%
                   </p>
                 </div>
 
                 <div
                   role="progressbar"
-                  aria-label={`Certeza de ${principal.scientificName}`}
+                  aria-label={t('result.confidenceAria', { name: principal.scientificName })}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={pct ?? 0}
-                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e7efdd]"
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-accent-soft"
                 >
                   <div
-                    className="h-full rounded-full bg-[#1f4d2e]"
+                    className="h-full rounded-full bg-accent"
                     style={{ width: `${pct ?? 0}%` }}
                   />
                 </div>
                 {nivel !== null && (
-                  <p className={`mt-1.5 text-xs font-medium ${nivel.tono}`}>{nivel.texto}</p>
+                  <p className={`mt-1.5 text-small font-medium ${nivel === 'result.low' ? 'text-warm-strong' : 'text-muted'}`}>{t(nivel)}</p>
                 )}
 
                 {onOpenPrimary !== undefined && (
                   <button
                     type="button"
                     onClick={() => onOpenPrimary(principal)}
-                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-lg bg-[#1f4d2e] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#173c24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
+                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
-                    {BOTON_VER_FICHA}
+                    {t('result.viewCard')}
                   </button>
                 )}
               </article>
@@ -212,13 +194,14 @@ export function ResultadoEscaneo({
               matches={alternativas}
               selectedName={selectedName ?? null}
               onSelect={seleccionar}
+              onOpenMatch={onOpenPrimary}
               max={maxAlternatives}
             />
           )}
 
           {selectedName !== null && selectedName !== undefined && (
-            <p role="status" className="mt-3 text-sm font-medium text-[#1f4d2e]">
-              {CONFIRMACION_ELECCION}: {selectedName}
+            <p role="status" className="mt-3 text-body font-medium text-accent">
+              {t('result.selected')}: {selectedName}
             </p>
           )}
 
@@ -226,21 +209,21 @@ export function ResultadoEscaneo({
             <button
               type="button"
               onClick={onRepeatPhoto}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg px-4 text-sm font-semibold text-[#1f4d2e] transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
+              className="inline-flex min-h-12 items-center justify-center rounded-card px-4 text-body font-semibold text-accent transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              {TEXTO_REPETIR_FOTO}
+              {t('result.none')}
             </button>
           </div>
         </div>
 
-        <footer className="mt-auto flex items-start gap-2.5 border-t border-neutral-100 bg-neutral-50 px-4 py-4 text-[11px] leading-snug text-neutral-500">
+        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-surface-2 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-caption text-muted">
           <span
             aria-hidden="true"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[#1f4d2e] shadow-sm"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface text-accent"
           >
             <Sprout size={14} strokeWidth={2} />
           </span>
-          <p>{PIE_IDENTIFICACION}</p>
+          <p>{t('result.footer')}</p>
         </footer>
       </div>
     </div>

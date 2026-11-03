@@ -1,4 +1,4 @@
-export { SettingsPage } from './SettingsPage';
-export { LanguagePage } from './LanguagePage';
-export type { SettingsPageProps } from './SettingsPage';
-export type { LanguagePageProps } from './LanguagePage';
+export { Settings } from './Settings'
+export { LanguageSettings } from './LanguageSettings'
+export { LanguagePage } from './LanguagePage'
+export type { LanguagePageProps } from './LanguagePage'
