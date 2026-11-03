@@ -63,7 +63,7 @@ function MapFallback() {
   return (
     <div className="flex h-full flex-col bg-app">
       <header className="px-4 pt-5 pb-4">
-        <h1 className="text-title leading-tight font-bold">{t('map.title')}</h1>
+        <h1 className="font-display text-title leading-tight font-bold">{t('map.title')}</h1>
       </header>
       <p role="status" className="grid flex-1 place-items-center text-small text-muted">
         {t('map.loading')}

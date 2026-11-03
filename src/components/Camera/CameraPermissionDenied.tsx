@@ -64,7 +64,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <CameraOff size={28} strokeWidth={2.2} />
         </div>
 
-        <h2 className="text-heading text-balance text-ink">{t('camera.deniedTitle')}</h2>
+        <h2 className="font-display text-heading text-balance text-ink">{t('camera.deniedTitle')}</h2>
 
         <p className="text-small text-muted text-pretty mt-2 mb-5">{t('camera.deniedDesc')}</p>
 

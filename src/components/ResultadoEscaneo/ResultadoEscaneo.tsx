@@ -144,7 +144,7 @@ export function ResultadoEscaneo({
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <p className="break-words text-heading text-ink">
+                    <p className="font-display break-words text-heading text-ink">
                       {principal.scientificName}
                     </p>
                     {detalles !== null && (

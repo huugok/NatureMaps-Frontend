@@ -4,8 +4,9 @@ Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla act
 cambien los comandos, la estructura o las convenciones.
 
 > Última verificación: 2026-11-03 · `main` @ `8b59038` · Rama de trabajo:
-> `feat/concilacion-ui` @ `37399dc` (worktree `wt-concilacion-ui`, 175 tests en verde).
-> Integra #11, #20, #22 y #23; reimplementa #12 y deja #19 superada. Sin push ni PR.
+> `feat/tipografia-lab` (worktree `wt-tipografia-lab`, 177 tests en verde), basada en
+> `feat/concilacion-ui`. Aplica la dirección “Guía para todos”: Literata + Atkinson
+> Hyperlegible. Sin push ni PR.
 
 ## Qué es este proyecto
 
@@ -165,12 +166,23 @@ BottomNavigation/
 
 ## Tipografía
 
-- Una sola escala en `@theme`: `text-title` (24/1.15/700, tracking −0.02em), `text-heading`
-  (18/1.3/700, tracking −0.01em), `text-body` (15/1.5), `text-small` (13/1.45) y
-  `text-caption` (11.5/1.2/600).
+Dirección **“Guía para todos”**: Literata para titulares y lectura, Atkinson Hyperlegible para
+la interfaz. Las fuentes se autoalojan con `@fontsource` (`main.tsx`), no se cargan desde un CDN
+en producto. El laboratorio `/tipografia` conserva las demás direcciones para comparar.
+
+- Tokens en `@theme`:
+  - `--font-sans`: `Atkinson Hyperlegible` (controles, labels, navegación, cifras).
+  - `--font-display`: `Literata Variable` (titulares).
+  - `--font-body`: `Literata Variable` (prosa de ficha y curiosidades).
+  - `text-title` 27/1.15/600/tracking 0; `text-heading` 19/1.3/600/tracking 0;
+    `text-body` 16.5/1.6; `text-small` 14/1.45; `text-caption` 12.5/1.2/700.
+- Los titulares llevan `font-display`; la prosa larga, `font-body`. La interfaz hereda
+  `--font-sans` del `body`; no hace falta clase.
+- `font-synthesis: none` y `font-optical-sizing: auto` en `body`.
 - Los títulos usan `text-balance`; los párrafos, `text-pretty`.
 - Las etiquetas en mayúsculas usan `text-caption uppercase tracking-wider`.
 - Los números (porcentajes, posiciones, recuentos) usan `tabular-nums`.
+- Los nombres científicos en prosa van en `<em>` (Literata tiene cursiva real).
 - No usar `text-sm`, `text-xs`, `text-base`, `text-lg` ni `text-2xl` en pantallas; excepción:
   el `<input>` va a 16 px para evitar el zoom de iOS.
 - Bordes con `border-line` (negro al 8 %), no hex sólidos.

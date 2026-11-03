@@ -29,7 +29,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
         >
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
-        <h1 className="text-title text-balance text-ink">{t('language.title')}</h1>
+        <h1 className="font-display text-title text-balance text-ink">{t('language.title')}</h1>
       </header>
 
       <p className="mb-4 text-small text-muted text-pretty">{t('language.description')}</p>

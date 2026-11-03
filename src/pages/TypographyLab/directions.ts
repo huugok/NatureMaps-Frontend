@@ -109,7 +109,7 @@ const ALEGREYA = "'Alegreya', 'Iowan Old Style', 'Palatino Linotype', Georgia, s
 const ALEGREYA_SANS = "'Alegreya Sans', 'Inter', system-ui, sans-serif";
 const BRICOLAGE = "'Bricolage Grotesque', 'Inter', system-ui, sans-serif";
 const NUNITO = "'Nunito Sans', 'Inter', system-ui, sans-serif";
-const LITERATA = "'Literata', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif";
+const LITERATA = "'Literata Variable', 'Literata', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif";
 const ATKINSON = "'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif";
 
 /**
@@ -122,8 +122,8 @@ const ATKINSON = "'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif";
 export const DIRECTIONS: TypeDirection[] = [
   direction({
     id: 'actual',
-    name: 'Actual (Inter)',
-    tagline: 'La línea base que usa hoy la app',
+    name: 'Anterior (Inter)',
+    tagline: 'La línea base que tenía la app antes de la decisión',
     summary:
       'La app declara Inter en el token, pero no carga la fuente: en la mayoría de equipos se ve system-ui. Aquí se carga para comparar de verdad.',
     display: { name: 'Inter', stack: INTER, weight: 700 },
@@ -211,7 +211,7 @@ export const DIRECTIONS: TypeDirection[] = [
     name: 'Guía para todos',
     tagline: 'Literata para leer, Atkinson para orientarse',
     summary:
-      'Literata está diseñada para lectura; Atkinson Hyperlegible, para distinguir letras. Es la opción que mejor cumple “acercar la naturaleza a todo el mundo” sin renunciar a la calidez.',
+      'La dirección elegida. Literata está diseñada para lectura; Atkinson Hyperlegible, para distinguir letras. Es la opción que mejor cumple “acercar la naturaleza a todo el mundo” sin renunciar a la calidez.',
     display: { name: 'Literata', stack: LITERATA, weight: 600 },
     body: { name: 'Literata', stack: LITERATA },
     ui: { name: 'Atkinson Hyperlegible', stack: ATKINSON, weight: 700 },
@@ -238,11 +238,9 @@ export const DIRECTIONS: TypeDirection[] = [
 const FAMILIES = [
   'Alegreya:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600',
   'Alegreya+Sans:wght@400;500;600;700',
-  'Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400',
   'Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700',
   'Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700',
   'Inter:wght@400;500;600;700',
-  'Literata:opsz,wght@7..72,400;7..72,600;7..72,700',
   'Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700',
 ];
 
@@ -250,4 +248,4 @@ export const LAB_FONTS_HREF = `https://fonts.googleapis.com/css2?${FAMILIES.map(
   (family) => `family=${family}`,
 ).join('&')}&display=swap`;
 
-export const DEFAULT_DIRECTION = 'guia';
+export const DEFAULT_DIRECTION = 'todos';

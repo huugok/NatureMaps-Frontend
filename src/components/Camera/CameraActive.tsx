@@ -471,7 +471,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                   >
                     <ArrowLeft size={20} aria-hidden="true" />
                   </button>
-                  <h1 className="rounded-full bg-surface/90 px-4 py-2 text-heading text-ink shadow-raised">
+                  <h1 className="font-display rounded-full bg-surface/90 px-4 py-2 text-heading text-ink shadow-raised">
                     {t('camera.pendingTitle')}
                   </h1>
                 </header>
@@ -485,7 +485,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                   >
                     <ScanSearch size={24} />
                   </span>
-                  <h2 className="mt-3 text-heading text-ink">{t('camera.pendingHeading')}</h2>
+                  <h2 className="font-display mt-3 text-heading text-ink">{t('camera.pendingHeading')}</h2>
                   <p className="mt-2 text-small text-muted text-pretty">{t('camera.pendingDesc')}</p>
                   <button
                     type="button"

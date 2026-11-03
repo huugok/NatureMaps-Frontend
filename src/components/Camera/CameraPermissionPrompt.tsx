@@ -34,7 +34,7 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
           <Camera size={38} strokeWidth={2} />
         </div>
 
-        <h1 className="text-heading text-balance text-ink mb-2.5">
+        <h1 className="font-display text-heading text-balance text-ink mb-2.5">
           {t('camera.promptTitle')}
         </h1>
 

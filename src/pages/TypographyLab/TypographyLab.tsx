@@ -180,9 +180,9 @@ export function TypographyLab() {
   return (
     <Page title="Tipografía" subtitle="Laboratorio de direcciones" back settings={false}>
       <p className="text-body text-muted text-pretty">
-        Cinco formas de contar lo mismo. La recomendada es <strong>Guía de campo</strong>: una
-        serif orgánica en los titulares y la interfaz actual en el cuerpo. Las demás llevan la
-        idea más lejos o priorizan la accesibilidad.
+        La dirección elegida es <strong>Guía para todos</strong>: Literata para titulares y
+        lectura, Atkinson Hyperlegible para la interfaz. Las demás quedan como referencia de lo
+        que se descartó y de lo que aún se puede recuperar.
       </p>
 
       <div
@@ -216,11 +216,15 @@ export function TypographyLab() {
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-heading text-ink">{selected.name}</h2>
+            <h2 className="font-display text-heading text-ink">{selected.name}</h2>
             <p className="mt-0.5 text-small text-muted">{selected.tagline}</p>
           </div>
           <span className="rounded-full bg-accent-soft px-2.5 py-1 text-caption uppercase tracking-wider text-accent">
-            {selected.id === 'actual' ? 'Línea base' : 'Propuesta'}
+            {selected.id === 'todos'
+              ? 'Elegida'
+              : selected.id === 'actual'
+                ? 'Anterior'
+                : 'Alternativa'}
           </span>
         </div>
 
@@ -327,9 +331,9 @@ export function TypographyLab() {
       </details>
 
       <p className="text-caption text-muted text-pretty">
-        Laboratorio interno: las fuentes se cargan desde Google Fonts solo en esta pantalla. Si
-        una dirección se adopta, se autoalojan en woff2 y se aplican a los tokens de
-        <code className="mx-1">src/index.css</code>.
+        Laboratorio interno: Literata y Atkinson ya están autoalojadas en la app; el resto de
+        direcciones carga sus fuentes desde Google Fonts solo en esta pantalla. La escala y las
+        familias elegidas viven en los tokens de <code className="mx-1">src/index.css</code>.
       </p>
     </Page>
   );

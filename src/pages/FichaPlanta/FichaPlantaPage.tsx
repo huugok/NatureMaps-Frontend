@@ -165,7 +165,7 @@ export function FichaPlantaPage({
       </div>
 
       <section className="relative z-10 -mt-6 flex-1 rounded-t-3xl bg-white px-4 pt-5">
-        <h1 className="break-words text-title text-balance text-ink">
+        <h1 className="font-display break-words text-title text-balance text-ink">
           {species.scientificName}
         </h1>
         <p className="mt-1 break-words text-small text-muted">
@@ -216,8 +216,8 @@ export function FichaPlantaPage({
 
         {species.description && (
           <>
-            <h2 className="mt-6 text-heading text-ink">{t('ficha.description')}</h2>
-            <p className="mt-2 break-words whitespace-pre-line text-body text-muted text-pretty">{species.description}</p>
+            <h2 className="font-display mt-6 text-heading text-ink">{t('ficha.description')}</h2>
+            <p className="font-body mt-2 break-words whitespace-pre-line text-body text-muted text-pretty">{species.description}</p>
           </>
         )}
 
@@ -225,7 +225,7 @@ export function FichaPlantaPage({
           <div className="mt-4 rounded-card border border-amber-200 bg-amber-50 p-4">
             <p className="flex gap-3 text-body text-neutral-700">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
-              <span className="whitespace-pre-line">
+              <span className="font-body whitespace-pre-line">
                 <strong className="font-semibold text-neutral-900">{t('ficha.curiosity')}:</strong>{' '}
                 {species.curiosity.text}
               </span>
@@ -253,7 +253,7 @@ export function FichaPlantaPage({
         {sources.length > 0 && (
           <>
             <div className="mt-6 flex items-center gap-2">
-              <h2 className="text-heading text-ink">{t('ficha.sources')}</h2>
+              <h2 className="font-display text-heading text-ink">{t('ficha.sources')}</h2>
               <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-caption tabular-nums text-white">
                 {sources.length}
               </span>

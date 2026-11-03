@@ -37,7 +37,7 @@ export function Page({ title, subtitle, back, onBack, actions, settings = true, 
       <header className="flex items-center gap-3 px-4 pt-[calc(20px+var(--app-top-inset))] pb-4">
         {back && <IconButton icon={ArrowLeft} label={t('common.back')} onClick={onBack ?? (() => navigate(-1))} />}
         <div className="min-w-0 flex-1">
-          <h1 className="text-title text-balance">{title}</h1>
+          <h1 className="font-display text-title text-balance">{title}</h1>
           {subtitle && <p className="mt-0.5 text-small text-muted text-pretty">{subtitle}</p>}
         </div>
         {actions}

@@ -23,7 +23,7 @@ export function Home() {
       <Badge solid>{t(option.titleKey).toUpperCase()}</Badge>
 
       <Card variant="accent">
-        <p className="text-heading">Nature MAPS</p>
+        <p className="font-display text-heading">Nature MAPS</p>
         <p className="mt-1 text-small opacity-85">{t(option.descriptionKey)}</p>
       </Card>
 

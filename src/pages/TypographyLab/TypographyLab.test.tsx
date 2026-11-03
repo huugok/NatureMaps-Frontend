@@ -7,7 +7,7 @@ describe('TypographyLab', () => {
   it('abre en la dirección recomendada y carga las fuentes del laboratorio', () => {
     renderWithProviders(<TypographyLab />, { route: '/tipografia' });
 
-    expect(screen.getByRole('heading', { name: 'Guía de campo' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Guía para todos' })).toBeInTheDocument();
     expect(document.querySelector('link[data-type-lab][rel="stylesheet"]')).toHaveAttribute(
       'href',
       expect.stringContaining('Fraunces'),
