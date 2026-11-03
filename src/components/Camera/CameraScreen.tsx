@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { CameraMode, PermissionStatus, CameraScreenProps, SavedPhoto } from './types';
 import { CameraPermissionPrompt } from './CameraPermissionPrompt';
 import { CameraPermissionDenied } from './CameraPermissionDenied';
+import { useApp } from '../../context/useApp';
 import { CameraActive } from './CameraActive';
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({
@@ -14,6 +15,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   identificationResults = null,
   identificationError = null,
 }) => {
+  const { t } = useApp();
   const [permission, setPermission] = useState<PermissionStatus>('checking');
   const [mode, setMode] = useState<CameraMode>(initialMode);
   /**
@@ -139,7 +141,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       />
 
       {permission === 'checking' && (
-        <div className="flex h-full w-full items-center justify-center bg-[#102416]" role="status" aria-label="Comprobando permiso de cámara">
+        <div className="flex h-full w-full items-center justify-center bg-night" role="status" aria-label={t('camera.checking')}>
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         </div>
       )}

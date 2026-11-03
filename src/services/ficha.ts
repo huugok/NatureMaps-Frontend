@@ -1,3 +1,4 @@
+import { dictionaries } from '../i18n/strings';
 import type { Language } from '../types/language';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
 
@@ -146,13 +147,13 @@ export function commonNameFor(names: FichaNameInfo[], language: Language): strin
 /** Convierte el código de fuente del enriquecimiento ('WIKIPEDIA') en etiqueta
  * de UI ('Wikipedia'), para cuando el texto mostrado es el extracto automático
  * y no hay ficha editorial que traiga sus propias fuentes (RNF6). */
-function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment): FichaFuente {
+function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment, language: Language): FichaFuente {
   const nombre = enrichment.source.charAt(0).toUpperCase() + enrichment.source.slice(1).toLowerCase();
   return {
     name: nombre,
     description: enrichment.license
-      ? `Extracto enciclopédico · ${enrichment.license}`
-      : 'Extracto enciclopédico',
+      ? `${dictionaries[language]['ficha.enrichment']} · ${enrichment.license}`
+      : dictionaries[language]['ficha.enrichment'],
     url: enrichment.url,
     icon: 'search',
   };
@@ -178,7 +179,6 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
     scientificName: item.scientificName,
     family: item.profile?.family ?? undefined,
     photoUrl: item.image?.url,
-    photoAlt: `Fotografía de ${commonName}`,
     photoCredit: item.image?.attribution,
     description: item.content ?? undefined,
     flowering: item.profile?.flowering ?? undefined,
@@ -190,7 +190,7 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
     sources: item.profile?.sources
       ? item.profile.sources.map(fuentePintable)
       : item.enrichment
-        ? [fuenteDesdeEnriquecimiento(item.enrichment)]
+        ? [fuenteDesdeEnriquecimiento(item.enrichment, language)]
         : [],
   };
 }
