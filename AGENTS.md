@@ -150,8 +150,11 @@ BottomNavigation/
 ## Layout y tamaño de pantalla
 
 - Todas las pantallas viven dentro de `.app-frame` (`src/App.tsx` + `src/index.css`).
-- Tamaño máximo: **440×956** (iPhone 17/18 Pro Max); base de diseño **402×874**. En escritorio
-  escala por altura manteniendo la proporción; en móvil ocupa `100vw × 100dvh`.
+- Marco de tamaño **constante**: **402×874** (iPhone 17/18, 6,3"). No escala con la altura de la
+  ventana: si no cabe, la página hace scroll. En móvil ocupa `100vw × 100dvh`.
+- Los componentes usan px/rem con raíz fija de 16 px. No usar `vw`/`vh` para tipografía ni
+  tamaños de componente; el zoom del navegador escala todo por igual, sin recomponer el layout.
+- Los inputs van a 16 px para evitar el zoom automático de iOS.
 - Solo `.app-frame` puede usar `dvh`. Las pantallas usan `h-full`/`min-h-full`; nunca `h-dvh`,
   `100dvh` ni `min-h-screen`.
 - Prohibido `position: fixed` dentro de la app: cámara, resultado, ficha y overlays usan
