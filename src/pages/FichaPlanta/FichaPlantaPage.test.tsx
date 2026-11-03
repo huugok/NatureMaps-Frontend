@@ -49,6 +49,9 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
       'src',
       'https://upload.wikimedia.org/wikipedia/commons/b/b9/Jacaranda1212.jpg',
     );
+    // La ficha completa no necesita avisos (RNF5).
+    expect(screen.queryByText('Sin foto disponible')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Aún no tenemos descripción/)).not.toBeInTheDocument();
   });
 
   it('muestra la atribución de la foto (RNF6: créditos visibles)', () => {
@@ -78,24 +81,29 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
     expect(screen.getByText('Ajuntament de València')).toBeInTheDocument();
   });
 
-  it('una especie sin foto ni perfil curado sigue siendo una ficha válida', () => {
+  it('una especie sin foto ni perfil curado se muestra con sus avisos (RNF5)', () => {
     renderFicha({
       species: {
         ...especie,
+        family: undefined,
         photoUrl: undefined,
         photoCredit: undefined,
+        description: undefined,
         flowering: undefined,
         curiosity: undefined,
         sources: [],
-        locations: [],
-        locationTotal: undefined,
       },
     });
 
     expect(screen.getByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).toBeInTheDocument();
+    expect(screen.getByText('Sin foto disponible')).toBeInTheDocument();
+    expect(screen.getByText('familia no disponible')).toBeInTheDocument();
+    // La especie tiene inventario que sí se pinta (chips de abajo): el aviso lo menciona.
+    expect(screen.getByText(/Aún no tenemos descripción de esta especie\. Te mostramos lo que sabemos por el inventario municipal\./)).toBeInTheDocument();
+    expect(screen.getByText('Vara de Quart')).toBeInTheDocument();
+    expect(screen.queryByText(/Foto:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Floración:/)).not.toBeInTheDocument();
     expect(screen.queryByText('Dato curioso:')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Foto:/)).not.toBeInTheDocument();
   });
 
   it('navega con Anterior y Siguiente y muestra la posición', () => {
@@ -301,7 +309,7 @@ describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
     expect(screen.getByText('Identificada con 83% de confianza')).toBeInTheDocument();
   });
 
-  it('con una especie genérica usa la foto capturada y no inventa secciones', () => {
+  it('con una especie genérica usa la foto capturada y avisa de lo que falta', () => {
     render(
       <FichaPlantaPage
         species={{
@@ -324,15 +332,22 @@ describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
 
     expect(screen.getByRole('img', { name: /Rosal silvestre/ })).toBeInTheDocument();
     expect(screen.getByText('Identificada con 46% de confianza')).toBeInTheDocument();
+    // Sin descripción curada: nota genérica SIN mención al inventario (no hay
+    // ubicaciones que mostrar) y sin secciones inventadas.
+    expect(screen.getByText('Aún no tenemos descripción de esta especie.')).toBeInTheDocument();
+    expect(screen.queryByText(/inventario municipal/)).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Dato curioso/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
     expect(screen.getByText('Pl@ntNet')).toBeInTheDocument();
   });
 
-  it('sin foto ni fuentes deja el marcador y oculta el bloque de fuentes', () => {
+  it('sin foto ni fuentes deja el marcador con sus avisos y oculta el bloque de fuentes', () => {
     render(<FichaPlantaPage species={{ commonName: 'Rosal', scientificName: 'Rosa sp.' }} />);
 
+    expect(screen.getByText('Sin foto disponible')).toBeInTheDocument();
+    expect(screen.getByText('familia no disponible')).toBeInTheDocument();
+    expect(screen.getByText('Aún no tenemos descripción de esta especie.')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Fuentes de información' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();

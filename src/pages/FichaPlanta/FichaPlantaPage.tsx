@@ -11,9 +11,10 @@ import {
   MapPin,
   ScanSearch,
   Search,
+  Sprout,
   Trees,
 } from 'lucide-react';
-import { IDENTIFICATION_NOTICE } from './constants';
+import { AVISO_SIN_DESCRIPCION, AVISO_SIN_DESCRIPCION_INVENTARIO, IDENTIFICATION_NOTICE } from './constants';
 import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
 export interface FichaPlantaPageProps {
@@ -106,6 +107,9 @@ export function FichaPlantaPage({
 
   const primaryLocation = species.locations?.[0];
   const sources = species.sources ?? [];
+  // ¿Tiene esta especie datos del inventario municipal que se estén pintando?
+  // decide la segunda frase del aviso de descripción pendiente (RNF5).
+  const hayInventario = (species.locations?.length ?? 0) > 0 || (species.locationTotal ?? 0) > 0;
 
   const handleToggleFavorite = () => {
     setIsFavorite((current) => !current);
@@ -126,8 +130,11 @@ export function FichaPlantaPage({
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-emerald-600">
-            <Trees size={56} aria-hidden="true" />
+          // RNF5: la ficha se muestra igual aunque no haya foto, con un hueco
+          // claro en lugar de una cabecera vacía.
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-emerald-700">
+            <Sprout size={56} aria-hidden="true" />
+            <span className="text-sm font-medium text-emerald-900/70">Sin foto disponible</span>
           </div>
         )}
         {species.photoCredit && (
@@ -168,10 +175,17 @@ export function FichaPlantaPage({
         </h1>
         <p className="mt-1 break-words text-sm text-neutral-500">
           <span>{species.commonName}</span>
-          {species.family && (
+          {/* RNF5: la familia falta se dice, no se calla — la línea del
+              subtítulo es siempre la misma para que la ficha no "salte". */}
+          {species.family ? (
             <>
               {' · '}
               <span>Familia {species.family}</span>
+            </>
+          ) : (
+            <>
+              {' · '}
+              <span>familia no disponible</span>
             </>
           )}
         </p>
@@ -205,11 +219,20 @@ export function FichaPlantaPage({
           </ul>
         )}
 
-        {species.description && (
+        {species.description ? (
           <>
             <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
             <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
           </>
+        ) : (
+          // RNF5: sin descripción no se calla — una nota explica que la ficha
+          // aún no está curada y que lo que sí hay (inventario) se muestra.
+          <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4" role="note">
+            <p className="text-sm leading-relaxed text-neutral-600">
+              {AVISO_SIN_DESCRIPCION}
+              {hayInventario && ` ${AVISO_SIN_DESCRIPCION_INVENTARIO}`}
+            </p>
+          </div>
         )}
 
         {species.curiosity && (

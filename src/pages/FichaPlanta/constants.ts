@@ -312,3 +312,11 @@ export const IDENTIFICATION_NOTICE = {
   text: 'El servicio de identificación de especies por imagen se basa en una API de reconocimiento de Plantnet, actualizable regularmente y accesible en',
   url: 'https://my.plantnet.org',
 };
+
+/**
+ * Aviso que ocupa el lugar de la descripción cuando la ficha todavía no
+ * tiene una que mostrar (RNF5). La segunda frase solo se añade cuando la
+ * especie tiene datos del inventario municipal que sí se están pintando.
+ */
+export const AVISO_SIN_DESCRIPCION = 'Aún no tenemos descripción de esta especie.';
+export const AVISO_SIN_DESCRIPCION_INVENTARIO = 'Te mostramos lo que sabemos por el inventario municipal.';
