@@ -29,6 +29,10 @@
   --color-on-accent: #ffffff;
   --color-app: #f9f9f6;
 
+  /* Mapa: marcadores funcionales (ubicación y lugar buscado). */
+  --color-location: #3b7ddd;
+  --color-place: #d9534f;
+
   /* Tipografía: una sola escala para toda la app. */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --text-caption: 11.5px;
@@ -178,4 +182,29 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Marcadores de Leaflet: círculo de ubicación y punto buscado. */
+.user-location-icon,
+.searched-place-icon {
+  background: transparent;
+  border: 0;
+}
+
+.user-location-icon span,
+.searched-place-icon span {
+  position: absolute;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 45%);
+}
+
+.user-location-icon span {
+  inset: 3px;
+  background: var(--color-location);
+}
+
+.searched-place-icon span {
+  inset: 4px;
+  background: var(--color-place);
 }

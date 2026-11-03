@@ -4,7 +4,7 @@ import App from './App'
 import { LANGUAGE_STORAGE_KEY } from './services/languagePreference'
 import { renderWithProviders } from './test/renderWithProviders'
 
-vi.mock('./components/MapView', () => ({ MapView: () => <div data-testid="mapa" /> }))
+vi.mock('./pages/Map', () => ({ MapPage: () => <div data-testid="mapa" /> }))
 vi.mock('./services/api', () => ({ checkHealth: vi.fn().mockResolvedValue(true) }))
 
 const respuestaJson = { headers: { 'content-type': 'application/json' } }

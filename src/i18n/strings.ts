@@ -38,6 +38,20 @@ const es = {
 
   'map.title': 'Mapa',
   'map.loading': 'Cargando mapa…',
+  'map.searchPlaceholder': 'Buscar sitios en el mapa',
+  'map.searchAria': 'Buscar sitios en el mapa',
+  'map.searchClear': 'Borrar búsqueda y quitar marcador',
+  'map.searchSubmit': 'Buscar',
+  'map.searching': 'Buscando…',
+  'map.resultsAria': 'Resultados de búsqueda',
+  'map.searchError': 'OpenStreetMap no pudo completar la búsqueda. Inténtalo de nuevo.',
+  'map.searchNoNumber':
+    'No se encontró ese número de portal; puede que no esté registrado en OpenStreetMap.',
+  'map.searchNoResults': 'No se encontraron lugares con ese nombre.',
+  'map.searchErrorGeneric': 'No se pudo completar la búsqueda.',
+  'map.centerAria': 'Centrar el mapa en mi ubicación',
+  'map.centerTitle': 'Centrar en mi ubicación',
+  'map.placeAlt': 'Lugar buscado: {name}',
 
   'search.title': 'Buscar',
   'search.placeholder': 'Buscar una planta…',
@@ -226,6 +240,20 @@ const va: Dict = {
 
   'map.title': 'Mapa',
   'map.loading': 'Carregant el mapa…',
+  'map.searchPlaceholder': 'Buscar llocs al mapa',
+  'map.searchAria': 'Buscar llocs al mapa',
+  'map.searchClear': 'Esborrar la búsqueda i traure el marcador',
+  'map.searchSubmit': 'Buscar',
+  'map.searching': 'Buscant…',
+  'map.resultsAria': 'Resultats de la búsqueda',
+  'map.searchError': 'OpenStreetMap no va poder completar la búsqueda. Torna-ho a intentar.',
+  'map.searchNoNumber':
+    'No s’ha trobat eixe número de portal; potser no està registrat en OpenStreetMap.',
+  'map.searchNoResults': 'No s’han trobat llocs amb eixe nom.',
+  'map.searchErrorGeneric': 'No s’ha pogut completar la búsqueda.',
+  'map.centerAria': 'Centrar el mapa en la meua ubicació',
+  'map.centerTitle': 'Centrar en la meua ubicació',
+  'map.placeAlt': 'Lloc buscat: {name}',
 
   'search.title': 'Buscar',
   'search.placeholder': 'Busca una planta…',
@@ -411,6 +439,20 @@ const en: Dict = {
 
   'map.title': 'Map',
   'map.loading': 'Loading map…',
+  'map.searchPlaceholder': 'Search for places on the map',
+  'map.searchAria': 'Search for places on the map',
+  'map.searchClear': 'Clear search and remove marker',
+  'map.searchSubmit': 'Search',
+  'map.searching': 'Searching…',
+  'map.resultsAria': 'Search results',
+  'map.searchError': 'OpenStreetMap could not complete the search. Try again.',
+  'map.searchNoNumber':
+    'That street number was not found; it may not be registered in OpenStreetMap.',
+  'map.searchNoResults': 'No places found with that name.',
+  'map.searchErrorGeneric': 'The search could not be completed.',
+  'map.centerAria': 'Centre the map on my location',
+  'map.centerTitle': 'Centre on my location',
+  'map.placeAlt': 'Searched place: {name}',
 
   'search.title': 'Search',
   'search.placeholder': 'Search for a plant…',

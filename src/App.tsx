@@ -42,8 +42,8 @@ interface FichaAbierta {
   identification: IdentificacionFicha | null;
 }
 
-const MapScreen = lazy(() =>
-  import('./pages/MapScreen').then((module) => ({ default: module.MapScreen })),
+const MapPage = lazy(() =>
+  import('./pages/Map').then((module) => ({ default: module.MapPage })),
 );
 
 function MapFallback() {
@@ -210,7 +210,7 @@ export default function App() {
                 path="/mapa"
                 element={
                   <Suspense fallback={<MapFallback />}>
-                    <MapScreen />
+                    <MapPage />
                   </Suspense>
                 }
               />
