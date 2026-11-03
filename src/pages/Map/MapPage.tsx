@@ -326,7 +326,7 @@ export function MapPage() {
               aria-label={t('map.searchAria')}
               autoComplete="off"
               enterKeyHint="search"
-              className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-muted"
             />
             {query && (
               <button
