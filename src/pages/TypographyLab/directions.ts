@@ -41,7 +41,7 @@ interface DirectionInput {
   summary: string;
   display: { name: string; stack: string; weight: number };
   body: { name: string; stack: string };
-  ui: { name: string; stack: string };
+  ui: { name: string; stack: string; weight?: number };
   scale: TypeScale;
   leading: { title: number; heading: number; body: number };
   tracking: { title: string; heading: string; caption?: string };
@@ -97,7 +97,7 @@ function direction(input: DirectionInput): TypeDirection {
         fontFamily: input.ui.stack,
         fontSize: input.scale.body,
         lineHeight: 1.35,
-        fontWeight: 600,
+        fontWeight: input.ui.weight ?? 600,
       },
     },
   };
@@ -214,7 +214,7 @@ export const DIRECTIONS: TypeDirection[] = [
       'Literata está diseñada para lectura; Atkinson Hyperlegible, para distinguir letras. Es la opción que mejor cumple “acercar la naturaleza a todo el mundo” sin renunciar a la calidez.',
     display: { name: 'Literata', stack: LITERATA, weight: 600 },
     body: { name: 'Literata', stack: LITERATA },
-    ui: { name: 'Atkinson Hyperlegible', stack: ATKINSON },
+    ui: { name: 'Atkinson Hyperlegible', stack: ATKINSON, weight: 700 },
     scale: { title: 27, heading: 19, body: 16.5, small: 14, caption: 12.5 },
     leading: { title: 1.15, heading: 1.3, body: 1.6 },
     tracking: { title: '0', heading: '0' },
@@ -237,7 +237,7 @@ export const DIRECTIONS: TypeDirection[] = [
  */
 const FAMILIES = [
   'Alegreya:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600',
-  'Alegreya+Sans:wght@400;500;700',
+  'Alegreya+Sans:wght@400;500;600;700',
   'Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400',
   'Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700',
   'Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700',

@@ -55,7 +55,7 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
   return (
     <div
       className="mt-4 overflow-hidden rounded-panel border border-line bg-app"
-      style={{ fontFamily: direction.stack.body }}
+      style={{ fontFamily: direction.stack.body, fontSynthesis: 'none' }}
     >
       <div className="relative flex h-28 items-center justify-center bg-accent-soft text-accent">
         <Leaf size={34} strokeWidth={1.5} aria-hidden="true" />
@@ -151,7 +151,7 @@ function ReadingSample({ direction }: { direction: TypeDirection }) {
   return (
     <div
       className="mt-4 rounded-card bg-surface p-4 shadow-raised"
-      style={{ fontFamily: direction.stack.body }}
+      style={{ fontFamily: direction.stack.body, fontSynthesis: 'none' }}
     >
       <h2 style={direction.styles.heading} className="text-balance text-ink">
         Una guía para leer en el móvil
@@ -286,7 +286,7 @@ export function TypographyLab() {
             <div
               key={direction.id}
               className="rounded-card border border-line p-3"
-              style={{ fontFamily: direction.stack.body }}
+              style={{ fontFamily: direction.stack.body, fontSynthesis: 'none' }}
             >
               <div className="flex items-center justify-between gap-2">
                 <p
