@@ -1,6 +1,7 @@
 import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useApp } from '../../context/useApp'
 import { cn } from '../../utils/cn'
 import { IconButton } from '../ui/IconButton'
 
@@ -29,11 +30,12 @@ export interface PageProps {
  *   </Page>
  */
 export function Page({ title, subtitle, back, onBack, actions, settings = true, flush, children }: PageProps) {
+  const { t } = useApp()
   const navigate = useNavigate()
   return (
     <div className={cn('flex min-h-full flex-col pt-[env(safe-area-inset-top)]', flush && 'h-full')}>
       <header className="flex items-center gap-3 px-4 pt-5 pb-4">
-        {back && <IconButton icon={ArrowLeft} label="Volver" onClick={onBack ?? (() => navigate(-1))} />}
+        {back && <IconButton icon={ArrowLeft} label={t('common.back')} onClick={onBack ?? (() => navigate(-1))} />}
         <div className="min-w-0 flex-1">
           <h1 className="text-title leading-tight font-bold">{title}</h1>
           {subtitle && <p className="mt-0.5 text-small text-muted">{subtitle}</p>}
@@ -42,7 +44,7 @@ export function Page({ title, subtitle, back, onBack, actions, settings = true, 
         {settings && (
           <IconButton
             icon={SettingsIcon}
-            label="Ajustes"
+            label={t('settings.title')}
             variant="accent"
             onClick={() => navigate('/ajustes')}
           />

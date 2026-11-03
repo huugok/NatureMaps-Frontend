@@ -31,7 +31,6 @@ import {
   getSpeciesDetail,
   getSpeciesList,
 } from './services/ficha';
-import { readLanguagePreference, saveLanguagePreference } from './services/languagePreference';
 import type { Language } from './types/language';
 import type { PlantIdentification, PlantMatch } from './types/identify';
 
@@ -48,13 +47,14 @@ const MapScreen = lazy(() =>
 );
 
 function MapFallback() {
+  const { t } = useApp();
   return (
     <div className="flex h-full flex-col bg-app">
       <header className="px-4 pt-5 pb-4">
-        <h1 className="text-title leading-tight font-bold">Mapa</h1>
+        <h1 className="text-title leading-tight font-bold">{t('map.title')}</h1>
       </header>
       <p role="status" className="grid flex-1 place-items-center text-small text-muted">
-        Cargando mapa…
+        {t('map.loading')}
       </p>
     </div>
   );
@@ -70,12 +70,10 @@ function dataUrlToBlob(dataUrl: string): Blob {
 }
 
 export default function App() {
-  const { mode } = useApp();
+  const { mode, lang, setLang, t } = useApp();
   const frameScale = useAppFrameScale();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [language, setLanguage] = useState<Language>(readLanguagePreference);
   const [identificationStatus, setIdentificationStatus] = useState<IdentificationStatus>('idle');
   const [identificationResults, setIdentificationResults] = useState<PlantIdentification | null>(null);
   const [identificationError, setIdentificationError] = useState<string | null>(null);
@@ -90,7 +88,7 @@ export default function App() {
   // Catálogo que alimenta la ficha y su navegación. Se recarga al cambiar idioma.
   useEffect(() => {
     let cancelled = false;
-    getSpeciesList(language)
+    getSpeciesList(lang)
       .then((items) => {
         if (!cancelled) setFichaList({ status: 'ready', items });
       })
@@ -100,7 +98,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [language, fichaListAttempt]);
+  }, [lang, fichaListAttempt]);
 
   const fichaItems = fichaList.status === 'ready' ? fichaList.items : [];
   const index = fichaItems.length > 0 ? Math.min(fichaIndex, fichaItems.length - 1) : 0;
@@ -110,9 +108,9 @@ export default function App() {
   useEffect(() => {
     if (location.pathname !== '/ficha' || !fichaItem) return;
     let cancelled = false;
-    getSpeciesDetail(fichaItem.id, language)
+    getSpeciesDetail(fichaItem.id, lang)
       .then((detail) => {
-        if (!cancelled) setFichaDetail({ status: 'ready', especie: fichaDesdeDetalle(detail, language) });
+        if (!cancelled) setFichaDetail({ status: 'ready', especie: fichaDesdeDetalle(detail, lang) });
       })
       .catch(() => {
         if (!cancelled) setFichaDetail({ status: 'error' });
@@ -120,11 +118,10 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, language, fichaItem, fichaDetailAttempt]);
+  }, [location.pathname, lang, fichaItem, fichaDetailAttempt]);
 
   const handleSaveLanguage = (next: Language) => {
-    saveLanguagePreference(next);
-    setLanguage(next);
+    setLang(next);
     setFichaList({ status: 'loading' });
     setFichaDetail({ status: 'loading' });
   };
@@ -162,7 +159,7 @@ export default function App() {
       setIdentificationResults(result);
       setIdentificationStatus('completed');
     } catch (error) {
-      setIdentificationError(error instanceof Error ? error.message : 'Error inesperado al identificar la planta.');
+      setIdentificationError(error instanceof Error ? error.message : t('camera.error'));
       setIdentificationStatus('error');
     }
   };
@@ -176,17 +173,17 @@ export default function App() {
       : null;
 
     if (items === null || identifiedIndex === null) {
-      setFicha({ species: fichaDesdeIdentificacion(match, photo), identification: identificacion });
+      setFicha({ species: fichaDesdeIdentificacion(match, photo, lang), identification: identificacion });
       return;
     }
 
     const item = items[identifiedIndex];
-    setFicha({ species: fichaDesdeItemLista(item, language), identification: identificacion });
-    getSpeciesDetail(item.id, language)
+    setFicha({ species: fichaDesdeItemLista(item, lang), identification: identificacion });
+    getSpeciesDetail(item.id, lang)
       .then((detail) => {
         setFicha((actual) =>
           actual?.species.scientificName === detail.scientificName
-            ? { species: fichaDesdeDetalle(detail, language), identification: actual.identification }
+            ? { species: fichaDesdeDetalle(detail, lang), identification: actual.identification }
             : actual,
         );
       })
@@ -241,7 +238,7 @@ export default function App() {
                 path="/ajustes"
                 element={
                   <Settings
-                    language={language}
+                    language={lang}
                     onBack={() => navigate('/inicio')}
                   />
                 }
@@ -250,7 +247,7 @@ export default function App() {
                 path="/ajustes/idioma"
                 element={
                   <LanguageSettings
-                    language={language}
+                    language={lang}
                     onBack={() => navigate('/ajustes')}
                     onSave={handleSaveLanguage}
                   />

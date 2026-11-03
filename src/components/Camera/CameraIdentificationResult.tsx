@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useApp } from '../../context/useApp';
 import type { PlantIdentification, PlantMatch } from '../../types/identify';
 import { ResultadoEscaneo } from '../ResultadoEscaneo';
 import type { CameraMode } from './types';
@@ -42,6 +43,7 @@ export function CameraIdentificationResult({
   onBack,
   onRepeatPhoto,
 }: CameraIdentificationResultProps) {
+  const { t } = useApp();
   // La elección se guarda junto a la identificación a la que pertenece: cuando
   // llega un resultado nuevo, la comparación falla y la elección desaparece sin
   // necesidad de un efecto que reinicie estado.
@@ -75,7 +77,7 @@ export function CameraIdentificationResult({
         aria-live="polite"
         className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
       >
-        <p role="status">Enviando la foto a Pl@ntNet…</p>
+        <p role="status">{t('camera.sending')}</p>
       </div>
     );
   }
@@ -86,10 +88,10 @@ export function CameraIdentificationResult({
         aria-live="polite"
         className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
       >
-        <p role="alert">No se ha podido identificar la foto.</p>
+        <p role="alert">{t('camera.error')}</p>
         {error && <p className="mt-1 text-white/75">{error}</p>}
         <button type="button" onClick={onRetry} className="mt-2 underline underline-offset-2">
-          Reintentar
+          {t('camera.retry')}
         </button>
       </div>
     );

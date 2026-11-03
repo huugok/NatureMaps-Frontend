@@ -7,18 +7,18 @@ import { useApp } from '../../context/useApp'
 
 /** Selección de modo. El modo condiciona el contenido; la paleta verde es fija. */
 export function ModeSelect() {
-  const { mode, setMode } = useApp()
+  const { mode, setMode, t } = useApp()
   const navigate = useNavigate()
 
   return (
-    <Page title="¿Cómo quieres explorar Valencia?" subtitle="Elige un modo — puedes cambiarlo luego en Ajustes">
+    <Page title={t('mode.title')} subtitle={t('mode.subtitle')}>
       <List>
         {MODES.map((m) => (
           <ListItem
             key={m.mode}
             icon={m.icon}
-            title={m.title}
-            subtitle={m.description}
+            title={t(m.titleKey)}
+            subtitle={t(m.descriptionKey)}
             selected={mode === m.mode}
             onClick={() => {
               setMode(m.mode)

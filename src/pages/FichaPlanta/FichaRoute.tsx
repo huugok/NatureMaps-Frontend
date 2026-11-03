@@ -1,4 +1,5 @@
 import { Trees } from 'lucide-react';
+import { useApp } from '../../context/useApp';
 import type { FichaListItem } from '../../services/ficha';
 import { FichaPlantaPage } from './FichaPlantaPage';
 import type { FichaEspecie } from './types';
@@ -43,6 +44,7 @@ function FichaError({
   onBack: () => void;
   onRetry: () => void;
 }) {
+  const { t } = useApp();
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 bg-neutral-100 px-6 text-center">
       <Trees size={40} className="text-neutral-400" aria-hidden="true" />
@@ -55,14 +57,14 @@ function FichaError({
           onClick={onBack}
           className="min-h-11 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
         >
-          Volver
+          {t('common.back')}
         </button>
         <button
           type="button"
           onClick={onRetry}
           className="min-h-11 rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
         >
-          Reintentar
+          {t('common.retry')}
         </button>
       </div>
     </div>
@@ -81,36 +83,26 @@ export function FichaRoute({
   onNext,
   onViewOnMap,
 }: FichaRouteProps) {
+  const { t } = useApp();
+
   if (list.status === 'loading') {
-    return <FichaEstado mensaje="Cargando el catálogo de especies…" />;
+    return <FichaEstado mensaje={t('ficha.loadingList')} />;
   }
 
   if (list.status === 'error') {
-    return (
-      <FichaError
-        mensaje="No se ha podido cargar el catálogo de especies."
-        onBack={onBack}
-        onRetry={onRetryList}
-      />
-    );
+    return <FichaError mensaje={t('ficha.errorList')} onBack={onBack} onRetry={onRetryList} />;
   }
 
   if (list.items.length === 0) {
-    return <FichaEstado mensaje="El catálogo todavía no tiene especies." />;
+    return <FichaEstado mensaje={t('ficha.emptyList')} />;
   }
 
   if (detail.status === 'loading') {
-    return <FichaEstado mensaje={`Cargando la ficha de ${list.items[index]?.scientificName ?? 'la especie'}…`} />;
+    return <FichaEstado mensaje={t('ficha.loadingDetail', { name: list.items[index]?.scientificName ?? '' })} />;
   }
 
   if (detail.status === 'error') {
-    return (
-      <FichaError
-        mensaje="No se ha podido cargar la ficha de la especie."
-        onBack={onBack}
-        onRetry={onRetryDetail}
-      />
-    );
+    return <FichaError mensaje={t('ficha.errorDetail')} onBack={onBack} onRetry={onRetryDetail} />;
   }
 
   return (

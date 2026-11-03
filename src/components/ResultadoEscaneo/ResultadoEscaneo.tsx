@@ -1,20 +1,11 @@
 import { ArrowLeft, Sprout } from 'lucide-react';
+import { useApp } from '../../context/useApp';
 import type { PlantMatch } from '../../types/identify';
 import {
-  BOTON_VER_FICHA,
-  CERTEZA_ALTA,
-  CERTEZA_BAJA,
-  CERTEZA_MEDIA,
   CONFIANZA_ALTA,
   CONFIANZA_MINIMA,
-  CONFIRMACION_ELECCION,
   EspeciesAlternativas,
-  ETIQUETA_ESPECIE_MAS_PROBABLE,
-  ETIQUETA_TU_FOTO,
   MAX_ALTERNATIVAS,
-  PIE_IDENTIFICACION,
-  SIN_COINCIDENCIAS,
-  TEXTO_REPETIR_FOTO,
 } from '../EspeciesAlternativas';
 
 export interface ResultadoEscaneoProps {
@@ -44,15 +35,11 @@ function porcentaje(score: number): number {
   return Math.round(score * 100);
 }
 
-/** Texto de certeza de la especie principal, con su tono. */
-function certeza(score: number): { texto: string; tono: string } {
-  if (score >= CONFIANZA_ALTA) {
-    return { texto: CERTEZA_ALTA, tono: 'text-neutral-500' };
-  }
-  if (score >= CONFIANZA_MINIMA) {
-    return { texto: CERTEZA_MEDIA, tono: 'text-neutral-500' };
-  }
-  return { texto: CERTEZA_BAJA, tono: 'text-amber-700' };
+/** Clave de certeza de la especie principal. */
+function nivelCerteza(score: number): 'result.high' | 'result.medium' | 'result.low' {
+  if (score >= CONFIANZA_ALTA) return 'result.high';
+  if (score >= CONFIANZA_MINIMA) return 'result.medium';
+  return 'result.low';
 }
 
 /** Nombre común y familia bajo el nombre científico (`Jacaranda · Bignoniaceae`). */
@@ -81,6 +68,7 @@ export function ResultadoEscaneo({
   onRepeatPhoto,
   maxAlternatives = MAX_ALTERNATIVAS,
 }: ResultadoEscaneoProps) {
+  const { t } = useApp();
   // Si quien usa el resultado no ofrece selección, las filas siguen siendo
   // navegables pero no cambian nada.
   const seleccionar = onSelectAlternative ?? (() => {});
@@ -88,14 +76,14 @@ export function ResultadoEscaneo({
   const principal = ordenadas[0] ?? null;
   const alternativas = ordenadas.slice(1, 1 + maxAlternatives);
   const detalles = principal !== null ? subtitulo(principal) : null;
-  const nivel = principal !== null ? certeza(principal.score) : null;
+  const nivel = principal !== null ? nivelCerteza(principal.score) : null;
   const pct = principal !== null ? porcentaje(principal.score) : null;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Resultado de la identificación"
+      aria-label={t('result.title')}
       className="absolute inset-0 z-[65] flex justify-center overflow-y-auto bg-neutral-950"
     >
       <div className="flex min-h-full w-full flex-col bg-white text-neutral-900">
@@ -103,7 +91,7 @@ export function ResultadoEscaneo({
           {photoUrl !== null ? (
             <img
               src={photoUrl}
-              alt="Foto escaneada de la planta"
+              alt={t('result.photoAlt')}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -122,26 +110,26 @@ export function ResultadoEscaneo({
             type="button"
             onClick={onBack}
             autoFocus
-            aria-label="Volver"
+            aria-label={t('result.back')}
             className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full bg-white text-neutral-800 shadow-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#7d9b58]"
           >
             <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
           <span className="absolute bottom-3 left-4 rounded-full bg-[#123a25] px-3 py-1 text-[11px] font-medium text-white shadow-sm">
-            {ETIQUETA_TU_FOTO}
+            {t('result.yourPhoto')}
           </span>
         </header>
 
         <div className="flex-1 px-4 pb-6 pt-4">
-          <h1 className="sr-only">Resultado de la identificación</h1>
+          <h1 className="sr-only">{t('result.title')}</h1>
 
           {principal === null ? (
             <p
               role="status"
               className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600"
             >
-              {SIN_COINCIDENCIAS}
+              {t('result.noCandidates')}
             </p>
           ) : (
             <section aria-labelledby="especie-mas-probable">
@@ -149,7 +137,7 @@ export function ResultadoEscaneo({
                 id="especie-mas-probable"
                 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500"
               >
-                {ETIQUETA_ESPECIE_MAS_PROBABLE}
+                {t('result.best')}
               </h2>
 
               <article className="mt-2.5 rounded-2xl border-2 border-[#1f4d2e] bg-white p-3.5 shadow-sm">
@@ -179,7 +167,7 @@ export function ResultadoEscaneo({
 
                 <div
                   role="progressbar"
-                  aria-label={`Certeza de ${principal.scientificName}`}
+                  aria-label={t('result.confidenceAria', { name: principal.scientificName })}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={pct ?? 0}
@@ -191,7 +179,7 @@ export function ResultadoEscaneo({
                   />
                 </div>
                 {nivel !== null && (
-                  <p className={`mt-1.5 text-xs font-medium ${nivel.tono}`}>{nivel.texto}</p>
+                  <p className={`mt-1.5 text-xs font-medium ${nivel === 'result.low' ? 'text-amber-700' : 'text-neutral-500'}`}>{t(nivel)}</p>
                 )}
 
                 {onOpenPrimary !== undefined && (
@@ -200,7 +188,7 @@ export function ResultadoEscaneo({
                     onClick={() => onOpenPrimary(principal)}
                     className="mt-3 flex min-h-12 w-full items-center justify-center rounded-lg bg-[#1f4d2e] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#173c24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
                   >
-                    {BOTON_VER_FICHA}
+                    {t('result.viewCard')}
                   </button>
                 )}
               </article>
@@ -218,7 +206,7 @@ export function ResultadoEscaneo({
 
           {selectedName !== null && selectedName !== undefined && (
             <p role="status" className="mt-3 text-sm font-medium text-[#1f4d2e]">
-              {CONFIRMACION_ELECCION}: {selectedName}
+              {t('result.selected')}: {selectedName}
             </p>
           )}
 
@@ -228,7 +216,7 @@ export function ResultadoEscaneo({
               onClick={onRepeatPhoto}
               className="inline-flex min-h-12 items-center justify-center rounded-lg px-4 text-sm font-semibold text-[#1f4d2e] transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
             >
-              {TEXTO_REPETIR_FOTO}
+              {t('result.none')}
             </button>
           </div>
         </div>
@@ -240,7 +228,7 @@ export function ResultadoEscaneo({
           >
             <Sprout size={14} strokeWidth={2} />
           </span>
-          <p>{PIE_IDENTIFICACION}</p>
+          <p>{t('result.footer')}</p>
         </footer>
       </div>
     </div>

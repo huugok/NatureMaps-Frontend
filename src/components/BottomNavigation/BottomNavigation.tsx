@@ -1,6 +1,16 @@
 import React from 'react';
 import type { TabConfig, TabId } from '../../types/navigation';
+import { useApp } from '../../context/useApp';
+import type { StringKey } from '../../i18n/strings';
 import { DEFAULT_TABS } from './constants';
+
+const TAB_TEXT: Record<TabId, { label: StringKey; aria: StringKey }> = {
+  inicio: { label: 'nav.home', aria: 'nav.home.aria' },
+  mapa: { label: 'nav.map', aria: 'nav.map.aria' },
+  escanear: { label: 'nav.scan', aria: 'nav.scan.aria' },
+  rutas: { label: 'nav.routes', aria: 'nav.routes.aria' },
+  buscar: { label: 'nav.search', aria: 'nav.search.aria' },
+};
 
 export interface BottomNavigationProps {
   /**
@@ -37,6 +47,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   position = 'relative',
   tabs = DEFAULT_TABS,
 }) => {
+  const { t } = useApp();
   const [internalTab, setInternalTab] = React.useState<TabId>(defaultTab);
 
   const isControlled = controlledActiveTab !== undefined;
@@ -80,7 +91,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
   return (
     <nav
-      aria-label="Barra de navegación principal"
+      aria-label={t('nav.label')}
       className={`${positionClasses} bg-white border-t border-neutral-200/90 shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
     >
       <div
@@ -91,6 +102,9 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         {tabs.map((tab, index) => {
           const isActive = currentTab === tab.id;
           const Icon = tab.icon;
+          const text = TAB_TEXT[tab.id];
+          const label = text ? t(text.label) : tab.label;
+          const ariaLabel = text ? t(text.aria) : tab.ariaLabel;
 
           return (
             <button
@@ -100,7 +114,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               id={`tab-${tab.id}`}
               aria-selected={isActive}
               aria-controls={`tabpanel-${tab.id}`}
-              aria-label={tab.ariaLabel}
+              aria-label={ariaLabel}
               tabIndex={isActive ? 0 : -1}
               onClick={() => handleSelectTab(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, index)}
@@ -133,11 +147,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   isActive ? 'font-bold text-emerald-800' : 'font-medium text-neutral-500 group-hover:text-neutral-700'
                 }`}
               >
-                {tab.label}
+                {label}
               </span>
 
               {/* Screen reader info for current page */}
-              {isActive && <span className="sr-only">(activo)</span>}
+              {isActive && <span className="sr-only">{t('nav.active')}</span>}
             </button>
           );
         })}

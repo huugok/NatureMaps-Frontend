@@ -1,13 +1,17 @@
+import { dictionaries } from '../../i18n/strings';
+import type { Language } from '../../types/language';
 import type { PlantMatch } from '../../types/identify';
 import type { FichaEspecie } from './types';
 
 /** Fuente que se muestra cuando la especie identificada no tiene ficha en el catálogo. */
-const FUENTE_PLANTNET = {
-  name: 'Pl@ntNet',
-  description: 'Identificación por imagen · Consulta realizada desde el escaneo',
-  url: 'https://my.plantnet.org',
-  icon: 'search' as const,
-};
+function fuentePlantNet(language: Language) {
+  return {
+    name: 'Pl@ntNet',
+    description: dictionaries[language]['ficha.plantnetDesc'],
+    url: 'https://my.plantnet.org',
+    icon: 'search' as const,
+  };
+}
 
 /**
  * Traduce una especie identificada por Pl@ntNet a la forma que pinta la ficha.
@@ -23,6 +27,7 @@ const FUENTE_PLANTNET = {
 export function fichaDesdeIdentificacion(
   match: PlantMatch,
   fotoCapturada: string | null = null,
+  language: Language = 'es',
 ): FichaEspecie {
   const nombreComun = match.commonNames[0] ?? match.scientificName;
 
@@ -31,7 +36,9 @@ export function fichaDesdeIdentificacion(
     scientificName: match.scientificName,
     family: match.family ?? undefined,
     photoUrl: fotoCapturada ?? undefined,
-    photoAlt: fotoCapturada !== null ? `Foto de ${nombreComun}` : undefined,
-    sources: [FUENTE_PLANTNET],
+    photoAlt: fotoCapturada !== null
+      ? dictionaries[language]['ficha.photoAlt'].replace('{name}', nombreComun)
+      : undefined,
+    sources: [fuentePlantNet(language)],
   };
 }

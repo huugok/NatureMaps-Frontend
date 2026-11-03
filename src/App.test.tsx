@@ -128,15 +128,15 @@ describe('selector de idioma en Ajustes', () => {
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
   })
 
-  it('guarda el inglés como preferencia y vuelve a Ajustes', () => {
+  it('guarda el inglés como preferencia y traduce Ajustes', () => {
     renderWithProviders(<App />, { route: '/ajustes' })
     openLanguagePage()
     fireEvent.click(screen.getByRole('radio', { name: 'English' }))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('en')
-    expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /idioma/i })).toHaveTextContent('English')
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /language/i })).toHaveTextContent('English')
   })
 
   it('guarda el valenciano como preferencia', () => {
@@ -158,6 +158,24 @@ describe('selector de idioma en Ajustes', () => {
     expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /idioma/i })).toHaveTextContent('Español')
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull()
+  })
+
+  it('traduce toda la app al arrancar en inglés', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'en')
+    renderWithProviders(<App />, { route: '/inicio' })
+
+    expect(screen.getByRole('heading', { name: 'Hi, explorer' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Go to Home' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'View map of species and trees' })).toBeInTheDocument()
+    expect(document.documentElement.lang).toBe('en')
+  })
+
+  it('traduce al valenciano y anuncia el documento como catalán', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'va')
+    renderWithProviders(<App />, { route: '/inicio' })
+
+    expect(screen.getByRole('tab', { name: 'Anar a Inici' })).toBeInTheDocument()
+    expect(document.documentElement.lang).toBe('ca')
   })
 
   it('restaura la preferencia guardada al volver a abrir la app', () => {

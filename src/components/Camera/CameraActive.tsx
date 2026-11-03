@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
+import { useApp } from '../../context/useApp';
 import type { PlantIdentification, PlantMatch } from '../../types/identify';
 import { CameraIdentificationResult } from './CameraIdentificationResult';
 
@@ -41,6 +42,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   photo,
   onPhotoChange,
 }) => {
+  const { t } = useApp();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -231,7 +233,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               {mode === 'planta' ? <Leaf size={30} /> : <Landmark size={30} />}
             </div>
             <p className="text-xs font-semibold text-white/90">
-              Cámara activa ({mode === 'planta' ? 'Planta' : 'Monumento o calle'})
+              {t('camera.active')} ({mode === 'planta' ? t('camera.modePlant') : t('camera.modeMonument')})
             </p>
           </div>
         )}
@@ -247,7 +249,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Cerrar cámara"
+              aria-label={t('camera.close')}
               className="flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white transition-colors cursor-pointer"
             >
               <X size={20} strokeWidth={2.2} />
@@ -258,7 +260,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             <button
               type="button"
               onClick={() => void handleToggleFlash()}
-              aria-label={flashOn ? 'Desactivar flash' : 'Activar flash'}
+              aria-label={flashOn ? t('camera.flashOff') : t('camera.flashOn')}
               className={`flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md transition-colors cursor-pointer ${
                 flashOn
                   ? 'bg-amber-400 text-neutral-900 font-bold'
@@ -285,7 +287,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 strokeWidth={2.5}
                 className={mode === 'planta' ? 'text-emerald-700' : 'text-emerald-400'}
               />
-              <span className="text-[11px]">Planta</span>
+              <span className="text-[11px]">{t('camera.modePlant')}</span>
             </button>
 
             <button
@@ -302,7 +304,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 strokeWidth={2.2}
                 className={mode === 'monumento' ? 'text-amber-800' : 'text-neutral-300'}
               />
-              <span className="text-[11px]">Monumento o calle</span>
+              <span className="text-[11px]">{t('camera.modeMonument')}</span>
             </button>
           </div>
         </div>
@@ -328,13 +330,13 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         <div className="text-center mb-4">
           <p className="text-sm font-bold text-white tracking-tight">
             {mode === 'monumento'
-              ? 'Encuadra el monumento o la calle'
-              : 'Encuadra la hoja, flor o fruto'}
+              ? t('camera.hintMonument')
+              : t('camera.hint')}
           </p>
           <p className="text-xs text-neutral-400 mt-0.5 font-medium">
             {mode === 'monumento'
-              ? 'Te diremos qué es y su importancia cultural'
-              : 'Te diremos qué especie es'}
+              ? t('camera.hintMonumentSub')
+              : t('camera.hintSub')}
           </p>
         </div>
 
@@ -344,7 +346,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           <button
             type="button"
             onClick={onSelectFromGallery}
-            aria-label="Elegir de la galería"
+            aria-label={t('camera.galleryButton')}
             className="flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-white transition-all cursor-pointer active:scale-95 shadow-md"
           >
             <ImageIcon size={22} strokeWidth={2} />
@@ -354,7 +356,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           <button
             type="button"
             onClick={handleTakePhoto}
-            aria-label="Hacer foto"
+            aria-label={t('camera.takePhoto')}
             className="group relative flex items-center justify-center w-18 h-18 rounded-full border-4 border-white/95 p-1 transition-transform cursor-pointer active:scale-90 focus:outline-none shadow-lg"
           >
             <span className="w-full h-full rounded-full bg-white group-hover:bg-neutral-100 transition-colors shadow-inner" />
@@ -364,7 +366,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           <button
             type="button"
             onClick={handleToggleFacingMode}
-            aria-label="Girar cámara"
+            aria-label={t('camera.flip')}
             className="flex items-center justify-center w-12 h-12 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-white transition-all cursor-pointer active:scale-95 shadow-md"
           >
             <RefreshCw size={20} strokeWidth={2.2} />
@@ -375,19 +377,19 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       {/* Vista previa y opciones de guardado */}
       {photo && (
         <div className="absolute inset-0 z-30 bg-black text-white">
-          <img src={photo} alt="Vista previa de la foto capturada" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={photo} alt={t('camera.photoPreviewAlt')} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-transparent to-black/75 pointer-events-none" />
 
           <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[40px_1fr_40px] items-center px-4 pt-[max(20px,env(safe-area-inset-top))] pb-4">
             <button
               type="button"
               onClick={handleDiscardPhoto}
-              aria-label="Descartar foto"
+              aria-label={t('camera.discard')}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60 cursor-pointer"
             >
               <X size={20} strokeWidth={2.2} />
             </button>
-            <span className="flex justify-center text-white drop-shadow-sm" aria-label={mode === 'planta' ? 'Planta' : 'Monumento'}>
+            <span className="flex justify-center text-white drop-shadow-sm" aria-label={mode === 'planta' ? t('camera.modePlant') : t('camera.modeMonument')}>
               {mode === 'planta' ? <Leaf size={19} /> : <Landmark size={19} />}
             </span>
             <span aria-hidden="true" />
@@ -401,7 +403,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             )}
             {(photoSaved || saveError) && (
               <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
-                {photoSaved ? 'Foto guardada en este dispositivo' : 'No se pudo guardar en este dispositivo'}
+                {photoSaved ? t('camera.saved') : t('camera.saveError')}
               </p>
             )}
             <div className="flex items-end justify-between">
@@ -409,7 +411,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 type="button"
                 onClick={handleSavePhoto}
                 disabled={photoSaved}
-                aria-label={photoSaved ? 'Foto guardada' : 'Guardar foto'}
+                aria-label={photoSaved ? t('camera.savedAria') : t('camera.save')}
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-black/45 backdrop-blur-md hover:bg-black/65 disabled:text-emerald-300 cursor-pointer disabled:cursor-default"
               >
                 {photoSaved ? <Check size={22} /> : <Download size={22} />}
@@ -419,8 +421,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 type="button"
                 disabled={mode !== 'planta' || identificationStatus === 'identifying' || identificationStatus === 'completed'}
                 onClick={handleIdentify}
-                aria-label={mode !== 'planta' ? 'Identificación disponible solo para plantas' : identificationStatus === 'identifying' ? 'Identificando foto' : identificationStatus === 'completed' ? 'Identificación completada' : 'Identificar foto'}
-                title={mode === 'planta' ? 'Identificar la foto capturada' : 'La identificación está disponible solo en modo Planta'}
+                aria-label={mode !== 'planta' ? t('camera.identifyOnlyPlants') : identificationStatus === 'identifying' ? t('camera.identifying') : identificationStatus === 'completed' ? t('camera.identifyDone') : t('camera.identify')}
+                title={mode === 'planta' ? t('camera.identifyTitle') : t('camera.identifyUnavailable')}
                 className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {identificationStatus === 'identifying' ? (
@@ -430,8 +432,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
               <button
                 type="button"
-                aria-label="Identificación manual próximamente"
-                title="Identificación manual próximamente"
+                aria-label={t('camera.manualSoon')}
+                title={t('camera.manualSoon')}
                 disabled
                 className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white/70 backdrop-blur-md cursor-not-allowed"
               >

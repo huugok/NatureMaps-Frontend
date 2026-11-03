@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useApp } from '../../context/useApp';
 import { LANGUAGES, LANGUAGE_NAMES, type Language } from '../../types/language';
 
 export interface LanguagePageProps {
@@ -9,6 +10,7 @@ export interface LanguagePageProps {
 }
 
 export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
+  const { t } = useApp();
   const [draft, setDraft] = useState<Language>(language);
 
   const handleSave = () => {
@@ -22,18 +24,18 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
         <button
           type="button"
           onClick={onBack}
-          aria-label="Volver"
+          aria-label={t('common.back')}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-neutral-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
         >
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Idioma</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{t('language.title')}</h1>
       </header>
 
-      <p className="mb-4 text-sm text-neutral-600">Elige el idioma de la aplicación.</p>
+      <p className="mb-4 text-sm text-neutral-600">{t('language.description')}</p>
 
       <fieldset className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        <legend className="sr-only">Idioma</legend>
+        <legend className="sr-only">{t('language.title')}</legend>
         {LANGUAGES.map((option, index) => (
           <label
             key={option}
@@ -59,7 +61,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
         onClick={handleSave}
         className="mt-6 min-h-12 w-full rounded-xl bg-emerald-700 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
       >
-        Guardar
+        {t('common.save')}
       </button>
     </section>
   );

@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import { Check, ChevronRight } from 'lucide-react';
+import { useApp } from '../../context/useApp';
 import type { PlantMatch } from '../../types/identify';
-import { MAX_ALTERNATIVAS, TITULO } from './constants';
+import { MAX_ALTERNATIVAS } from './constants';
 
 export interface EspeciesAlternativasProps {
   /** Candidatas devueltas por la identificación, en cualquier orden. */
@@ -35,8 +36,10 @@ export function EspeciesAlternativas({
   selectedName,
   onSelect,
   max = MAX_ALTERNATIVAS,
-  title = TITULO,
+  title,
 }: EspeciesAlternativasProps) {
+  const { t } = useApp();
+  const sectionTitle = title ?? t('result.alternatives');
   const groupName = useId();
   const titleId = useId();
   const ordenadas = [...matches].sort((a, b) => b.score - a.score).slice(0, max);
@@ -47,10 +50,10 @@ export function EspeciesAlternativas({
         id={titleId}
         className="text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500"
       >
-        {title}
+        {sectionTitle}
       </h2>
 
-      <div role="radiogroup" aria-label={title} className="mt-2.5 flex flex-col gap-2">
+      <div role="radiogroup" aria-label={sectionTitle} className="mt-2.5 flex flex-col gap-2">
         {ordenadas.map((match) => {
           const seleccionada = selectedName === match.scientificName;
           const pct = porcentaje(match.score);

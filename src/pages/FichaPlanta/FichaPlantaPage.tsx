@@ -13,6 +13,7 @@ import {
   Search,
   Trees,
 } from 'lucide-react';
+import { useApp } from '../../context/useApp';
 import { IDENTIFICATION_NOTICE } from './constants';
 import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
@@ -102,6 +103,7 @@ export function FichaPlantaPage({
   onPrevious,
   onNext,
 }: FichaPlantaPageProps) {
+  const { t } = useApp();
   const [isFavorite, setIsFavorite] = useState(false);
 
   const primaryLocation = species.locations?.[0];
@@ -122,7 +124,7 @@ export function FichaPlantaPage({
         {species.photoUrl ? (
           <img
             src={species.photoUrl}
-            alt={species.photoAlt ?? `Fotografía de ${species.commonName}`}
+            alt={species.photoAlt ?? t('ficha.photoAlt', { name: species.commonName })}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -132,7 +134,7 @@ export function FichaPlantaPage({
         )}
         {species.photoCredit && (
           <p className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-1 text-[10px] leading-snug text-white/90">
-            Foto: {species.photoCredit}
+            {t('ficha.photoCredit', { credit: species.photoCredit })}
           </p>
         )}
 
@@ -140,7 +142,7 @@ export function FichaPlantaPage({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Volver"
+            aria-label={t('common.back')}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
             <ArrowLeft size={22} aria-hidden="true" />
@@ -149,7 +151,7 @@ export function FichaPlantaPage({
             type="button"
             onClick={handleToggleFavorite}
             aria-pressed={isFavorite}
-            aria-label={isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+            aria-label={isFavorite ? t('ficha.favoriteRemove') : t('ficha.favoriteAdd')}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
             <Heart
@@ -171,7 +173,7 @@ export function FichaPlantaPage({
           {species.family && (
             <>
               {' · '}
-              <span>Familia {species.family}</span>
+              <span>{t('ficha.family')} {species.family}</span>
             </>
           )}
         </p>
@@ -181,13 +183,13 @@ export function FichaPlantaPage({
             {identification && (
               <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
                 <ScanSearch size={14} aria-hidden="true" />
-                Identificada con {Math.round(identification.score * 100)}% de confianza
+                {t('ficha.identification', { score: Math.round(identification.score * 100) })}
               </li>
             )}
             {species.flowering && (
               <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
                 <Flower2 size={14} aria-hidden="true" />
-                Floración: {species.flowering}
+                {t('ficha.flowering')}: {species.flowering}
               </li>
             )}
             {primaryLocation && (
@@ -199,7 +201,7 @@ export function FichaPlantaPage({
             {(species.locationTotal ?? 0) > 0 && (
               <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                 <Trees size={14} aria-hidden="true" />
-                {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
+                {t((species.locationTotal ?? 0) === 1 ? 'ficha.specimen' : 'ficha.specimens', { count: species.locationTotal ?? 0 })}
               </li>
             )}
           </ul>
@@ -207,7 +209,7 @@ export function FichaPlantaPage({
 
         {species.description && (
           <>
-            <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
+            <h2 className="mt-6 text-lg font-bold text-neutral-900">{t('ficha.description')}</h2>
             <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
           </>
         )}
@@ -217,7 +219,7 @@ export function FichaPlantaPage({
             <p className="flex gap-3 text-sm leading-relaxed text-neutral-700">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
               <span className="whitespace-pre-line">
-                <strong className="font-semibold text-neutral-900">{species.curiosity.label}:</strong>{' '}
+                <strong className="font-semibold text-neutral-900">{t('ficha.curiosity')}:</strong>{' '}
                 {species.curiosity.text}
               </span>
             </p>
@@ -229,7 +231,7 @@ export function FichaPlantaPage({
             LOGO
           </span>
           <p className="text-xs leading-relaxed text-neutral-500">
-            {IDENTIFICATION_NOTICE.text}{' '}
+            {t('ficha.notice')}{' '}
             <a
               href={IDENTIFICATION_NOTICE.url}
               target="_blank"
@@ -244,7 +246,7 @@ export function FichaPlantaPage({
         {sources.length > 0 && (
           <>
             <div className="mt-6 flex items-center gap-2">
-              <h2 className="text-lg font-bold text-neutral-900">Fuentes de información</h2>
+              <h2 className="text-lg font-bold text-neutral-900">{t('ficha.sources')}</h2>
               <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white">
                 {sources.length}
               </span>
@@ -260,26 +262,26 @@ export function FichaPlantaPage({
         {/* Navegación entre las especies del catálogo (Anterior/Siguiente):
             solo tiene sentido cuando la ficha viene del catálogo, no del escaneo. */}
         {total !== undefined && (
-          <div className="mt-6 flex items-center justify-between gap-2" aria-label="Navegar entre especies">
+          <div className="mt-6 flex items-center justify-between gap-2" aria-label={t('ficha.nav')}>
             <button
               type="button"
               onClick={onPrevious}
               disabled={!onPrevious}
-              aria-label="Especie anterior"
+              aria-label={t('ficha.previousAria')}
               className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={16} aria-hidden="true" />
-              Anterior
+              {t('ficha.previous')}
             </button>
             <span className="text-xs font-medium text-neutral-500">{(position ?? 0) + 1} / {total}</span>
             <button
               type="button"
               onClick={onNext}
               disabled={!onNext}
-              aria-label="Especie siguiente"
+              aria-label={t('ficha.nextAria')}
               className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Siguiente
+              {t('ficha.next')}
               <ChevronRight size={16} aria-hidden="true" />
             </button>
           </div>
@@ -296,7 +298,7 @@ export function FichaPlantaPage({
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
         >
           <MapPin size={18} aria-hidden="true" />
-          Ver en el mapa
+          {t('ficha.viewOnMap')}
         </button>
       </div>
     </article>

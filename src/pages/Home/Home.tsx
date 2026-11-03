@@ -10,28 +10,28 @@ import { useApp } from '../../context/useApp'
 
 /** Inicio. Cada modo podrá tener su propio contenido debajo de los accesos. */
 export function Home() {
-  const { mode } = useApp()
+  const { mode, t } = useApp()
   if (!mode) return <Navigate to="/modo" replace />
 
   const option = getModeOption(mode)
 
   return (
     <Page
-      title="Hola, explorador"
-      subtitle="Tu guía botánica y cultural de Valencia"
+      title={t('home.title')}
+      subtitle={t('home.subtitle')}
     >
-      <Badge solid>{option.title.toUpperCase()}</Badge>
+      <Badge solid>{t(option.titleKey).toUpperCase()}</Badge>
 
       <Card variant="accent">
         <p className="text-heading font-bold">Nature MAPS</p>
-        <p className="mt-1 text-small opacity-85">{option.description}</p>
+        <p className="mt-1 text-small opacity-85">{t(option.descriptionKey)}</p>
       </Card>
 
       <List>
-        <ListItem icon={ScanLine} title="Identificar una planta" to="/escanear" />
-        <ListItem icon={Leaf} title="Ver el mapa" to="/mapa" />
-        <ListItem icon={Route} title="Explorar rutas" to="/rutas" />
-        <ListItem icon={Flower2} title="Ficha de planta" subtitle="Catálogo botánico conectado" to="/ficha" />
+        <ListItem icon={ScanLine} title={t('home.scan')} to="/escanear" />
+        <ListItem icon={Leaf} title={t('home.map')} to="/mapa" />
+        <ListItem icon={Route} title={t('home.routes')} to="/rutas" />
+        <ListItem icon={Flower2} title={t('home.ficha')} subtitle={t('home.fichaDesc')} to="/ficha" />
       </List>
     </Page>
   )

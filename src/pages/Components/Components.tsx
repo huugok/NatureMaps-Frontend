@@ -14,9 +14,11 @@ import { Radio } from '../../components/ui/Radio'
 import { SectionLabel } from '../../components/ui/SectionLabel'
 import { StatusDot } from '../../components/ui/StatusDot'
 import { Switch } from '../../components/ui/Switch'
+import { useApp } from '../../context/useApp'
+import type { StringKey } from '../../i18n/strings'
 
 const SWATCHES = ['bg-accent', 'bg-accent-2', 'bg-accent-soft', 'bg-app', 'bg-green', 'bg-warm', 'bg-ink', 'bg-muted']
-const FILTERS = ['Todas', 'En floración', 'Árboles', 'Arbustos']
+const FILTERS: StringKey[] = ['catalog.filterAll', 'catalog.filterBloom', 'catalog.filterTrees', 'catalog.filterShrubs']
 
 /**
  * Catálogo del sistema de diseño (/componentes).
@@ -24,12 +26,13 @@ const FILTERS = ['Todas', 'En floración', 'Árboles', 'Arbustos']
  * Cambia el modo en Ajustes y verás que todos los componentes cambian de color.
  */
 export function Components() {
+  const { t } = useApp()
   const [on, setOn] = useState(true)
   const [chip, setChip] = useState(0)
 
   return (
-    <Page title="Componentes" subtitle="Sistema de diseño de Nature MAPS" back>
-      <SectionLabel>Colores (tokens)</SectionLabel>
+    <Page title={t('catalog.title')} subtitle={t('catalog.subtitle')} back>
+      <SectionLabel>{t('catalog.colors')}</SectionLabel>
       <div className="grid grid-cols-4 gap-2">
         {SWATCHES.map((cls) => (
           <div key={cls} className={`h-11 rounded-control border border-line ${cls}`} title={cls} />
@@ -37,51 +40,51 @@ export function Components() {
       </div>
 
       <SectionLabel>Button</SectionLabel>
-      <Button block>Primario</Button>
+      <Button block>{t('catalog.primary')}</Button>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" icon={MapPin}>
-          Secundario
+          {t('catalog.secondary')}
         </Button>
         <Button variant="ghost">Ghost</Button>
-        <Button size="sm">Pequeño</Button>
+        <Button size="sm">{t('catalog.small')}</Button>
       </div>
 
       <SectionLabel>IconButton · Badge · StatusDot</SectionLabel>
       <div className="flex flex-wrap items-center gap-2">
-        <IconButton icon={ArrowLeft} label="Volver" />
-        <IconButton icon={SettingsIcon} label="Ajustes" variant="accent" />
-        <Badge>Etiqueta</Badge>
-        <Badge solid>Sólida</Badge>
-        <StatusDot status="ok">OK</StatusDot>
-        <StatusDot status="error">Error</StatusDot>
+        <IconButton icon={ArrowLeft} label={t('common.back')} />
+        <IconButton icon={SettingsIcon} label={t('settings.title')} variant="accent" />
+        <Badge>{t('catalog.label')}</Badge>
+        <Badge solid>{t('catalog.solid')}</Badge>
+        <StatusDot status="ok">{t('catalog.ok')}</StatusDot>
+        <StatusDot status="error">{t('catalog.error')}</StatusDot>
       </div>
 
       <SectionLabel>Chip</SectionLabel>
       <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
-        {FILTERS.map((label, i) => (
-          <Chip key={label} active={chip === i} onClick={() => setChip(i)}>
-            {label}
+        {FILTERS.map((key, i) => (
+          <Chip key={key} active={chip === i} onClick={() => setChip(i)}>
+            {t(key)}
           </Chip>
         ))}
       </div>
 
       <SectionLabel>Input</SectionLabel>
-      <Input icon={Leaf} placeholder="Buscar…" />
+      <Input icon={Leaf} placeholder={t('catalog.search')} />
 
       <SectionLabel>ListItem</SectionLabel>
       <List>
-        <ListItem icon={Leaf} title="Con icono y flecha" subtitle="Navega a otra pantalla" to="/componentes" />
-        <ListItem icon={Bell} title="Con interruptor" trailing={<Switch checked={on} onChange={setOn} label="Ejemplo" />} />
-        <ListItem title="Seleccionado" selected trailing={<Radio checked />} />
+        <ListItem icon={Leaf} title={t('catalog.itemNav')} subtitle={t('catalog.itemNavDesc')} to="/componentes" />
+        <ListItem icon={Bell} title={t('catalog.itemSwitch')} trailing={<Switch checked={on} onChange={setOn} label={t('catalog.example')} />} />
+        <ListItem title={t('catalog.selected')} selected trailing={<Radio checked />} />
       </List>
 
       <SectionLabel>Card</SectionLabel>
-      <Card>Tarjeta normal para agrupar contenido.</Card>
-      <Card variant="accent">Tarjeta destacada con el color del modo.</Card>
+      <Card>{t('catalog.card')}</Card>
+      <Card variant="accent">{t('catalog.cardAccent')}</Card>
 
       <SectionLabel>EmptyState</SectionLabel>
       <Card>
-        <EmptyState icon={Route} title="Sin datos todavía" description="Se muestra mientras una lista está vacía." />
+        <EmptyState icon={Route} title={t('catalog.emptyTitle')} description={t('catalog.emptyDesc')} />
       </Card>
     </Page>
   )
