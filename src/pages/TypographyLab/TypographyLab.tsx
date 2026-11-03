@@ -87,7 +87,7 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
         <div className="mt-3 flex flex-wrap gap-2">
           <span
             style={uiStyle(direction, direction.scale.caption)}
-            className="inline-flex min-h-7 items-center rounded-full bg-accent px-2.5 text-white tabular-nums"
+            className="inline-flex min-h-7 items-center rounded-full bg-accent px-2.5 text-on-accent tabular-nums"
           >
             Confianza: 91%
           </span>
@@ -103,14 +103,14 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
           <button
             type="button"
             style={uiStyle(direction)}
-            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-white shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            className="min-h-11 flex-1 rounded-control bg-accent px-3 text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             Ver ficha
           </button>
           <button
             type="button"
             style={uiStyle(direction)}
-            className="min-h-11 flex-1 rounded-control bg-surface px-3 text-ink shadow-raised transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="min-h-11 flex-1 rounded-control bg-surface px-3 text-ink shadow-raised transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             Ver en el mapa
           </button>
@@ -200,7 +200,7 @@ export function TypographyLab() {
               onClick={() => setSelectedId(direction.id)}
               className={cn(
                 'min-h-11 shrink-0 rounded-full px-3.5 text-small font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-                active ? 'bg-accent text-white shadow-raised' : 'bg-surface text-ink shadow-raised',
+                active ? 'bg-accent text-on-accent shadow-raised' : 'bg-surface text-ink shadow-raised',
               )}
             >
               {direction.name}

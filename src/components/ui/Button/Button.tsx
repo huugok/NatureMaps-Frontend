@@ -19,7 +19,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   primary: 'bg-accent text-on-accent shadow-raised hover:brightness-95',
-  secondary: 'bg-surface text-accent shadow-raised hover:bg-neutral-50',
+  secondary: 'bg-surface text-accent shadow-raised hover:bg-surface-2',
   ghost: 'text-accent hover:bg-accent-soft',
 }
 

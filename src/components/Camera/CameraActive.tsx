@@ -221,7 +221,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   return (
     <div className="absolute inset-0 z-[60] flex h-full min-h-0 w-full flex-col bg-black text-white overflow-hidden select-none">
       {/* 1. ZONA SUPERIOR: MEDIA PANTALLA CON CÁMARA Y CORCHETES BIEN CENTRADOS */}
-      <div className="absolute inset-0 w-full h-full bg-neutral-950 overflow-hidden flex flex-col">
+      <div className="absolute inset-0 w-full h-full bg-night overflow-hidden flex flex-col">
         {/* Stream de video de la cámara */}
         <video
           ref={videoRef}
@@ -247,7 +247,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
         {/* Destello de flash si está activo */}
         {flashOn && (
-          <div className="absolute inset-0 bg-yellow-200/15 pointer-events-none" />
+          <div className="absolute inset-0 bg-warm/15 pointer-events-none" />
         )}
 
         {/* Header superior: Cerrar (X), Título, Flash */}
@@ -270,7 +270,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               aria-label={flashOn ? t('camera.flashOff') : t('camera.flashOn')}
               className={`flex items-center justify-center w-11 h-11 rounded-full transition-colors cursor-pointer ${
                 flashOn
-                  ? 'bg-amber-400 text-neutral-900 font-bold'
+                  ? 'bg-warm text-night font-bold'
                   : 'bg-black/40 hover:bg-black/60 text-white'
               }`}
             >
@@ -285,7 +285,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               onClick={() => onModeChange('planta')}
               className={`flex min-h-11 items-center gap-1.5 px-3.5 rounded-full transition duration-150 cursor-pointer ${
                 mode === 'planta'
-                  ? 'bg-white text-neutral-900 font-bold shadow-xs'
+                  ? 'bg-surface text-ink font-bold shadow-xs'
                   : 'text-white/80 hover:text-white'
               }`}
             >
@@ -302,14 +302,14 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               onClick={() => onModeChange('monumento')}
               className={`flex min-h-11 items-center gap-1.5 px-3.5 rounded-full transition duration-150 cursor-pointer ${
                 mode === 'monumento'
-                  ? 'bg-white text-neutral-900 font-bold shadow-xs'
+                  ? 'bg-surface text-ink font-bold shadow-xs'
                   : 'text-white/80 hover:text-white'
               }`}
             >
               <Landmark
                 size={12}
                 strokeWidth={2.2}
-                className={mode === 'monumento' ? 'text-amber-800' : 'text-neutral-300'}
+                className={mode === 'monumento' ? 'text-warm-strong' : 'text-white/70'}
               />
               <span className="text-caption">{t('camera.modeMonument')}</span>
             </button>
@@ -320,10 +320,10 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         <div className="relative z-10 flex-1 flex items-center justify-center pointer-events-none pb-4">
           <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
             {/* 4 corchetes esquineros en amarillo bien visibles */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-3 border-l-3 border-amber-400 rounded-tl-xl shadow-xs" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-3 border-r-3 border-amber-400 rounded-tr-xl shadow-xs" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-3 border-l-3 border-amber-400 rounded-bl-xl shadow-xs" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-3 border-r-3 border-amber-400 rounded-br-xl shadow-xs" />
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-3 border-l-3 border-warm rounded-tl-xl shadow-xs" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-3 border-r-3 border-warm rounded-tr-xl shadow-xs" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-3 border-l-3 border-warm rounded-bl-xl shadow-xs" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-3 border-r-3 border-warm rounded-br-xl shadow-xs" />
           </div>
         </div>
 
@@ -340,7 +340,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               ? t('camera.hintMonument')
               : t('camera.hint')}
           </p>
-          <p className="text-small text-neutral-400 mt-0.5 font-medium">
+          <p className="text-small text-white/60 mt-0.5 font-medium">
             {mode === 'monumento'
               ? t('camera.hintMonumentSub')
               : t('camera.hintSub')}
@@ -354,7 +354,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             type="button"
             onClick={onSelectFromGallery}
             aria-label={t('camera.galleryButton')}
-            className="flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-white transition-colors cursor-pointer active:scale-95"
+            className="flex items-center justify-center w-12 h-12 rounded-2xl bg-night/90 hover:bg-night border border-white/15 text-white transition-colors cursor-pointer active:scale-95"
           >
             <ImageIcon size={22} strokeWidth={2} />
           </button>
@@ -366,7 +366,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             aria-label={t('camera.takePhoto')}
             className="group relative flex items-center justify-center w-18 h-18 rounded-full border-4 border-white/95 p-1 transition-transform cursor-pointer active:scale-90 focus:outline-none"
           >
-            <span className="w-full h-full rounded-full bg-white group-hover:bg-neutral-100 transition-colors shadow-inner" />
+            <span className="w-full h-full rounded-full bg-white group-hover:bg-white/90 transition-colors shadow-inner" />
           </button>
 
           {/* Botón girar cámara */}
@@ -374,7 +374,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             type="button"
             onClick={handleToggleFacingMode}
             aria-label={t('camera.flip')}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-white transition-colors cursor-pointer active:scale-95"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-night/90 hover:bg-night border border-white/15 text-white transition-colors cursor-pointer active:scale-95"
           >
             <RefreshCw size={20} strokeWidth={2.2} />
           </button>
@@ -411,7 +411,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 <CameraIdentificationResult {...identificationResult} />
               )}
             {(photoSaved || saveError) && (
-              <p className={`mb-3 text-center text-caption ${photoSaved ? 'text-white/80' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
+              <p className={`mb-3 text-center text-caption ${photoSaved ? 'text-white/80' : 'text-warm'}`} role={saveError ? 'alert' : 'status'}>
                 {photoSaved ? t('camera.saved') : t('camera.saveError')}
               </p>
             )}
@@ -432,7 +432,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 onClick={handleIdentify}
                 aria-label={mode !== 'planta' ? t('camera.identifyOnlyPlants') : identificationStatus === 'identifying' ? t('camera.identifying') : identificationStatus === 'completed' ? t('camera.identifyDone') : t('camera.identify')}
                 title={mode === 'planta' ? t('camera.identifyTitle') : t('camera.identifyUnavailable')}
-                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-accent text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-accent text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {identificationStatus === 'identifying' ? (
                   <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -447,7 +447,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white/70 cursor-not-allowed"
               >
                 <ScanSearch size={22} />
-                <Ban size={30} className="absolute text-red-300" />
+                <Ban size={30} className="absolute text-danger" />
               </button>
             </div>
           </div>
@@ -490,14 +490,14 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                   <button
                     type="button"
                     onClick={handleIdentify}
-                    className="mt-5 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-white transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                    className="mt-5 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-on-accent transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
                     {t('camera.pendingRetry')}
                   </button>
                   <button
                     type="button"
                     onClick={handleDiscardPhoto}
-                    className="mt-2 flex min-h-12 w-full items-center justify-center rounded-card bg-surface px-4 text-body font-semibold text-ink shadow-raised transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="mt-2 flex min-h-12 w-full items-center justify-center rounded-card bg-surface px-4 text-body font-semibold text-ink shadow-raised transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
                     {t('camera.pendingBack')}
                   </button>

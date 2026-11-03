@@ -92,7 +92,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   return (
     <nav
       aria-label={t('nav.label')}
-      className={`${positionClasses} bg-white border-t border-line shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
+      className={`${positionClasses} bg-surface border-t border-line shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
     >
       <div
         role="tablist"
@@ -119,7 +119,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               onClick={() => handleSelectTab(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, index)}
               className={`group relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 transition duration-150 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 active:scale-95 cursor-pointer ${
-                isActive ? 'text-accent' : 'text-neutral-500 hover:text-neutral-700'
+                isActive ? 'text-accent' : 'text-muted hover:text-ink'
               }`}
             >
               {/* Icon Container with Badge */}
@@ -130,12 +130,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   className={`transition-colors duration-150 ${
                     isActive
                       ? 'text-accent stroke-accent'
-                      : 'text-neutral-500 stroke-neutral-500 group-hover:text-neutral-700 group-hover:stroke-neutral-700'
+                      : 'text-muted stroke-muted group-hover:text-ink group-hover:stroke-ink'
                   }`}
                 />
 
                 {tab.badge !== undefined && tab.badge !== false && (
-                  <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white shadow-xs">
+                  <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent shadow-xs">
                     {typeof tab.badge === 'boolean' ? '' : tab.badge}
                   </span>
                 )}
@@ -143,8 +143,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
               {/* Tab Label */}
               <span
-                className={`text-[11px] leading-tight tracking-tight transition-colors duration-150 ${
-                  isActive ? 'font-bold text-accent' : 'font-medium text-neutral-500 group-hover:text-neutral-700'
+                className={`text-caption leading-tight tracking-tight transition-colors duration-150 ${
+                  isActive ? 'font-bold text-accent' : 'font-medium text-muted group-hover:text-ink'
                 }`}
               >
                 {label}

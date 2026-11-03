@@ -85,9 +85,9 @@ export function ResultadoEscaneo({
       role="dialog"
       aria-modal="true"
       aria-label={t('result.title')}
-      className="absolute inset-0 z-[65] flex justify-center overflow-y-auto overscroll-contain bg-neutral-950"
+      className="absolute inset-0 z-[65] flex justify-center overflow-y-auto overscroll-contain bg-night"
     >
-      <div className="flex min-h-full w-full flex-col bg-white text-neutral-900">
+      <div className="flex min-h-full w-full flex-col bg-surface text-ink">
         <header className="relative h-48 shrink-0 overflow-hidden bg-accent-2">
           {photoUrl !== null ? (
             <img
@@ -105,12 +105,12 @@ export function ResultadoEscaneo({
             onClick={onBack}
             autoFocus
             aria-label={t('result.back')}
-            className="absolute left-4 top-[max(24px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-raised transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-accent-2"
+            className="absolute left-4 top-[max(24px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] flex h-11 w-11 items-center justify-center rounded-full bg-surface text-ink shadow-raised transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-accent-2"
           >
             <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
-          <span className="absolute bottom-3 left-4 rounded-full bg-accent px-3 py-1 text-caption font-medium text-white">
+          <span className="absolute bottom-3 left-4 rounded-full bg-accent px-3 py-1 text-caption font-medium text-on-accent">
             {t('result.yourPhoto')}
           </span>
         </header>
@@ -121,7 +121,7 @@ export function ResultadoEscaneo({
           {principal === null ? (
             <p
               role="status"
-              className="rounded-card bg-neutral-50 p-4 text-body text-muted shadow-raised"
+              className="rounded-card bg-surface-2 p-4 text-body text-muted shadow-raised"
             >
               {t('result.noCandidates')}
             </p>
@@ -134,7 +134,7 @@ export function ResultadoEscaneo({
                 {t('result.best')}
               </h2>
 
-              <article className="mt-2.5 rounded-card bg-white p-3.5 shadow-raised ring-2 ring-accent">
+              <article className="mt-2.5 rounded-card bg-surface p-3.5 shadow-raised ring-2 ring-accent">
                 <div className="flex items-start gap-3">
                   <span
                     aria-hidden="true"
@@ -173,14 +173,14 @@ export function ResultadoEscaneo({
                   />
                 </div>
                 {nivel !== null && (
-                  <p className={`mt-1.5 text-small font-medium ${nivel === 'result.low' ? 'text-amber-700' : 'text-neutral-500'}`}>{t(nivel)}</p>
+                  <p className={`mt-1.5 text-small font-medium ${nivel === 'result.low' ? 'text-warm-strong' : 'text-muted'}`}>{t(nivel)}</p>
                 )}
 
                 {onOpenPrimary !== undefined && (
                   <button
                     type="button"
                     onClick={() => onOpenPrimary(principal)}
-                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-white shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
                     {t('result.viewCard')}
                   </button>
@@ -216,10 +216,10 @@ export function ResultadoEscaneo({
           </div>
         </div>
 
-        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-neutral-50 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-caption text-muted">
+        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-surface-2 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-caption text-muted">
           <span
             aria-hidden="true"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-accent"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface text-accent"
           >
             <Sprout size={14} strokeWidth={2} />
           </span>

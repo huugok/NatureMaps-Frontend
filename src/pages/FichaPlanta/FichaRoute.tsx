@@ -28,7 +28,7 @@ export interface FichaRouteProps {
 
 function FichaEstado({ mensaje }: { mensaje: string }) {
   return (
-    <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 bg-neutral-100 px-6 text-center" role="status">
+    <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 bg-surface-2 px-6 text-center" role="status">
       <Trees size={40} className="text-accent" aria-hidden="true" />
       <p className="text-body text-muted">{mensaje}</p>
     </div>
@@ -46,8 +46,8 @@ function FichaError({
 }) {
   const { t } = useApp();
   return (
-    <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 bg-neutral-100 px-6 text-center">
-      <Trees size={40} className="text-neutral-400" aria-hidden="true" />
+    <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-3 bg-surface-2 px-6 text-center">
+      <Trees size={40} className="text-muted-2" aria-hidden="true" />
       <p role="alert" className="text-body text-muted">
         {mensaje}
       </p>
@@ -55,14 +55,14 @@ function FichaError({
         <button
           type="button"
           onClick={onBack}
-          className="min-h-11 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-11 rounded-card border border-line bg-surface px-4 text-body font-semibold text-ink shadow-raised hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {t('common.back')}
         </button>
         <button
           type="button"
           onClick={onRetry}
-          className="min-h-11 rounded-card bg-accent px-4 text-body font-semibold text-white shadow-sm hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-11 rounded-card bg-accent px-4 text-body font-semibold text-on-accent shadow-raised hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {t('common.retry')}
         </button>
@@ -106,7 +106,7 @@ export function FichaRoute({
   }
 
   return (
-    <div className="min-h-full bg-neutral-100">
+    <div className="min-h-full bg-surface-2">
       <FichaPlantaPage
         species={detail.especie}
         position={index}

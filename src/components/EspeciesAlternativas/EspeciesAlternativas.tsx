@@ -76,7 +76,7 @@ export function EspeciesAlternativas({
                 checked={seleccionada}
                 onChange={() => onSelect(match.scientificName)}
               />
-              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card bg-white py-2.5 shadow-raised pl-3.5 pr-3 transition-colors peer-checked:bg-accent-soft peer-checked:ring-2 peer-checked:ring-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2">
+              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card bg-surface py-2.5 shadow-raised pl-3.5 pr-3 transition-colors peer-checked:bg-accent-soft peer-checked:ring-2 peer-checked:ring-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body font-semibold text-ink">
                     {match.commonNames[0] !== undefined && (
@@ -86,7 +86,7 @@ export function EspeciesAlternativas({
                   </span>
                   <span
                     aria-hidden="true"
-                    className="mt-1.5 block h-1 w-20 overflow-hidden rounded-full bg-neutral-200"
+                    className="mt-1.5 block h-1 w-20 overflow-hidden rounded-full bg-line-strong"
                   >
                     <span
                       className="block h-full rounded-full bg-accent"
@@ -104,7 +104,7 @@ export function EspeciesAlternativas({
                 ) : (
                   <ChevronRight
                     size={16}
-                    className="shrink-0 text-neutral-400"
+                    className="shrink-0 text-muted-2"
                     aria-hidden="true"
                   />
                 )}

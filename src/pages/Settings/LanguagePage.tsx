@@ -25,7 +25,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
           type="button"
           onClick={onBack}
           aria-label={t('common.back')}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-neutral-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
@@ -34,12 +34,12 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
 
       <p className="mb-4 text-small text-muted text-pretty">{t('language.description')}</p>
 
-      <fieldset className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
+      <fieldset className="overflow-hidden rounded-card border border-line bg-surface shadow-raised">
         <legend className="sr-only">{t('language.title')}</legend>
         {LANGUAGES.map((option, index) => (
           <label
             key={option}
-            className={`flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 ${
+            className={`flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2 ${
               index > 0 ? 'border-t border-line' : ''
             }`}
           >

@@ -220,10 +220,10 @@ export function ColorLab() {
   return (
     <Page title="Color" subtitle="Laboratorio de paletas" back settings={false}>
       <p className="text-body text-muted text-pretty">
-        Seis paletas para el mismo producto. <strong>Verde dehesa</strong> es la evolución de
-        menor riesgo; <strong>Olivar y cal</strong>, la más mediterránea; <strong>Riu Turia</strong>,
-        la más fresca; <strong>Azahar</strong>, la más valenciana; y <strong>Piedra y musgo</strong>,
-        la más sobria.
+        La dirección elegida es <strong>Verde dehesa</strong>: mismo bosque, tinta y papel
+        templados. Las otras cinco quedan como referencia de lo que se descartó: Olivar y cal
+        (mediterránea), Riu Turia (fresca), Azahar (valenciana), Piedra y musgo (sobria) y la
+        paleta anterior.
       </p>
 
       <div role="group" aria-label="Paletas de color" className="flex flex-wrap gap-2">
@@ -237,7 +237,7 @@ export function ColorLab() {
               onClick={() => setSelectedId(palette.id)}
               className={cn(
                 'flex min-h-11 items-center gap-2 rounded-full px-3.5 text-small font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-                active ? 'bg-accent text-white shadow-raised' : 'bg-surface text-ink shadow-raised',
+                active ? 'bg-accent text-on-accent shadow-raised' : 'bg-surface text-ink shadow-raised',
               )}
             >
               <span
@@ -263,10 +263,10 @@ export function ColorLab() {
           </div>
           <span className="rounded-full bg-accent-soft px-2.5 py-1 text-caption uppercase tracking-wider text-accent">
             {selected.id === 'dehesa'
-              ? 'Recomendada'
+              ? 'Aplicada'
               : selected.id === 'actual'
-                ? 'Actual'
-                : 'Propuesta'}
+                ? 'Anterior'
+                : 'Alternativa'}
           </span>
         </div>
 

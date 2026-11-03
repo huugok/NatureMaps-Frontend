@@ -4,9 +4,9 @@ Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla act
 cambien los comandos, la estructura o las convenciones.
 
 > Última verificación: 2026-11-03 · `main` @ `8b59038` · Rama de trabajo:
-> `feat/tipografia-lab` (worktree `wt-tipografia-lab`, 177 tests en verde), basada en
-> `feat/concilacion-ui`. Aplica la dirección “Guía para todos”: Literata + Atkinson
-> Hyperlegible. Sin push ni PR.
+> `feat/color-lab` (worktree `wt-color-lab`, 179 tests en verde), basada en
+> `feat/tipografia-lab`. Aplica la tipografía “Guía para todos” y la paleta “Verde dehesa”.
+> Sin push ni PR.
 
 ## Qué es este proyecto
 
@@ -135,8 +135,8 @@ BottomNavigation/
   `Language` y nombres de idioma). Reutilizar uniones de literales en vez de `enum`
   (`erasableSyntaxOnly` lo prohíbe). No añadir tipos de entidades que el modelo de dominio todavía
   no define.
-- **Tailwind inline**, sin archivos CSS por componente. La paleta es verde y fija; no
-  introducir colores nuevos a mano. Mobile-first.
+- **Tailwind inline**, sin archivos CSS por componente. La paleta es **Verde dehesa** y no
+  cambia por modo; no introducir colores nuevos a mano. Mobile-first.
 - **Accesibilidad no negociable**: `role="tablist"`/`role="tab"`, `aria-selected`, `aria-label` en
   cada pestaña, roving `tabIndex`, navegación con flechas/Home/End, `focus-visible:ring`, área táctil
   mínima de 48px y `pb-[env(safe-area-inset-bottom,0px)]` para el notch.
@@ -162,7 +162,7 @@ BottomNavigation/
 - Padding horizontal de pantalla: **16 px** (`px-4`), preferiblemente a través de `Page`.
 - `--app-top-inset` vale **8 px** en escritorio y **0** en móvil; se aplica en las cabeceras,
   no en el contenedor, para que cámara y ficha lleguen al borde del marco.
-- La paleta es verde y fija; no cambia por modo. Los radios siguen pendientes de unificar.
+- La paleta es **Verde dehesa** y no cambia por modo. Los radios siguen pendientes de unificar.
 
 ## Tipografía
 
@@ -187,14 +187,35 @@ en producto. El laboratorio `/tipografia` conserva las demás direcciones para c
   el `<input>` va a 16 px para evitar el zoom de iOS.
 - Bordes con `border-line` (negro al 8 %), no hex sólidos.
 
+## Color
+
+Paleta **Verde dehesa**, en OKLCH. Tokens en `@theme` (`src/index.css`):
+
+- Marca: `accent` (verde dehesa), `accent-2` (verde claro), `accent-soft` (salvia pálida),
+  `on-accent` (blanco), `warm` (ocre), `warm-strong` (ocre profundo), `night` (verde noche).
+- Texto: `ink`, `ink-2`, `muted`, `muted-2`.
+- Superficies: `app` (papel cálido), `surface` (blanco), `surface-2` (papel secundario),
+  `canvas` (fondo del marco en escritorio), `line`, `line-strong`.
+- Semánticos: `danger` para errores.
+- Mapa: `location` (azul funcional) y `place` (ocre de la paleta).
+
+Reglas:
+
+- Nada de `neutral-*`, `bg-white`, `text-white`, `amber-*`, `pink-*` ni `rose-*` en pantallas:
+  usar los tokens anteriores. `text-white` solo se admite sobre cámara/foto oscura.
+- Los estados de floración y curiosidad usan `warm`/`warm-strong`; los errores, `danger`.
+- No introducir hex en JSX; los valores nuevos van en OKLCH en `@theme`.
+- Security/contraste: AA 4.5:1 para texto normal. El laboratorio `/color` conserva las
+  alternativas y sus ratios.
+
 ## Superficies
 
 - Sin gradientes decorativos. Solo se admiten scrims funcionales sobre cámara o foto para que
   el texto sea legible.
 - Sin `backdrop-blur` ni glassmorphism: fondos sólidos con opacidad.
 - Tarjetas y paneles usan `shadow-raised`; diálogos, `shadow-float`. Nada de sombras pesadas sueltas.
-- Colores siempre con tokens (`accent`, `warm`, `night`, `line`); nada de hex en JSX salvo el
-  canvas de la cámara.
+- Colores siempre con tokens (`accent`, `warm`, `night`, `line`, `surface-2`); nada de hex en
+  JSX salvo el canvas de la cámara.
 - Las fotos llevan un outline interior de 1 px negro al 10 %.
 
 ## Móvil

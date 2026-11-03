@@ -18,7 +18,7 @@ export function IconButton({ icon: Icon, label, variant = 'default', className, 
         'grid size-11 shrink-0 place-items-center rounded-full transition-[transform,background-color,box-shadow] active:scale-95 disabled:pointer-events-none disabled:bg-line disabled:text-muted-2 disabled:shadow-none',
         variant === 'accent'
           ? 'bg-accent text-on-accent hover:brightness-95'
-          : 'bg-surface shadow-raised hover:bg-neutral-50',
+          : 'bg-surface shadow-raised hover:bg-surface-2',
         className,
       )}
       {...rest}

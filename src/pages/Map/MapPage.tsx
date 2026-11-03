@@ -333,7 +333,7 @@ export function MapPage() {
                 type="button"
                 onClick={clearSearch}
                 aria-label={t('map.searchClear')}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <X size={18} aria-hidden="true" />
               </button>
@@ -387,7 +387,7 @@ export function MapPage() {
         onClick={centerOnUser}
         aria-label={t('map.centerAria')}
         title={t('map.centerTitle')}
-        className="absolute right-4 bottom-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="absolute right-4 bottom-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <LocateFixed size={21} aria-hidden="true" />
       </button>

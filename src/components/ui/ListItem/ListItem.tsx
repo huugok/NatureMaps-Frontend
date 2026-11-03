@@ -17,7 +17,7 @@ interface Props {
 
 export function ListItem({ title, subtitle, icon: Icon, to, onClick, trailing, selected }: Props) {
   const cls = cn(
-    'flex w-full select-none items-center gap-3 rounded-card bg-surface p-3 text-left shadow-raised transition-colors hover:bg-neutral-50 active:bg-neutral-100',
+    'flex w-full select-none items-center gap-3 rounded-card bg-surface p-3 text-left shadow-raised transition-colors hover:bg-surface-2 active:bg-surface-2',
     selected ? 'ring-2 ring-accent' : '',
   )
   const clickable = Boolean(to || onClick)
