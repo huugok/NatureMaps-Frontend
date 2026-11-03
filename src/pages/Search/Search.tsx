@@ -11,8 +11,12 @@ export function Search() {
   const [query, setQuery] = useState('')
   return (
     <Page title={t('search.title')}>
-      <Input icon={SearchIcon} type="search" value={query} placeholder={t('search.placeholder')} onChange={(e) => setQuery(e.target.value)} />
-      <EmptyState icon={SearchIcon} title={t('search.empty')} description={t('search.emptyDesc')} />
+      <div className="relative flex-1">
+        <Input icon={SearchIcon} type="search" value={query} placeholder={t('search.placeholder')} onChange={(e) => setQuery(e.target.value)} />
+        <div className="pointer-events-none absolute inset-0 flex">
+          <EmptyState icon={SearchIcon} title={t('search.empty')} description={t('search.emptyDesc')} />
+        </div>
+      </div>
     </Page>
   )
 }

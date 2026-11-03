@@ -6,13 +6,16 @@ import type { TabId } from '../../types/navigation';
 
 describe('BottomNavigation Component', () => {
   it('renders all 5 standard navigation tabs', () => {
-    render(<BottomNavigation activeTab="mapa" />);
+    const { container } = render(<BottomNavigation activeTab="mapa" />);
 
     expect(screen.getByRole('tab', { name: /ir a inicio/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /ver mapa/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /escanear/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /ver rutas/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /buscar especies/i })).toBeInTheDocument();
+    expect(container.querySelector('nav')).toHaveClass('pb-[env(safe-area-inset-bottom,0px)]');
+    expect(screen.getByRole('tablist')).toHaveClass('h-[62px]');
+    expect(screen.getByRole('tablist')).not.toHaveClass('pb-[env(safe-area-inset-bottom,0px)]');
   });
 
   it('highlights the active tab with aria-selected="true"', () => {

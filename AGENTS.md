@@ -3,10 +3,9 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-11-03 · `main` @ `8b59038` · Rama de trabajo:
-> `feat/concilacion-ui` (worktree `wt-concilacion-ui`, 179 tests en verde). Incluye la
-> conciliación de PRs, la tipografía “Guía para todos” y la paleta “Verde dehesa”.
-> Sin push ni PR.
+> Última verificación: 2026-11-03 · `main` @ `182cf5d` · Rama de trabajo:
+> `fix/camera-tab-safearea` (worktree `wt-camera-tab-safearea`). La cámara ahora vive en
+> `TabLayout` y conserva visible la navegación inferior.
 
 ## Qué es este proyecto
 
@@ -47,6 +46,10 @@ Pantallas actuales: `/inicio`, `/mapa` (`MapPage`), `/rutas`, `/buscar`, `/escan
 `/componentes`; laboratorios internos `/tipografia` y `/color`. `ScanPage` y su carpeta
 `src/pages/Scan/` se eliminaron: el escaneo es `CameraScreen` directo y la ficha se abre como
 overlay sobre él o en `/ficha`.
+
+`/escanear` es una pestaña de `TabLayout`: la cámara ocupa el área sobre `BottomNavigation`,
+que conserva su fila de 62 px y añade el safe-area inferior debajo. Los controles de cámara no
+deben volver a sumar el inset inferior, porque ya quedan por encima de la barra.
 
 Ramas con PR abierta (a 3/11/2026): #12 (`feat/traduccion-pantallas`, superada), #19
 (`feat/ficha-desde-alternativa`, superada) y la PR de backend #12 (`feat/arbolado-licencia`,
@@ -150,6 +153,8 @@ BottomNavigation/
 ## Layout y tamaño de pantalla
 
 - Todas las pantallas viven dentro de `.app-frame` (`src/App.tsx` + `src/index.css`).
+- `/escanear` vive en `TabLayout`, como las otras pestañas: la cámara ocupa solo el área sobre
+  el selector inferior; el botón Cerrar vuelve a Inicio y el selector permite cambiar de vista.
 - Marco de tamaño **constante**: **402×874** (iPhone 17/18, 6,3"). No escala con la altura de la
   ventana: si no cabe, la página hace scroll. En móvil ocupa `100vw × 100dvh`.
 - Los componentes usan px/rem con raíz fija de 16 px. No usar `vw`/`vh` para tipografía ni
@@ -224,7 +229,9 @@ Reglas:
 
 - `viewport` con `viewport-fit=cover` e `interactive-widget=resizes-content`; `theme-color`
   a juego con el fondo de la app.
-- Safe areas con `env(safe-area-inset-*)` en `Page`, barra inferior, ficha, cámara y resultado.
+- Safe areas con `env(safe-area-inset-*)` en `Page`, barra inferior, ficha y overlays fullscreen.
+  `BottomNavigation` añade el inset debajo de su fila de 62px. La cámara-tab queda encima de
+  esa barra: sus controles usan un padding fijo, sin sumar otra vez el inset inferior.
 - Área táctil mínima de 44 px: `IconButton` es `size-11`; la barra inferior, 48 px.
 - Inputs a 16 px; `touch-action: manipulation`; sin tap highlight; `user-select: none` solo en
   controles.

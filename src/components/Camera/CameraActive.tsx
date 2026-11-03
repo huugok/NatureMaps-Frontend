@@ -157,9 +157,12 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     dummyCanvas.height = 400;
     const ctx = dummyCanvas.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = mode === 'planta' ? '#1b4332' : '#264653';
+      const palette = getComputedStyle(document.documentElement);
+      ctx.fillStyle = palette
+        .getPropertyValue(mode === 'planta' ? '--color-night' : '--color-ink-2')
+        .trim();
       ctx.fillRect(0, 0, 400, 400);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = palette.getPropertyValue('--color-on-accent').trim();
       ctx.font = '18px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(mode === 'planta' ? 'Foto de Planta' : 'Foto de Monumento', 200, 200);
@@ -219,7 +222,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-[60] flex h-full min-h-0 w-full flex-col bg-black text-white overflow-hidden select-none">
+    <div className="absolute inset-0 z-[60] flex h-full min-h-0 w-full flex-col bg-night text-white overflow-hidden select-none">
       {/* 1. ZONA SUPERIOR: MEDIA PANTALLA CON CÁMARA Y CORCHETES BIEN CENTRADOS */}
       <div className="absolute inset-0 w-full h-full bg-night overflow-hidden flex flex-col">
         {/* Stream de video de la cámara */}
@@ -332,7 +335,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       </div>
 
       {/* 2. ZONA INFERIOR EN NEGRO: TEXTO Y CONTROLES PEGADOS A LA BARRA INFERIOR */}
-      <div className="absolute z-10 bottom-0 left-0 right-0 flex flex-col justify-end bg-gradient-to-t from-black via-black/90 to-transparent px-6 pt-16 pb-[max(24px,env(safe-area-inset-bottom))]">
+      <div className="absolute z-10 bottom-0 left-0 right-0 flex flex-col justify-end bg-gradient-to-t from-black via-black/90 to-transparent px-6 pt-16 pb-6">
         {/* Texto de instrucción */}
         <div className="text-center mb-4">
           <p className="text-body font-bold text-white">
@@ -383,7 +386,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
       {/* Vista previa y opciones de guardado */}
       {photo && (
-        <div className="absolute inset-0 z-30 bg-black text-white">
+        <div className="absolute inset-0 z-30 bg-night text-white">
           <img src={photo} alt={t('camera.photoPreviewAlt')} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-transparent to-black/75 pointer-events-none" />
 
@@ -404,7 +407,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
           {identificationStatus === 'completed' && <CameraIdentificationResult {...identificationResult} />}
 
-          <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
+          <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-7 pt-20">
             {!isBackendConnectionError &&
               identificationStatus !== 'idle' &&
               identificationStatus !== 'completed' && (
@@ -477,7 +480,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 </header>
               </div>
 
-              <div className="flex flex-1 flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom,0px))]">
+              <div className="flex flex-1 flex-col px-4 pt-3 pb-4">
                 <div className="rounded-card bg-surface p-5 text-center shadow-raised">
                   <span
                     aria-hidden="true"

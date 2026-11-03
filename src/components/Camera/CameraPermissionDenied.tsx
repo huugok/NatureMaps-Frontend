@@ -31,7 +31,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <ArrowLeft size={20} strokeWidth={2.2} />
         </button>
 
-        <div className="inline-flex items-center bg-black/45 p-1 rounded-full border border-white/10 text-caption font-medium">
+        <div className="inline-flex items-center bg-night/90 p-1 rounded-full border border-white/10 text-caption font-medium">
           <button
             type="button"
             onClick={() => onModeChange('planta')}
@@ -87,7 +87,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
         </div>
       </div>
 
-      <div className="relative z-10 flex justify-center mb-[calc(24px+env(safe-area-inset-bottom,0px))]">
+      <div className="relative z-10 flex justify-center mb-6">
         <div
           aria-hidden="true"
           className="w-16 h-16 rounded-full border-2 border-white/20 bg-white/10 opacity-40 flex items-center justify-center cursor-not-allowed"

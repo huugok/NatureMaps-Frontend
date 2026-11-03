@@ -9,6 +9,7 @@ function renderAt(route: string) {
       <Routes>
         <Route element={<TabLayout />}>
           <Route path="/mapa" element={<p>Pantalla mapa</p>} />
+          <Route path="/escanear" element={<p>Pantalla cámara</p>} />
           <Route path="/rutas" element={<p>Pantalla rutas</p>} />
         </Route>
       </Routes>
@@ -29,5 +30,13 @@ describe('TabLayout', () => {
     fireEvent.click(screen.getByRole('tab', { name: /ver rutas/i }))
     expect(screen.getByText('Pantalla rutas')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /ver rutas/i })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('mantiene la navegación inferior visible en la pestaña de cámara', () => {
+    renderAt('/escanear')
+
+    expect(screen.getByText('Pantalla cámara')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /escanear/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
   })
 })

@@ -87,6 +87,17 @@ describe('rutas, pestañas y marco', () => {
     expect(screen.getAllByRole('tab')).toHaveLength(5)
   })
 
+  it('mantiene el selector inferior visible y activo durante el escaneo', async () => {
+    withMode()
+    renderWithProviders(<App />, { route: '/inicio' })
+
+    fireEvent.click(screen.getByRole('tab', { name: /escanear e identificar/i }))
+
+    expect(await screen.findByRole('tab', { name: /escanear e identificar/i }))
+      .toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
+  })
+
   it('el mapa se carga bajo demanda al entrar en la pestaña', async () => {
     withMode()
     renderWithProviders(<App />, { route: '/inicio' })

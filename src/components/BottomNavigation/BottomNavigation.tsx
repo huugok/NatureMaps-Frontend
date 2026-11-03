@@ -92,12 +92,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   return (
     <nav
       aria-label={t('nav.label')}
-      className={`${positionClasses} bg-surface border-t border-line shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
+      className={`${positionClasses} bg-surface border-t border-line pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
     >
       <div
         role="tablist"
         aria-orientation="horizontal"
-        className="w-full grid grid-cols-5 h-[62px] items-center px-1 pb-[env(safe-area-inset-bottom,0px)]"
+        className="w-full grid grid-cols-5 h-[62px] items-center px-1"
       >
         {tabs.map((tab, index) => {
           const isActive = currentTab === tab.id;
@@ -161,4 +161,3 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 };
 
 export default BottomNavigation;
-

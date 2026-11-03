@@ -216,7 +216,7 @@ export function ResultadoEscaneo({
           </div>
         </div>
 
-        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-surface-2 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-caption text-muted">
+        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-surface-2 px-4 pt-4 pb-4 text-caption text-muted">
           <span
             aria-hidden="true"
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface text-accent"

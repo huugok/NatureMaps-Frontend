@@ -59,7 +59,7 @@ export const CameraPermissionPrompt: React.FC<CameraPermissionPromptProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 w-full max-w-sm mx-auto pt-2 pb-[calc(24px+env(safe-area-inset-bottom,0px))]">
+      <div className="flex flex-col gap-2.5 w-full max-w-sm mx-auto pt-2 pb-6">
         <button
           type="button"
           onClick={onAllow}

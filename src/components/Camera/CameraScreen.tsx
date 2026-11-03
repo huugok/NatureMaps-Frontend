@@ -129,7 +129,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full min-h-0 bg-black">
+    <div className="relative w-full h-full min-h-0 bg-night">
       {/* Input oculto para elegir foto de la galería */}
       <input
         ref={fileInputRef}
@@ -188,4 +188,3 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     </div>
   );
 };
-

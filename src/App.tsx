@@ -223,19 +223,6 @@ export default function App() {
             <Route element={<TabLayout />}>
               <Route path="/inicio" element={<Home />} />
               <Route
-                path="/mapa"
-                element={
-                  <Suspense fallback={<MapFallback />}>
-                    <MapPage />
-                  </Suspense>
-                }
-              />
-              <Route path="/rutas" element={<RoutesList />} />
-              <Route path="/buscar" element={<Search />} />
-            </Route>
-
-            <Route element={<FullLayout />}>
-              <Route
                 path="/escanear"
                 element={
                   <CameraScreen
@@ -249,6 +236,19 @@ export default function App() {
                   />
                 }
               />
+              <Route
+                path="/mapa"
+                element={
+                  <Suspense fallback={<MapFallback />}>
+                    <MapPage />
+                  </Suspense>
+                }
+              />
+              <Route path="/rutas" element={<RoutesList />} />
+              <Route path="/buscar" element={<Search />} />
+            </Route>
+
+            <Route element={<FullLayout />}>
               <Route path="/modo" element={<ModeSelect />} />
               <Route
                 path="/ajustes"
