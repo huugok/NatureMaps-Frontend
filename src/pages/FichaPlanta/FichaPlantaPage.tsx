@@ -14,7 +14,7 @@ import {
   Sprout,
   Trees,
 } from 'lucide-react';
-import { AVISO_SIN_DESCRIPCION, AVISO_SIN_DESCRIPCION_INVENTARIO, IDENTIFICATION_NOTICE } from './constants';
+import { IDENTIFICATION_NOTICE, SECCION_NO_DISPONIBLE } from './constants';
 import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
 export interface FichaPlantaPageProps {
@@ -107,9 +107,6 @@ export function FichaPlantaPage({
 
   const primaryLocation = species.locations?.[0];
   const sources = species.sources ?? [];
-  // ¿Tiene esta especie datos del inventario municipal que se estén pintando?
-  // decide la segunda frase del aviso de descripción pendiente (RNF5).
-  const hayInventario = (species.locations?.length ?? 0) > 0 || (species.locationTotal ?? 0) > 0;
 
   const handleToggleFavorite = () => {
     setIsFavorite((current) => !current);
@@ -190,52 +187,53 @@ export function FichaPlantaPage({
           )}
         </p>
 
-        {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {identification && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
-                <ScanSearch size={14} aria-hidden="true" />
-                Identificada con {Math.round(identification.score * 100)}% de confianza
-              </li>
-            )}
-            {species.flowering && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
-                <Flower2 size={14} aria-hidden="true" />
-                Floración: {species.flowering}
-              </li>
-            )}
-            {primaryLocation && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
-                <MapPin size={14} aria-hidden="true" />
-                {primaryLocation.name}
-              </li>
-            )}
-            {(species.locationTotal ?? 0) > 0 && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                <Trees size={14} aria-hidden="true" />
-                {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
-              </li>
-            )}
-          </ul>
-        )}
+        {/* RNF5: la fila de chips siempre está — la floración que falta se
+            dice, no se calla (el resto de chips siguen siendo opcionales). */}
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {identification && (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
+              <ScanSearch size={14} aria-hidden="true" />
+              Identificada con {Math.round(identification.score * 100)}% de confianza
+            </li>
+          )}
+          {species.flowering ? (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
+              <Flower2 size={14} aria-hidden="true" />
+              Floración: {species.flowering}
+            </li>
+          ) : (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-400">
+              <Flower2 size={14} aria-hidden="true" />
+              {SECCION_NO_DISPONIBLE.floracion}
+            </li>
+          )}
+          {primaryLocation && (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
+              <MapPin size={14} aria-hidden="true" />
+              {primaryLocation.name}
+            </li>
+          )}
+          {(species.locationTotal ?? 0) > 0 && (
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+              <Trees size={14} aria-hidden="true" />
+              {species.locationTotal} {species.locationTotal === 1 ? 'ejemplar' : 'ejemplares'}
+            </li>
+          )}
+        </ul>
 
-        {species.description ? (
-          <>
-            <h2 className="mt-6 text-lg font-bold text-neutral-900">Descripción</h2>
+        <div className="mt-6">
+          <h2 className="text-lg font-bold text-neutral-900">Descripción</h2>
+          {species.description ? (
             <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
-          </>
-        ) : (
-          // RNF5: sin descripción no se calla — una nota explica que la ficha
-          // aún no está curada y que lo que sí hay (inventario) se muestra.
-          <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4" role="note">
-            <p className="text-sm leading-relaxed text-neutral-600">
-              {AVISO_SIN_DESCRIPCION}
-              {hayInventario && ` ${AVISO_SIN_DESCRIPCION_INVENTARIO}`}
+          ) : (
+            // RNF5: la descripción que falta se dice, no se calla.
+            <p className="mt-2 text-sm leading-relaxed text-neutral-400" role="note">
+              {SECCION_NO_DISPONIBLE.descripcion}
             </p>
-          </div>
-        )}
+          )}
+        </div>
 
-        {species.curiosity && (
+        {species.curiosity ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="flex gap-3 text-sm leading-relaxed text-neutral-700">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
@@ -243,6 +241,14 @@ export function FichaPlantaPage({
                 <strong className="font-semibold text-neutral-900">{species.curiosity.label}:</strong>{' '}
                 {species.curiosity.text}
               </span>
+            </p>
+          </div>
+        ) : (
+          // RNF5: el dato curioso que falta se dice, no se calla.
+          <div className="mt-4 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-4" role="note">
+            <p className="flex gap-3 text-sm leading-relaxed text-neutral-400">
+              <Lightbulb size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {SECCION_NO_DISPONIBLE.curiosidad}
             </p>
           </div>
         )}
@@ -264,20 +270,25 @@ export function FichaPlantaPage({
           </p>
         </div>
 
-        {sources.length > 0 && (
-          <>
-            <div className="mt-6 flex items-center gap-2">
-              <h2 className="text-lg font-bold text-neutral-900">Fuentes de información</h2>
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white">
-                {sources.length}
-              </span>
-            </div>
-            <ul className="mt-3 space-y-2">
-              {sources.map((source) => (
-                <SourceCard key={source.name} source={source} />
-              ))}
-            </ul>
-          </>
+        <div className="mt-6 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-neutral-900">Fuentes de información</h2>
+          {sources.length > 0 && (
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white">
+              {sources.length}
+            </span>
+          )}
+        </div>
+        {sources.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {sources.map((source) => (
+              <SourceCard key={source.name} source={source} />
+            ))}
+          </ul>
+        ) : (
+          // RNF5: las fuentes que faltan se dicen, no se callan.
+          <p className="mt-3 text-sm leading-relaxed text-neutral-400" role="note">
+            {SECCION_NO_DISPONIBLE.fuentes}
+          </p>
         )}
 
         {/* Navegación entre las especies del catálogo (Anterior/Siguiente):

@@ -314,9 +314,12 @@ export const IDENTIFICATION_NOTICE = {
 };
 
 /**
- * Aviso que ocupa el lugar de la descripción cuando la ficha todavía no
- * tiene una que mostrar (RNF5). La segunda frase solo se añade cuando la
- * especie tiene datos del inventario municipal que sí se están pintando.
+ * Avisos de sección vacía (RNF5): cuando a la ficha le falta una sección se
+ * muestra en su lugar este mensaje genérico, en vez de ocultar la sección.
  */
-export const AVISO_SIN_DESCRIPCION = 'Aún no tenemos descripción de esta especie.';
-export const AVISO_SIN_DESCRIPCION_INVENTARIO = 'Te mostramos lo que sabemos por el inventario municipal.';
+export const SECCION_NO_DISPONIBLE = {
+  descripcion: 'Descripción no disponible',
+  floracion: 'Floración no disponible',
+  curiosidad: 'Dato curioso no disponible',
+  fuentes: 'Fuentes no disponible',
+} as const;

@@ -51,7 +51,7 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
     );
     // La ficha completa no necesita avisos (RNF5).
     expect(screen.queryByText('Sin foto disponible')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Aún no tenemos descripción/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no disponible/i)).not.toBeInTheDocument();
   });
 
   it('muestra la atribución de la foto (RNF6: créditos visibles)', () => {
@@ -98,11 +98,16 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).toBeInTheDocument();
     expect(screen.getByText('Sin foto disponible')).toBeInTheDocument();
     expect(screen.getByText('familia no disponible')).toBeInTheDocument();
-    // La especie tiene inventario que sí se pinta (chips de abajo): el aviso lo menciona.
-    expect(screen.getByText(/Aún no tenemos descripción de esta especie\. Te mostramos lo que sabemos por el inventario municipal\./)).toBeInTheDocument();
+    // Sin descripción curada: mensaje genérico, sin mención al inventario.
+    expect(screen.getByText('Descripción no disponible')).toBeInTheDocument();
+    expect(screen.queryByText(/inventario municipal/)).not.toBeInTheDocument();
     expect(screen.getByText('Vara de Quart')).toBeInTheDocument();
+    // Todas las secciones existen: lo que falta se dice, no se calla (RNF5).
+    expect(screen.getByText('Floración no disponible')).toBeInTheDocument();
+    expect(screen.getByText('Dato curioso no disponible')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
+    expect(screen.getByText('Fuentes no disponible')).toBeInTheDocument();
     expect(screen.queryByText(/Foto:/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Floración:/)).not.toBeInTheDocument();
     expect(screen.queryByText('Dato curioso:')).not.toBeInTheDocument();
   });
 
@@ -332,25 +337,31 @@ describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
 
     expect(screen.getByRole('img', { name: /Rosal silvestre/ })).toBeInTheDocument();
     expect(screen.getByText('Identificada con 46% de confianza')).toBeInTheDocument();
-    // Sin descripción curada: nota genérica SIN mención al inventario (no hay
-    // ubicaciones que mostrar) y sin secciones inventadas.
-    expect(screen.getByText('Aún no tenemos descripción de esta especie.')).toBeInTheDocument();
+    // Sin descripción curada: mensaje genérico SIN mención al inventario (no
+    // hay ubicaciones que mostrar), pero con la sección siempre presente.
+    expect(screen.getByText('Descripción no disponible')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument();
     expect(screen.queryByText(/inventario municipal/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Dato curioso/)).not.toBeInTheDocument();
+    // Sin floración ni curiosidad: sus avisos también aparecen (RNF5).
+    expect(screen.getByText('Floración no disponible')).toBeInTheDocument();
+    expect(screen.getByText('Dato curioso no disponible')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
     expect(screen.getByText('Pl@ntNet')).toBeInTheDocument();
   });
 
-  it('sin foto ni fuentes deja el marcador con sus avisos y oculta el bloque de fuentes', () => {
+  it('sin foto ni fuentes deja el marcador y avisa en todas las secciones (RNF5)', () => {
     render(<FichaPlantaPage species={{ commonName: 'Rosal', scientificName: 'Rosa sp.' }} />);
 
     expect(screen.getByText('Sin foto disponible')).toBeInTheDocument();
     expect(screen.getByText('familia no disponible')).toBeInTheDocument();
-    expect(screen.getByText('Aún no tenemos descripción de esta especie.')).toBeInTheDocument();
+    expect(screen.getByText('Descripción no disponible')).toBeInTheDocument();
+    expect(screen.getByText('Floración no disponible')).toBeInTheDocument();
+    expect(screen.getByText('Dato curioso no disponible')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Fuentes de información' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument();
+    // Los títulos de las secciones vacías siguen ahí, con su aviso dentro.
+    expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fuentes de información' })).toBeInTheDocument();
+    expect(screen.getByText('Fuentes no disponible')).toBeInTheDocument();
   });
 
   it('sin total de catálogo no pinta la navegación (ficha abierta desde el escaneo)', () => {
