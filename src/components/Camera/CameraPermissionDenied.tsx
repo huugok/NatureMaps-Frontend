@@ -20,7 +20,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
 }) => {
   const { t } = useApp();
   return (
-    <div className="relative flex flex-col h-full w-full bg-[#102416] text-white justify-between p-5 pt-8 overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-[#102416] text-white justify-between p-5 pt-[max(32px,env(safe-area-inset-top))] overflow-hidden">
       <div className="relative flex items-center justify-between w-full z-10">
         <button
           type="button"
@@ -31,7 +31,7 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <ArrowLeft size={20} strokeWidth={2.2} />
         </button>
 
-        <div className="inline-flex items-center bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/10 text-xs font-medium">
+        <div className="inline-flex items-center bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/10 text-caption font-medium">
           <button
             type="button"
             onClick={() => onModeChange('planta')}
@@ -64,15 +64,15 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <CameraOff size={28} strokeWidth={2.2} />
         </div>
 
-        <h2 className="text-base font-bold text-neutral-900">{t('camera.deniedTitle')}</h2>
+        <h2 className="text-heading text-balance text-ink">{t('camera.deniedTitle')}</h2>
 
-        <p className="text-xs text-neutral-500 mt-2 mb-5 leading-relaxed">{t('camera.deniedDesc')}</p>
+        <p className="text-small text-muted text-pretty mt-2 mb-5">{t('camera.deniedDesc')}</p>
 
         <div className="flex flex-col gap-2.5">
           <button
             type="button"
             onClick={onOpenSettings}
-            className="w-full py-3 px-4 rounded-xl bg-[#1e5631] hover:bg-[#164326] text-white text-xs font-bold tracking-wide transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+            className="w-full py-3 px-4 rounded-card bg-[#1e5631] hover:bg-[#164326] text-white text-body font-semibold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
           >
             {t('camera.openSettings')}
           </button>
@@ -80,14 +80,14 @@ export const CameraPermissionDenied: React.FC<CameraPermissionDeniedProps> = ({
           <button
             type="button"
             onClick={onSelectFromGallery}
-            className="w-full py-3 px-4 rounded-xl bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-800 text-xs font-semibold tracking-wide transition-all shadow-2xs cursor-pointer active:scale-[0.98]"
+            className="w-full py-3 px-4 rounded-card bg-white border border-line hover:bg-neutral-50 text-neutral-800 text-body font-semibold transition-all shadow-2xs cursor-pointer active:scale-[0.98]"
           >
             {t('camera.galleryButton')}
           </button>
         </div>
       </div>
 
-      <div className="relative z-10 flex justify-center mb-24">
+      <div className="relative z-10 flex justify-center mb-[calc(24px+env(safe-area-inset-bottom,0px))]">
         <div
           aria-hidden="true"
           className="w-16 h-16 rounded-full border-2 border-neutral-700/60 bg-neutral-800/40 opacity-40 flex items-center justify-center cursor-not-allowed"

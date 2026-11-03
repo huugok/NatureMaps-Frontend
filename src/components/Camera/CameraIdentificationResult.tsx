@@ -75,7 +75,7 @@ export function CameraIdentificationResult({
     return (
       <div
         aria-live="polite"
-        className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
+        className="mb-4 rounded-card bg-black/65 p-3 text-body text-white backdrop-blur-sm"
       >
         <p role="status">{t('camera.sending')}</p>
       </div>
@@ -86,7 +86,7 @@ export function CameraIdentificationResult({
     return (
       <div
         aria-live="polite"
-        className="mb-4 rounded-xl bg-black/65 p-3 text-sm text-white backdrop-blur-sm"
+        className="mb-4 rounded-card bg-black/65 p-3 text-body text-white backdrop-blur-sm"
       >
         <p role="alert">{t('camera.error')}</p>
         {error && <p className="mt-1 text-white/75">{error}</p>}

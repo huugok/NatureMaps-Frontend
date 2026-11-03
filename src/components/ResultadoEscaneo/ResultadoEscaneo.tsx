@@ -84,7 +84,7 @@ export function ResultadoEscaneo({
       role="dialog"
       aria-modal="true"
       aria-label={t('result.title')}
-      className="absolute inset-0 z-[65] flex justify-center overflow-y-auto bg-neutral-950"
+      className="absolute inset-0 z-[65] flex justify-center overflow-y-auto overscroll-contain bg-neutral-950"
     >
       <div className="flex min-h-full w-full flex-col bg-white text-neutral-900">
         <header className="relative h-48 shrink-0 overflow-hidden bg-[#7d9b58]">
@@ -111,12 +111,12 @@ export function ResultadoEscaneo({
             onClick={onBack}
             autoFocus
             aria-label={t('result.back')}
-            className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full bg-white text-neutral-800 shadow-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#7d9b58]"
+            className="absolute left-4 top-[max(16px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#7d9b58]"
           >
             <ArrowLeft size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
-          <span className="absolute bottom-3 left-4 rounded-full bg-[#123a25] px-3 py-1 text-[11px] font-medium text-white shadow-sm">
+          <span className="absolute bottom-3 left-4 rounded-full bg-[#123a25] px-3 py-1 text-caption font-medium text-white shadow-sm">
             {t('result.yourPhoto')}
           </span>
         </header>
@@ -127,7 +127,7 @@ export function ResultadoEscaneo({
           {principal === null ? (
             <p
               role="status"
-              className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600"
+              className="rounded-card border border-line bg-neutral-50 p-4 text-body text-muted"
             >
               {t('result.noCandidates')}
             </p>
@@ -135,12 +135,12 @@ export function ResultadoEscaneo({
             <section aria-labelledby="especie-mas-probable">
               <h2
                 id="especie-mas-probable"
-                className="text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500"
+                className="text-caption uppercase tracking-wider text-muted"
               >
                 {t('result.best')}
               </h2>
 
-              <article className="mt-2.5 rounded-2xl border-2 border-[#1f4d2e] bg-white p-3.5 shadow-sm">
+              <article className="mt-2.5 rounded-card border-2 border-[#1f4d2e] bg-white p-3.5 shadow-sm">
                 <div className="flex items-start gap-3">
                   <span
                     aria-hidden="true"
@@ -150,17 +150,17 @@ export function ResultadoEscaneo({
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <p className="break-words text-[17px] font-bold leading-snug text-neutral-900">
+                    <p className="break-words text-heading text-ink">
                       {principal.scientificName}
                     </p>
                     {detalles !== null && (
-                      <p className="mt-0.5 break-words text-xs leading-snug text-neutral-500">
+                      <p className="mt-0.5 break-words text-small text-muted">
                         {detalles}
                       </p>
                     )}
                   </div>
 
-                  <p className="shrink-0 text-[22px] font-bold leading-none text-[#1f4d2e]">
+                  <p className="shrink-0 text-title tabular-nums text-[#1f4d2e]">
                     {pct}%
                   </p>
                 </div>
@@ -179,14 +179,14 @@ export function ResultadoEscaneo({
                   />
                 </div>
                 {nivel !== null && (
-                  <p className={`mt-1.5 text-xs font-medium ${nivel === 'result.low' ? 'text-amber-700' : 'text-neutral-500'}`}>{t(nivel)}</p>
+                  <p className={`mt-1.5 text-small font-medium ${nivel === 'result.low' ? 'text-amber-700' : 'text-neutral-500'}`}>{t(nivel)}</p>
                 )}
 
                 {onOpenPrimary !== undefined && (
                   <button
                     type="button"
                     onClick={() => onOpenPrimary(principal)}
-                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-lg bg-[#1f4d2e] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#173c24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
+                    className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-[#1f4d2e] px-4 text-body font-semibold text-white transition-colors hover:bg-[#173c24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
                   >
                     {t('result.viewCard')}
                   </button>
@@ -205,7 +205,7 @@ export function ResultadoEscaneo({
           )}
 
           {selectedName !== null && selectedName !== undefined && (
-            <p role="status" className="mt-3 text-sm font-medium text-[#1f4d2e]">
+            <p role="status" className="mt-3 text-body font-medium text-[#1f4d2e]">
               {t('result.selected')}: {selectedName}
             </p>
           )}
@@ -214,14 +214,14 @@ export function ResultadoEscaneo({
             <button
               type="button"
               onClick={onRepeatPhoto}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg px-4 text-sm font-semibold text-[#1f4d2e] transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
+              className="inline-flex min-h-12 items-center justify-center rounded-card px-4 text-body font-semibold text-[#1f4d2e] transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
             >
               {t('result.none')}
             </button>
           </div>
         </div>
 
-        <footer className="mt-auto flex items-start gap-2.5 border-t border-neutral-100 bg-neutral-50 px-4 py-4 text-[11px] leading-snug text-neutral-500">
+        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-neutral-50 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] text-caption text-muted">
           <span
             aria-hidden="true"
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-[#1f4d2e] shadow-sm"

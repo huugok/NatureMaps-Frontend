@@ -15,7 +15,7 @@
   --color-ink-2: #48504d;
   --color-muted: #6b7273;
   --color-muted-2: #9aa0a0;
-  --color-line: #e8e8e3;
+  --color-line: rgb(0 0 0 / 0.08);
   --color-surface: #ffffff;
   --color-danger: #e85d5d;
 
@@ -26,13 +26,23 @@
   --color-on-accent: #ffffff;
   --color-app: #f9f9f6;
 
-  /* Tipografía */
+  /* Tipografía: una sola escala para toda la app. */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --text-caption: 11.5px;
+  --text-caption--line-height: 1.2;
+  --text-caption--font-weight: 600;
   --text-small: 13px;
+  --text-small--line-height: 1.45;
   --text-body: 15px;
+  --text-body--line-height: 1.5;
   --text-heading: 18px;
-  --text-title: 23px;
+  --text-heading--line-height: 1.3;
+  --text-heading--font-weight: 700;
+  --text-heading--letter-spacing: -0.01em;
+  --text-title: 24px;
+  --text-title--line-height: 1.15;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: -0.02em;
 
   /* Formas */
   --radius-control: 10px;
@@ -68,6 +78,20 @@
   textarea,
   select {
     font-size: 16px;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+  button,
+  [role='button'] {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
   button:not(:disabled) {
     cursor: pointer;
@@ -126,5 +150,17 @@
     border: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

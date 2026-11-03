@@ -141,9 +141,8 @@ BottomNavigation/
 - **Accesibilidad no negociable**: `role="tablist"`/`role="tab"`, `aria-selected`, `aria-label` en
   cada pestaña, roving `tabIndex`, navegación con flechas/Home/End, `focus-visible:ring`, área táctil
   mínima de 48px y `pb-[env(safe-area-inset-bottom,0px)]` para el notch.
-- **Idioma de UI en español**; identificadores y código en inglés. El selector de Ajustes guarda
-  una preferencia (`es`/`va`/`en`) en `localStorage`, pero no cambia los textos: la traducción es
-  otra UT (UT44).
+- **Idioma de UI traducido a es/va/en**; identificadores y código en inglés. El idioma vive en
+  `AppContext` y se persiste siempre con `services/languagePreference.ts`.
 - Estilo: sin Prettier configurado; el scaffold usa comillas simples y sin punto y coma, la rama de
   feature usa punto y coma. Seguir el fichero que se toca y no reformatear código ajeno.
 
@@ -162,7 +161,31 @@ BottomNavigation/
 - Los contenedores de pantalla van a `w-full`; no añadir `max-w-*` a nivel de pantalla. Los
   `max-w-*` solo valen para tarjetas o modales internos.
 - Padding horizontal de pantalla: **16 px** (`px-4`), preferiblemente a través de `Page`.
-- La paleta es verde y fija; no cambia por modo. La escala tipográfica y los radios siguen pendientes de unificar.
+- La paleta es verde y fija; no cambia por modo. Los radios siguen pendientes de unificar.
+
+## Tipografía
+
+- Una sola escala en `@theme`: `text-title` (24/1.15/700, tracking −0.02em), `text-heading`
+  (18/1.3/700, tracking −0.01em), `text-body` (15/1.5), `text-small` (13/1.45) y
+  `text-caption` (11.5/1.2/600).
+- Los títulos usan `text-balance`; los párrafos, `text-pretty`.
+- Las etiquetas en mayúsculas usan `text-caption uppercase tracking-wider`.
+- Los números (porcentajes, posiciones, recuentos) usan `tabular-nums`.
+- No usar `text-sm`, `text-xs`, `text-base`, `text-lg` ni `text-2xl` en pantallas; excepción:
+  el `<input>` va a 16 px para evitar el zoom de iOS.
+- Bordes con `border-line` (negro al 8 %), no hex sólidos.
+
+## Móvil
+
+- `viewport` con `viewport-fit=cover` e `interactive-widget=resizes-content`; `theme-color`
+  a juego con el fondo de la app.
+- Safe areas con `env(safe-area-inset-*)` en `Page`, barra inferior, ficha, cámara y resultado.
+- Área táctil mínima de 44 px: `IconButton` es `size-11`; la barra inferior, 48 px.
+- Inputs a 16 px; `touch-action: manipulation`; sin tap highlight; `user-select: none` solo en
+  controles.
+- `overscroll-behavior: contain` en los scrolls internos y `none` en el body.
+- Hover solo con el variante `hover:` de Tailwind (ya va bajo `@media (hover: hover)`).
+- Respetar `prefers-reduced-motion`.
 
 ## Tests
 

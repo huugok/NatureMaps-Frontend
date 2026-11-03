@@ -19,7 +19,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
   };
 
   return (
-    <section className="w-full px-4 pb-28 pt-5">
+    <section className="w-full px-4 pt-[max(20px,env(safe-area-inset-top))] pb-[calc(24px+env(safe-area-inset-bottom,0px))]">
       <header className="mb-6 flex items-center gap-2">
         <button
           type="button"
@@ -29,18 +29,18 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
         >
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{t('language.title')}</h1>
+        <h1 className="text-title text-balance text-ink">{t('language.title')}</h1>
       </header>
 
-      <p className="mb-4 text-sm text-neutral-600">{t('language.description')}</p>
+      <p className="mb-4 text-small text-muted text-pretty">{t('language.description')}</p>
 
-      <fieldset className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+      <fieldset className="overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
         <legend className="sr-only">{t('language.title')}</legend>
         {LANGUAGES.map((option, index) => (
           <label
             key={option}
             className={`flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 ${
-              index > 0 ? 'border-t border-neutral-200' : ''
+              index > 0 ? 'border-t border-line' : ''
             }`}
           >
             <input
@@ -51,7 +51,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
               onChange={() => setDraft(option)}
               className="h-5 w-5 accent-emerald-700"
             />
-            <span className="text-base text-neutral-900">{LANGUAGE_NAMES[option]}</span>
+            <span className="text-body text-ink">{LANGUAGE_NAMES[option]}</span>
           </label>
         ))}
       </fieldset>
@@ -59,7 +59,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
       <button
         type="button"
         onClick={handleSave}
-        className="mt-6 min-h-12 w-full rounded-xl bg-emerald-700 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+        className="mt-6 min-h-12 w-full rounded-card bg-accent px-4 py-3 text-body font-semibold text-on-accent shadow-sm transition-colors hover:bg-accent-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       >
         {t('common.save')}
       </button>

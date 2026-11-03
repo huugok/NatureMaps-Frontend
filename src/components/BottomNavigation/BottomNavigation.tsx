@@ -92,7 +92,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   return (
     <nav
       aria-label={t('nav.label')}
-      className={`${positionClasses} bg-white border-t border-neutral-200/90 shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
+      className={`${positionClasses} bg-white border-t border-line shadow-[0_-3px_12px_rgba(0,0,0,0.04)] select-none ${className}`}
     >
       <div
         role="tablist"

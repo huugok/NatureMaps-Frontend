@@ -15,13 +15,13 @@ export function IconButton({ icon: Icon, label, variant = 'default', className, 
       type="button"
       aria-label={label}
       className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-full border',
+        'grid size-11 shrink-0 place-items-center rounded-full border transition-transform active:scale-95',
         variant === 'accent' ? 'border-accent bg-accent text-on-accent' : 'border-line bg-surface',
         className,
       )}
       {...rest}
     >
-      <Icon size={17} strokeWidth={2.2} aria-hidden="true" />
+      <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
     </button>
   )
 }

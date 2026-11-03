@@ -48,7 +48,7 @@ export function EspeciesAlternativas({
     <section aria-labelledby={titleId} className="mt-5">
       <h2
         id={titleId}
-        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500"
+        className="text-caption uppercase tracking-wider text-muted"
       >
         {sectionTitle}
       </h2>
@@ -67,9 +67,9 @@ export function EspeciesAlternativas({
                 checked={seleccionada}
                 onChange={() => onSelect(match.scientificName)}
               />
-              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-white py-2.5 pl-3.5 pr-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors peer-checked:border-[#1f4d2e] peer-checked:bg-[#f2f7ec] peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-800 peer-focus-visible:ring-offset-2">
+              <span className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-card border border-line bg-white py-2.5 pl-3.5 pr-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors peer-checked:border-[#1f4d2e] peer-checked:bg-[#f2f7ec] peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-800 peer-focus-visible:ring-offset-2">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-semibold text-neutral-900">
+                  <span className="block truncate text-body font-semibold text-ink">
                     {match.commonNames[0] !== undefined && (
                       <span className="sr-only">{match.commonNames[0]} </span>
                     )}
@@ -85,7 +85,7 @@ export function EspeciesAlternativas({
                     />
                   </span>
                 </span>
-                <span className="shrink-0 text-sm font-medium text-neutral-600">{pct}%</span>
+                <span className="shrink-0 text-body tabular-nums text-muted">{pct}%</span>
                 {seleccionada ? (
                   <Check
                     size={16}

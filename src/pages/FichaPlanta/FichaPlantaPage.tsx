@@ -56,22 +56,22 @@ function SourceCard({ source }: SourceCardProps) {
   const Icon = source.icon === 'landmark' ? Landmark : Search;
 
   return (
-    <li className="rounded-2xl border border-neutral-200 bg-white p-4">
+    <li className="rounded-card border border-line bg-white p-4">
       <div className="flex gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
           <Icon size={18} aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-neutral-900">{source.name}</p>
+          <p className="text-body font-semibold text-neutral-900">{source.name}</p>
           {source.description && (
-            <p className="mt-0.5 text-xs leading-relaxed break-words text-neutral-500">{source.description}</p>
+            <p className="mt-0.5 text-small break-words text-muted">{source.description}</p>
           )}
           {source.url && (
             <a
               href={source.url}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-xs font-medium break-all text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+              className="mt-1 inline-flex items-center gap-1 text-small font-medium break-all text-emerald-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             >
               {source.url}
               <ExternalLink size={12} aria-hidden="true" />
@@ -133,12 +133,12 @@ export function FichaPlantaPage({
           </div>
         )}
         {species.photoCredit && (
-          <p className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-1 text-[10px] leading-snug text-white/90">
+          <p className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-1 text-caption text-white/90">
             {t('ficha.photoCredit', { credit: species.photoCredit })}
           </p>
         )}
 
-        <header className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+        <header className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
           <button
             type="button"
             onClick={onBack}
@@ -164,11 +164,11 @@ export function FichaPlantaPage({
         </header>
       </div>
 
-      <section className="relative z-10 -mt-6 rounded-t-3xl bg-white px-5 pt-5">
-        <h1 className="break-words text-2xl font-bold tracking-tight text-neutral-900">
+      <section className="relative z-10 -mt-6 rounded-t-3xl bg-white px-4 pt-5">
+        <h1 className="break-words text-title text-balance text-ink">
           {species.scientificName}
         </h1>
-        <p className="mt-1 break-words text-sm text-neutral-500">
+        <p className="mt-1 break-words text-small text-muted">
           <span>{species.commonName}</span>
           {species.family && (
             <>
@@ -181,25 +181,25 @@ export function FichaPlantaPage({
         {(identification !== null || Boolean(species.flowering) || primaryLocation !== undefined || (species.locationTotal ?? 0) > 0) && (
           <ul className="mt-4 flex flex-wrap gap-2">
             {identification && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white">
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-caption font-medium text-white">
                 <ScanSearch size={14} aria-hidden="true" />
                 {t('ficha.identification', { score: Math.round(identification.score * 100) })}
               </li>
             )}
             {species.flowering && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800">
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-caption font-medium text-pink-800">
                 <Flower2 size={14} aria-hidden="true" />
                 {t('ficha.flowering')}: {species.flowering}
               </li>
             )}
             {primaryLocation && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-caption font-medium text-emerald-900">
                 <MapPin size={14} aria-hidden="true" />
                 {primaryLocation.name}
               </li>
             )}
             {(species.locationTotal ?? 0) > 0 && (
-              <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+              <li className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-caption font-medium text-neutral-700">
                 <Trees size={14} aria-hidden="true" />
                 {t((species.locationTotal ?? 0) === 1 ? 'ficha.specimen' : 'ficha.specimens', { count: species.locationTotal ?? 0 })}
               </li>
@@ -209,14 +209,14 @@ export function FichaPlantaPage({
 
         {species.description && (
           <>
-            <h2 className="mt-6 text-lg font-bold text-neutral-900">{t('ficha.description')}</h2>
-            <p className="mt-2 break-words whitespace-pre-line text-sm leading-relaxed text-neutral-600">{species.description}</p>
+            <h2 className="mt-6 text-heading text-ink">{t('ficha.description')}</h2>
+            <p className="mt-2 break-words whitespace-pre-line text-body text-muted text-pretty">{species.description}</p>
           </>
         )}
 
         {species.curiosity && (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="flex gap-3 text-sm leading-relaxed text-neutral-700">
+          <div className="mt-4 rounded-card border border-amber-200 bg-amber-50 p-4">
+            <p className="flex gap-3 text-body text-neutral-700">
               <Lightbulb size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
               <span className="whitespace-pre-line">
                 <strong className="font-semibold text-neutral-900">{t('ficha.curiosity')}:</strong>{' '}
@@ -226,11 +226,11 @@ export function FichaPlantaPage({
           </div>
         )}
 
-        <div className="mt-4 flex gap-3 rounded-2xl bg-neutral-100 p-4">
+        <div className="mt-4 flex gap-3 rounded-card bg-neutral-100 p-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[8px] font-bold text-neutral-500">
             LOGO
           </span>
-          <p className="text-xs leading-relaxed text-neutral-500">
+          <p className="text-small text-muted">
             {t('ficha.notice')}{' '}
             <a
               href={IDENTIFICATION_NOTICE.url}
@@ -246,8 +246,8 @@ export function FichaPlantaPage({
         {sources.length > 0 && (
           <>
             <div className="mt-6 flex items-center gap-2">
-              <h2 className="text-lg font-bold text-neutral-900">{t('ficha.sources')}</h2>
-              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white">
+              <h2 className="text-heading text-ink">{t('ficha.sources')}</h2>
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-caption tabular-nums text-white">
                 {sources.length}
               </span>
             </div>
@@ -268,18 +268,18 @@ export function FichaPlantaPage({
               onClick={onPrevious}
               disabled={!onPrevious}
               aria-label={t('ficha.previousAria')}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={16} aria-hidden="true" />
               {t('ficha.previous')}
             </button>
-            <span className="text-xs font-medium text-neutral-500">{(position ?? 0) + 1} / {total}</span>
+            <span className="text-caption tabular-nums text-muted">{(position ?? 0) + 1} / {total}</span>
             <button
               type="button"
               onClick={onNext}
               disabled={!onNext}
               aria-label={t('ficha.nextAria')}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 rounded-card border border-line bg-white px-4 text-body font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t('ficha.next')}
               <ChevronRight size={16} aria-hidden="true" />
@@ -291,11 +291,11 @@ export function FichaPlantaPage({
       {/* El botón va al final de la ficha, no fijo: así nunca tapa el contenido
           (la última fuente, la descripción…). El relleno inferior de la tarjeta
           lo deja por encima de la barra de navegación al final del scroll. */}
-      <div className="border-t border-neutral-200 bg-white px-4 py-3">
+      <div className="border-t border-line bg-white px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
         <button
           type="button"
           onClick={handleViewOnMap}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-emerald-800 px-4 py-3 text-body font-semibold text-white shadow-sm transition-colors hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
         >
           <MapPin size={18} aria-hidden="true" />
           {t('ficha.viewOnMap')}

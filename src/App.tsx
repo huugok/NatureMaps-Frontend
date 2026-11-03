@@ -276,7 +276,7 @@ export default function App() {
         </div>
 
         {ficha !== null && (
-          <div className="absolute inset-0 z-[70] overflow-y-auto bg-neutral-100">
+          <div className="absolute inset-0 z-[70] overflow-y-auto overscroll-contain bg-neutral-100">
             <FichaPlantaPage
               species={ficha.species}
               identification={ficha.identification}

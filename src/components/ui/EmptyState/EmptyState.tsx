@@ -17,7 +17,7 @@ export function EmptyState({ icon: Icon = Leaf, title, description, action }: Pr
         <Icon size={30} aria-hidden="true" />
       </span>
       <p className="text-heading font-bold">{title}</p>
-      {description && <p className="max-w-[280px] text-small leading-normal text-muted">{description}</p>}
+      {description && <p className="max-w-[280px] text-small text-muted">{description}</p>}
       {action && <div className="mt-3">{action}</div>}
     </div>
   )

@@ -16,7 +16,7 @@ export function TabLayout() {
 
   return (
     <>
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} className="h-full">
           <Outlet />
         </div>

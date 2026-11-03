@@ -14,7 +14,7 @@ export function Chip({ active, onClick, children }: Props) {
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3.25 py-1.75 text-small font-medium',
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3.25 py-1.75 text-small font-medium transition-transform active:scale-95',
         active ? 'border-accent bg-accent text-on-accent' : 'border-line bg-surface text-muted',
       )}
     >

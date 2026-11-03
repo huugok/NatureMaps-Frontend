@@ -232,7 +232,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-emerald-300 mb-2 animate-pulse">
               {mode === 'planta' ? <Leaf size={30} /> : <Landmark size={30} />}
             </div>
-            <p className="text-xs font-semibold text-white/90">
+            <p className="text-caption font-semibold text-white/90">
               {t('camera.active')} ({mode === 'planta' ? t('camera.modePlant') : t('camera.modeMonument')})
             </p>
           </div>
@@ -244,7 +244,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         )}
 
         {/* Header superior: Cerrar (X), Título, Flash */}
-        <div className="relative z-20 flex flex-col pt-5 px-4 pb-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
+        <div className="relative z-20 flex flex-col pt-[max(20px,env(safe-area-inset-top))] px-4 pb-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
           <div className="flex items-center justify-between w-full mb-2.5">
             <button
               type="button"
@@ -272,7 +272,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           </div>
 
           {/* Selector Planta / Monumento o calle */}
-          <div className="mx-auto inline-flex items-center bg-black/50 backdrop-blur-md p-1 rounded-full border border-white/15 text-xs font-medium shadow-md">
+          <div className="mx-auto inline-flex items-center bg-black/50 backdrop-blur-md p-1 rounded-full border border-white/15 text-caption font-medium shadow-md">
             <button
               type="button"
               onClick={() => onModeChange('planta')}
@@ -287,7 +287,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 strokeWidth={2.5}
                 className={mode === 'planta' ? 'text-emerald-700' : 'text-emerald-400'}
               />
-              <span className="text-[11px]">{t('camera.modePlant')}</span>
+              <span className="text-caption">{t('camera.modePlant')}</span>
             </button>
 
             <button
@@ -304,7 +304,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 strokeWidth={2.2}
                 className={mode === 'monumento' ? 'text-amber-800' : 'text-neutral-300'}
               />
-              <span className="text-[11px]">{t('camera.modeMonument')}</span>
+              <span className="text-caption">{t('camera.modeMonument')}</span>
             </button>
           </div>
         </div>
@@ -328,12 +328,12 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       <div className="absolute z-10 bottom-0 left-0 right-0 flex flex-col justify-end bg-gradient-to-t from-black via-black/90 to-transparent px-6 pt-16 pb-[max(24px,env(safe-area-inset-bottom))]">
         {/* Texto de instrucción */}
         <div className="text-center mb-4">
-          <p className="text-sm font-bold text-white tracking-tight">
+          <p className="text-body font-bold text-white">
             {mode === 'monumento'
               ? t('camera.hintMonument')
               : t('camera.hint')}
           </p>
-          <p className="text-xs text-neutral-400 mt-0.5 font-medium">
+          <p className="text-small text-neutral-400 mt-0.5 font-medium">
             {mode === 'monumento'
               ? t('camera.hintMonumentSub')
               : t('camera.hintSub')}
@@ -380,12 +380,12 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           <img src={photo} alt={t('camera.photoPreviewAlt')} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-transparent to-black/75 pointer-events-none" />
 
-          <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[40px_1fr_40px] items-center px-4 pt-[max(20px,env(safe-area-inset-top))] pb-4">
+          <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[44px_1fr_44px] items-center px-4 pt-[max(20px,env(safe-area-inset-top))] pb-4">
             <button
               type="button"
               onClick={handleDiscardPhoto}
               aria-label={t('camera.discard')}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60 cursor-pointer"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-colors active:bg-black/60 cursor-pointer"
             >
               <X size={20} strokeWidth={2.2} />
             </button>
@@ -402,7 +402,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
               <CameraIdentificationResult {...identificationResult} />
             )}
             {(photoSaved || saveError) && (
-              <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
+              <p className={`mb-3 text-center text-caption ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
                 {photoSaved ? t('camera.saved') : t('camera.saveError')}
               </p>
             )}
