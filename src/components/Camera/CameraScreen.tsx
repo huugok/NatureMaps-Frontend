@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { CameraMode, PermissionStatus, CameraScreenProps, SavedPhoto } from './types';
 import { CameraPermissionPrompt } from './CameraPermissionPrompt';
 import { CameraPermissionDenied } from './CameraPermissionDenied';
+import { useApp } from '../../context/useApp';
 import { CameraActive } from './CameraActive';
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({
@@ -9,12 +10,20 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   initialMode = 'planta',
   onPhotoCaptured,
   onIdentifyPhoto,
+  onOpenSpecies,
   identificationStatus = 'idle',
   identificationResults = null,
   identificationError = null,
 }) => {
+  const { t } = useApp();
   const [permission, setPermission] = useState<PermissionStatus>('checking');
   const [mode, setMode] = useState<CameraMode>(initialMode);
+  /**
+   * Foto activa del escaneo. Vive aquí y no en `CameraActive` para que la
+   * imagen elegida en la galería llegue a la vista previa aunque la cámara
+   * todavía no esté montada (permiso pendiente o denegado).
+   */
+  const [photo, setPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Comprobar si el navegador ya concedió permisos previamente
@@ -107,6 +116,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
+        // La foto elegida entra en el mismo flujo que una captura: vista
+        // previa y botón de identificar, con sus alternativas después.
+        setPhoto(dataUrl);
+        setPermission('granted');
         onPhotoCaptured?.(dataUrl, mode);
       };
       reader.readAsDataURL(file);
@@ -128,7 +141,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
       />
 
       {permission === 'checking' && (
-        <div className="flex h-full w-full items-center justify-center bg-[#102416]" role="status" aria-label="Comprobando permiso de cámara">
+        <div className="flex h-full w-full items-center justify-center bg-night" role="status" aria-label={t('camera.checking')}>
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         </div>
       )}
@@ -163,10 +176,13 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           onSelectFromGallery={handleOpenGallery}
           onPhotoCaptured={onPhotoCaptured}
           onIdentifyPhoto={onIdentifyPhoto}
+          onOpenSpecies={onOpenSpecies}
           onSavePhoto={handleSavePhoto}
           identificationStatus={identificationStatus}
           identificationResults={identificationResults}
           identificationError={identificationError}
+          photo={photo}
+          onPhotoChange={setPhoto}
         />
       )}
     </div>

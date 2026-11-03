@@ -2,7 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Leaf, Landmark, Check, ScanSearch, Ban } from 'lucide-react';
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
-import type { PlantIdentification } from '../../types/identify';
+import { useApp } from '../../context/useApp';
+import { IDENTIFICATION_UNREACHABLE } from '../../services/identify';
+import type { PlantIdentification, PlantMatch } from '../../types/identify';
+import { CameraIdentificationResult } from './CameraIdentificationResult';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -13,10 +16,16 @@ export interface CameraActiveProps {
   onSelectFromGallery: () => void;
   onPhotoCaptured?: (dataUrl: string, mode: CameraMode) => void;
   onIdentifyPhoto?: (dataUrl: string, mode: CameraMode) => void;
+  /** Abre la ficha de la especie indicada (PA 1250). */
+  onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
   onSavePhoto: (photo: SavedPhoto) => boolean;
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
   identificationError: string | null;
+  /** Foto capturada o elegida de la galería; `null` si todavía no hay ninguna. */
+  photo: string | null;
+  /** Cambia la foto activa (captura, galería o descarte). */
+  onPhotoChange: (photo: string | null) => void;
 }
 
 export const CameraActive: React.FC<CameraActiveProps> = ({
@@ -26,24 +35,32 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onSelectFromGallery,
   onPhotoCaptured,
   onIdentifyPhoto,
+  onOpenSpecies,
   onSavePhoto,
   identificationStatus,
   identificationResults,
   identificationError,
+  photo,
+  onPhotoChange,
 }) => {
+  const { t } = useApp();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [flashOn, setFlashOn] = useState(false);
   const [hasRealStream, setHasRealStream] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
-
-  const isBackendConnectionError = identificationError === 'No se ha podido contactar con el servidor de identificación';
+  const isBackendConnectionError = identificationError === IDENTIFICATION_UNREACHABLE;
 
   useEffect(() => {
+    // Con una foto elegida (por ejemplo, desde la galería) no hace falta abrir
+    // la cámara: se muestra la vista previa y el botón de identificar.
+    if (photo !== null) {
+      return;
+    }
+
     let cancelled = false;
 
     async function initCamera() {
@@ -92,7 +109,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         streamRef.current = null;
       }
     };
-  }, [facingMode]);
+  }, [facingMode, photo]);
 
   const handleToggleFacingMode = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
@@ -128,7 +145,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        setCapturedPhoto(dataUrl);
+        onPhotoChange(dataUrl);
         onPhotoCaptured?.(dataUrl, mode);
         return;
       }
@@ -147,15 +164,15 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       ctx.textAlign = 'center';
       ctx.fillText(mode === 'planta' ? 'Foto de Planta' : 'Foto de Monumento', 200, 200);
       const dataUrl = dummyCanvas.toDataURL('image/jpeg');
-      setCapturedPhoto(dataUrl);
+      onPhotoChange(dataUrl);
       onPhotoCaptured?.(dataUrl, mode);
     }
   };
 
   const handleSavePhoto = () => {
-    if (!capturedPhoto) return;
+    if (!photo) return;
     const downloadLink = document.createElement('a');
-    downloadLink.href = capturedPhoto;
+    downloadLink.href = photo;
     downloadLink.download = `${mode}-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
@@ -163,7 +180,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
     const saved = onSavePhoto({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      dataUrl: capturedPhoto,
+      dataUrl: photo,
       mode,
       label: '',
       createdAt: new Date().toISOString(),
@@ -173,26 +190,38 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   };
 
   const handleDiscardPhoto = () => {
-    setCapturedPhoto(null);
+    onPhotoChange(null);
+    // Reinicia el estado de identificación en App: la siguiente foto empieza
+    // limpia aunque la anterior se quedara en error.
+    onPhotoCaptured?.('', mode);
     setPhotoSaved(false);
     setSaveError(false);
-    onPhotoCaptured?.('', mode);
-  };
-
-  const handleRetryFromError = () => {
-    if (capturedPhoto) onIdentifyPhoto?.(capturedPhoto, mode);
   };
 
   const handleIdentify = () => {
-    if (capturedPhoto && identificationStatus !== 'identifying' && identificationStatus !== 'completed') {
-      onIdentifyPhoto?.(capturedPhoto, mode);
+    if (photo && identificationStatus !== 'identifying' && identificationStatus !== 'completed') {
+      onIdentifyPhoto?.(photo, mode);
     }
   };
 
+  const identificationResult = {
+    status: identificationStatus,
+    mode,
+    results: identificationResults,
+    error: identificationError,
+    photo,
+    onRetry: handleIdentify,
+    onOpenSpecies: (match: PlantMatch) => onOpenSpecies?.(match, photo),
+    // Volver desde el resultado devuelve a la cámara con la foto descartada,
+    // no cierra el escáner entero: el usuario sigue en el mismo flujo.
+    onBack: handleDiscardPhoto,
+    onRepeatPhoto: handleDiscardPhoto,
+  };
+
   return (
-    <div className="fixed inset-0 z-[60] flex h-[100dvh] min-h-0 w-full flex-col bg-black text-white overflow-hidden select-none">
+    <div className="absolute inset-0 z-[60] flex h-full min-h-0 w-full flex-col bg-black text-white overflow-hidden select-none">
       {/* 1. ZONA SUPERIOR: MEDIA PANTALLA CON CÁMARA Y CORCHETES BIEN CENTRADOS */}
-      <div className="absolute inset-0 w-full h-full bg-neutral-950 overflow-hidden flex flex-col">
+      <div className="absolute inset-0 w-full h-full bg-night overflow-hidden flex flex-col">
         {/* Stream de video de la cámara */}
         <video
           ref={videoRef}
@@ -206,29 +235,29 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
         {/* Fallback visual cuando no hay hardware de cámara física */}
         {!hasRealStream && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#0f2818] via-[#1a3824] to-[#0c1f13]">
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-emerald-300 mb-2 animate-pulse">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-night">
+            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-accent-2 mb-2 animate-pulse">
               {mode === 'planta' ? <Leaf size={30} /> : <Landmark size={30} />}
             </div>
-            <p className="text-xs font-semibold text-white/90">
-              Cámara activa ({mode === 'planta' ? 'Planta' : 'Monumento o calle'})
+            <p className="text-caption font-semibold text-white/90">
+              {t('camera.active')} ({mode === 'planta' ? t('camera.modePlant') : t('camera.modeMonument')})
             </p>
           </div>
         )}
 
         {/* Destello de flash si está activo */}
         {flashOn && (
-          <div className="absolute inset-0 bg-yellow-200/15 pointer-events-none" />
+          <div className="absolute inset-0 bg-warm/15 pointer-events-none" />
         )}
 
         {/* Header superior: Cerrar (X), Título, Flash */}
-        <div className="relative z-20 flex flex-col pt-5 px-4 pb-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
+        <div className="relative z-20 flex flex-col pt-[max(28px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] px-4 pb-2 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
           <div className="flex items-center justify-between w-full mb-2.5">
             <button
               type="button"
               onClick={onClose}
-              aria-label="Cerrar cámara"
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white transition-colors cursor-pointer"
+              aria-label={t('camera.close')}
+              className="flex items-center justify-center w-11 h-11 rounded-full bg-black/50 hover:bg-black/65 text-white transition-colors cursor-pointer"
             >
               <X size={20} strokeWidth={2.2} />
             </button>
@@ -238,10 +267,10 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             <button
               type="button"
               onClick={() => void handleToggleFlash()}
-              aria-label={flashOn ? 'Desactivar flash' : 'Activar flash'}
-              className={`flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md transition-colors cursor-pointer ${
+              aria-label={flashOn ? t('camera.flashOff') : t('camera.flashOn')}
+              className={`flex items-center justify-center w-11 h-11 rounded-full transition-colors cursor-pointer ${
                 flashOn
-                  ? 'bg-amber-400 text-neutral-900 font-bold'
+                  ? 'bg-warm text-night font-bold'
                   : 'bg-black/40 hover:bg-black/60 text-white'
               }`}
             >
@@ -250,39 +279,39 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           </div>
 
           {/* Selector Planta / Monumento o calle */}
-          <div className="mx-auto inline-flex items-center bg-black/50 backdrop-blur-md p-1 rounded-full border border-white/15 text-xs font-medium shadow-md">
+          <div className="mx-auto inline-flex items-center bg-black/55 p-1 rounded-full border border-white/15 text-caption font-medium">
             <button
               type="button"
               onClick={() => onModeChange('planta')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-all duration-150 cursor-pointer ${
+              className={`flex min-h-11 items-center gap-1.5 px-3.5 rounded-full transition duration-150 cursor-pointer ${
                 mode === 'planta'
-                  ? 'bg-white text-neutral-900 font-bold shadow-xs'
+                  ? 'bg-surface text-ink font-bold shadow-xs'
                   : 'text-white/80 hover:text-white'
               }`}
             >
               <Leaf
                 size={12}
                 strokeWidth={2.5}
-                className={mode === 'planta' ? 'text-emerald-700' : 'text-emerald-400'}
+                className={mode === 'planta' ? 'text-accent' : 'text-accent-2'}
               />
-              <span className="text-[11px]">Planta</span>
+              <span className="text-caption">{t('camera.modePlant')}</span>
             </button>
 
             <button
               type="button"
               onClick={() => onModeChange('monumento')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-all duration-150 cursor-pointer ${
+              className={`flex min-h-11 items-center gap-1.5 px-3.5 rounded-full transition duration-150 cursor-pointer ${
                 mode === 'monumento'
-                  ? 'bg-white text-neutral-900 font-bold shadow-xs'
+                  ? 'bg-surface text-ink font-bold shadow-xs'
                   : 'text-white/80 hover:text-white'
               }`}
             >
               <Landmark
                 size={12}
                 strokeWidth={2.2}
-                className={mode === 'monumento' ? 'text-amber-800' : 'text-neutral-300'}
+                className={mode === 'monumento' ? 'text-warm-strong' : 'text-white/70'}
               />
-              <span className="text-[11px]">Monumento o calle</span>
+              <span className="text-caption">{t('camera.modeMonument')}</span>
             </button>
           </div>
         </div>
@@ -291,10 +320,10 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
         <div className="relative z-10 flex-1 flex items-center justify-center pointer-events-none pb-4">
           <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
             {/* 4 corchetes esquineros en amarillo bien visibles */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-3 border-l-3 border-amber-400 rounded-tl-xl shadow-xs" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-3 border-r-3 border-amber-400 rounded-tr-xl shadow-xs" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-3 border-l-3 border-amber-400 rounded-bl-xl shadow-xs" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-3 border-r-3 border-amber-400 rounded-br-xl shadow-xs" />
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-3 border-l-3 border-warm rounded-tl-xl shadow-xs" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-3 border-r-3 border-warm rounded-tr-xl shadow-xs" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-3 border-l-3 border-warm rounded-bl-xl shadow-xs" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-3 border-r-3 border-warm rounded-br-xl shadow-xs" />
           </div>
         </div>
 
@@ -306,15 +335,15 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       <div className="absolute z-10 bottom-0 left-0 right-0 flex flex-col justify-end bg-gradient-to-t from-black via-black/90 to-transparent px-6 pt-16 pb-[max(24px,env(safe-area-inset-bottom))]">
         {/* Texto de instrucción */}
         <div className="text-center mb-4">
-          <p className="text-sm font-bold text-white tracking-tight">
+          <p className="text-body font-bold text-white">
             {mode === 'monumento'
-              ? 'Encuadra el monumento o la calle'
-              : 'Encuadra la hoja, flor o fruto'}
+              ? t('camera.hintMonument')
+              : t('camera.hint')}
           </p>
-          <p className="text-xs text-neutral-400 mt-0.5 font-medium">
+          <p className="text-small text-white/60 mt-0.5 font-medium">
             {mode === 'monumento'
-              ? 'Te diremos qué es y su importancia cultural'
-              : 'Te diremos qué especie es'}
+              ? t('camera.hintMonumentSub')
+              : t('camera.hintSub')}
           </p>
         </div>
 
@@ -324,8 +353,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           <button
             type="button"
             onClick={onSelectFromGallery}
-            aria-label="Elegir de la galería"
-            className="flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-white transition-all cursor-pointer active:scale-95 shadow-md"
+            aria-label={t('camera.galleryButton')}
+            className="flex items-center justify-center w-12 h-12 rounded-2xl bg-night/90 hover:bg-night border border-white/15 text-white transition-colors cursor-pointer active:scale-95"
           >
             <ImageIcon size={22} strokeWidth={2} />
           </button>
@@ -334,18 +363,18 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
           <button
             type="button"
             onClick={handleTakePhoto}
-            aria-label="Hacer foto"
-            className="group relative flex items-center justify-center w-18 h-18 rounded-full border-4 border-white/95 p-1 transition-transform cursor-pointer active:scale-90 focus:outline-none shadow-lg"
+            aria-label={t('camera.takePhoto')}
+            className="group relative flex items-center justify-center w-18 h-18 rounded-full border-4 border-white/95 p-1 transition-transform cursor-pointer active:scale-90 focus:outline-none"
           >
-            <span className="w-full h-full rounded-full bg-white group-hover:bg-neutral-100 transition-colors shadow-inner" />
+            <span className="w-full h-full rounded-full bg-white group-hover:bg-white/90 transition-colors shadow-inner" />
           </button>
 
           {/* Botón girar cámara */}
           <button
             type="button"
             onClick={handleToggleFacingMode}
-            aria-label="Girar cámara"
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-white transition-all cursor-pointer active:scale-95 shadow-md"
+            aria-label={t('camera.flip')}
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-night/90 hover:bg-night border border-white/15 text-white transition-colors cursor-pointer active:scale-95"
           >
             <RefreshCw size={20} strokeWidth={2.2} />
           </button>
@@ -353,65 +382,37 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
       </div>
 
       {/* Vista previa y opciones de guardado */}
-      {capturedPhoto && (
+      {photo && (
         <div className="absolute inset-0 z-30 bg-black text-white">
-          <img src={capturedPhoto} alt="Vista previa de la foto capturada" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={photo} alt={t('camera.photoPreviewAlt')} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-transparent to-black/75 pointer-events-none" />
 
-          <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[40px_1fr_40px] items-center px-4 pt-[max(20px,env(safe-area-inset-top))] pb-4">
+          <header className="absolute top-0 left-0 right-0 z-10 grid grid-cols-[44px_1fr_44px] items-center px-4 pt-[max(28px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] pb-4">
             <button
               type="button"
               onClick={handleDiscardPhoto}
-              aria-label="Descartar foto"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60 cursor-pointer"
+              aria-label={t('camera.discard')}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white transition-colors active:bg-black/65 cursor-pointer"
             >
               <X size={20} strokeWidth={2.2} />
             </button>
-            <span className="flex justify-center text-white drop-shadow-sm" aria-label={mode === 'planta' ? 'Planta' : 'Monumento'}>
+            <span className="flex justify-center text-white drop-shadow-sm" aria-label={mode === 'planta' ? t('camera.modePlant') : t('camera.modeMonument')}>
               {mode === 'planta' ? <Leaf size={19} /> : <Landmark size={19} />}
             </span>
             <span aria-hidden="true" />
           </header>
 
+          {identificationStatus === 'completed' && <CameraIdentificationResult {...identificationResult} />}
+
           <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
-            {identificationStatus !== 'idle' && (
-              <div aria-live="polite" className="mb-4 max-h-[38vh] overflow-y-auto rounded-xl bg-black/65 p-3 text-sm backdrop-blur-sm">
-                {identificationStatus === 'identifying' && <p role="status">Enviando la foto a Pl@ntNet…</p>}
-                {identificationStatus === 'completed' && identificationResults && (
-                  <>
-                    <p role="status" className="font-medium">
-                      {identificationResults.results.length > 0
-                        ? `Candidatas más probables (${identificationResults.results.length})`
-                        : 'Pl@ntNet no ha encontrado candidatas para esta foto.'}
-                    </p>
-                    {identificationResults.results.length > 0 && (
-                      <ol className="mt-2 list-decimal space-y-1 pl-5">
-                        {identificationResults.results.slice(0, 5).map((match, index) => (
-                          <li key={`${match.scientificName}-${index}`}>
-                            <span className="font-medium">{match.scientificName}</span>
-                            {match.author && ` ${match.author}`}
-                            {' — '}{(match.score * 100).toFixed(1).replace('.', ',')}%
-                            {match.commonNames.length > 0 && ` · ${match.commonNames.join(', ')}`}
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </>
-                )}
-                {identificationStatus === 'error' && mode === 'planta' && !isBackendConnectionError && (
-                  <div>
-                    <p role="alert">No se ha podido identificar la foto.</p>
-                    {identificationError && <p className="mt-1 text-white/75">{identificationError}</p>}
-                    <button type="button" onClick={handleIdentify} className="mt-2 underline underline-offset-2">
-                      Reintentar
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            {!isBackendConnectionError &&
+              identificationStatus !== 'idle' &&
+              identificationStatus !== 'completed' && (
+                <CameraIdentificationResult {...identificationResult} />
+              )}
             {(photoSaved || saveError) && (
-              <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>
-                {photoSaved ? 'Foto guardada en este dispositivo' : 'No se pudo guardar en este dispositivo'}
+              <p className={`mb-3 text-center text-caption ${photoSaved ? 'text-white/80' : 'text-warm'}`} role={saveError ? 'alert' : 'status'}>
+                {photoSaved ? t('camera.saved') : t('camera.saveError')}
               </p>
             )}
             <div className="flex items-end justify-between">
@@ -419,8 +420,8 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 type="button"
                 onClick={handleSavePhoto}
                 disabled={photoSaved}
-                aria-label={photoSaved ? 'Foto guardada' : 'Guardar foto'}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-black/45 backdrop-blur-md hover:bg-black/65 disabled:text-emerald-300 cursor-pointer disabled:cursor-default"
+                aria-label={photoSaved ? t('camera.savedAria') : t('camera.save')}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 hover:bg-black/65 disabled:text-white/60 cursor-pointer disabled:cursor-default"
               >
                 {photoSaved ? <Check size={22} /> : <Download size={22} />}
               </button>
@@ -429,9 +430,9 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                 type="button"
                 disabled={mode !== 'planta' || identificationStatus === 'identifying' || identificationStatus === 'completed'}
                 onClick={handleIdentify}
-                aria-label={mode !== 'planta' ? 'Identificación disponible solo para plantas' : identificationStatus === 'identifying' ? 'Identificando foto' : identificationStatus === 'completed' ? 'Identificación completada' : 'Identificar foto'}
-                title={mode === 'planta' ? 'Identificar la foto capturada' : 'La identificación está disponible solo en modo Planta'}
-                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label={mode !== 'planta' ? t('camera.identifyOnlyPlants') : identificationStatus === 'identifying' ? t('camera.identifying') : identificationStatus === 'completed' ? t('camera.identifyDone') : t('camera.identify')}
+                title={mode === 'planta' ? t('camera.identifyTitle') : t('camera.identifyUnavailable')}
+                className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white bg-accent text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {identificationStatus === 'identifying' ? (
                   <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -440,41 +441,65 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
 
               <button
                 type="button"
-                aria-label="Identificación manual próximamente"
-                title="Identificación manual próximamente"
+                aria-label={t('camera.manualSoon')}
+                title={t('camera.manualSoon')}
                 disabled
-                className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white/70 backdrop-blur-md cursor-not-allowed"
+                className="relative flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white/70 cursor-not-allowed"
               >
                 <ScanSearch size={22} />
-                <Ban size={30} className="absolute text-red-300" />
+                <Ban size={30} className="absolute text-danger" />
               </button>
             </div>
           </div>
-          {identificationStatus === 'error' && mode === 'planta' && isBackendConnectionError && (
-            <section className="fixed inset-0 z-[80] flex flex-col overflow-y-auto overscroll-contain bg-stone-50 pb-[calc(62px+env(safe-area-inset-bottom,0px))] text-slate-900">
-              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-emerald-100">
-                <img src={capturedPhoto} alt="Foto de la planta" className="h-full w-full object-cover" />
-                <header className="absolute inset-x-0 top-0 flex items-center gap-3 p-4 pt-[max(20px,env(safe-area-inset-top))]">
-                  <button type="button" onClick={handleDiscardPhoto} aria-label="Volver a la cámara" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/90 text-neutral-700 shadow-sm">
-                    <ArrowLeft size={20} />
+
+          {/* Sin conexión con el backend se muestra una respuesta honesta:
+              la foto se conserva y se puede reintentar sin perder el flujo. */}
+          {isBackendConnectionError && identificationStatus === 'error' && mode === 'planta' && (
+            <section className="absolute inset-0 z-40 flex flex-col overflow-y-auto overscroll-contain bg-app text-ink">
+              <div className="relative h-64 w-full shrink-0 overflow-hidden bg-accent-soft">
+                <img
+                  src={photo}
+                  alt={t('camera.pendingPhotoAlt')}
+                  className="h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10"
+                />
+                <header className="absolute inset-x-0 top-0 flex items-center gap-3 px-4 pt-[max(20px,calc(env(safe-area-inset-top)+var(--app-top-inset)))] pb-4">
+                  <button
+                    type="button"
+                    onClick={handleDiscardPhoto}
+                    aria-label={t('camera.pendingBackAria')}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface/90 text-ink shadow-raised transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <ArrowLeft size={20} aria-hidden="true" />
                   </button>
-                  <h1 className="rounded-full bg-white/90 px-4 py-2 text-lg font-bold shadow-sm">Planta sin identificar</h1>
+                  <h1 className="font-display rounded-full bg-surface/90 px-4 py-2 text-heading text-ink shadow-raised">
+                    {t('camera.pendingTitle')}
+                  </h1>
                 </header>
               </div>
-              <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
-                <div className="rounded-2xl border border-emerald-200 bg-white p-5 text-center shadow-sm">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-800">
-                    <ScanSearch size={24} aria-hidden="true" />
+
+              <div className="flex flex-1 flex-col px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom,0px))]">
+                <div className="rounded-card bg-surface p-5 text-center shadow-raised">
+                  <span
+                    aria-hidden="true"
+                    className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent"
+                  >
+                    <ScanSearch size={24} />
                   </span>
-                  <h2 className="mt-3 text-lg font-semibold">Identificación pendiente</h2>
-                  <p className="mt-2 text-sm leading-5 text-slate-600">
-                    Aún no tenemos información verificada sobre esta planta. Puedes volver a intentarlo.
-                  </p>
-                  <button type="button" onClick={handleRetryFromError} className="mt-5 min-h-12 w-full rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white">
-                    Reintentar identificación
+                  <h2 className="font-display mt-3 text-heading text-ink">{t('camera.pendingHeading')}</h2>
+                  <p className="mt-2 text-small text-muted text-pretty">{t('camera.pendingDesc')}</p>
+                  <button
+                    type="button"
+                    onClick={handleIdentify}
+                    className="mt-5 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-on-accent transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  >
+                    {t('camera.pendingRetry')}
                   </button>
-                  <button type="button" onClick={handleDiscardPhoto} className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700">
-                    Volver a la cámara
+                  <button
+                    type="button"
+                    onClick={handleDiscardPhoto}
+                    className="mt-2 flex min-h-12 w-full items-center justify-center rounded-card bg-surface px-4 text-body font-semibold text-ink shadow-raised transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {t('camera.pendingBack')}
                   </button>
                 </div>
               </div>
