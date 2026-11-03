@@ -20,6 +20,7 @@
   --color-line: rgb(0 0 0 / 0.08);
   --color-line-strong: #d8d8d2;
   --color-surface: #ffffff;
+  --color-surface-2: #f4f3f0;
   --color-danger: #e85d5d;
 
   /* Acento verde de marca (la paleta es fija, no cambia por modo) */

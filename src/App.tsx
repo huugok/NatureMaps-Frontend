@@ -50,6 +50,10 @@ const TypographyLab = lazy(() =>
   import('./pages/TypographyLab').then((module) => ({ default: module.TypographyLab })),
 );
 
+const ColorLab = lazy(() =>
+  import('./pages/ColorLab').then((module) => ({ default: module.ColorLab })),
+);
+
 function LabFallback() {
   return (
     <p role="status" className="p-4 text-small text-muted">
@@ -287,6 +291,14 @@ export default function App() {
                 element={
                   <Suspense fallback={<LabFallback />}>
                     <TypographyLab />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/color"
+                element={
+                  <Suspense fallback={<LabFallback />}>
+                    <ColorLab />
                   </Suspense>
                 }
               />

@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Leaf, MapPin, Route, Settings as SettingsIcon, Type } from 'lucide-react'
+import { ArrowLeft, Bell, Leaf, MapPin, Palette, Route, Settings as SettingsIcon, Type } from 'lucide-react'
 import { useState } from 'react'
 import { Page } from '../../components/Page'
 import { Badge } from '../../components/ui/Badge'
@@ -32,13 +32,19 @@ export function Components() {
 
   return (
     <Page title={t('catalog.title')} subtitle={t('catalog.subtitle')} back>
-      <SectionLabel>Tipografía</SectionLabel>
+      <SectionLabel>Diseño</SectionLabel>
       <List>
         <ListItem
           icon={Type}
           title="Laboratorio tipográfico"
           subtitle="Cinco direcciones para comparar en contexto"
           to="/tipografia"
+        />
+        <ListItem
+          icon={Palette}
+          title="Laboratorio de color"
+          subtitle="Seis paletas naturales con contraste WCAG"
+          to="/color"
         />
       </List>
 
