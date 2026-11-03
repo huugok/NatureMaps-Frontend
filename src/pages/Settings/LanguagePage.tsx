@@ -17,7 +17,7 @@ export function LanguagePage({ language, onBack, onSave }: LanguagePageProps) {
   };
 
   return (
-    <section className="mx-auto w-full max-w-md px-4 pb-28 pt-5">
+    <section className="w-full px-4 pb-28 pt-5">
       <header className="mb-6 flex items-center gap-2">
         <button
           type="button"

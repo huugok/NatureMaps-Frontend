@@ -96,9 +96,9 @@ export function ResultadoEscaneo({
       role="dialog"
       aria-modal="true"
       aria-label="Resultado de la identificación"
-      className="fixed inset-0 z-[65] flex justify-center overflow-y-auto bg-neutral-950"
+      className="absolute inset-0 z-[65] flex justify-center overflow-y-auto bg-neutral-950"
     >
-      <div className="flex min-h-full w-full max-w-md flex-col bg-white text-neutral-900">
+      <div className="flex min-h-full w-full flex-col bg-white text-neutral-900">
         <header className="relative h-48 shrink-0 overflow-hidden bg-[#7d9b58]">
           {photoUrl !== null ? (
             <img

@@ -197,8 +197,20 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     }
   };
 
+  const identificationResult = {
+    status: identificationStatus,
+    mode,
+    results: identificationResults,
+    error: identificationError,
+    photo,
+    onRetry: handleIdentify,
+    onOpenSpecies: (match: PlantMatch) => onOpenSpecies?.(match, photo),
+    onBack: onClose,
+    onRepeatPhoto: handleDiscardPhoto,
+  };
+
   return (
-    <div className="fixed inset-0 z-[60] flex h-[100dvh] min-h-0 w-full flex-col bg-black text-white overflow-hidden select-none">
+    <div className="absolute inset-0 z-[60] flex h-full min-h-0 w-full flex-col bg-black text-white overflow-hidden select-none">
       {/* 1. ZONA SUPERIOR: MEDIA PANTALLA CON CÁMARA Y CORCHETES BIEN CENTRADOS */}
       <div className="absolute inset-0 w-full h-full bg-neutral-950 overflow-hidden flex flex-col">
         {/* Stream de video de la cámara */}
@@ -381,19 +393,11 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             <span aria-hidden="true" />
           </header>
 
+          {identificationStatus === 'completed' && <CameraIdentificationResult {...identificationResult} />}
+
           <div className="absolute bottom-0 left-0 right-0 z-10 px-7 pb-[max(28px,env(safe-area-inset-bottom))] pt-20">
-            {identificationStatus !== 'idle' && (
-              <CameraIdentificationResult
-                status={identificationStatus}
-                mode={mode}
-                results={identificationResults}
-                error={identificationError}
-                photo={photo}
-                onRetry={handleIdentify}
-                onOpenSpecies={(match) => onOpenSpecies?.(match, photo)}
-                onBack={onClose}
-                onRepeatPhoto={handleDiscardPhoto}
-              />
+            {identificationStatus !== 'idle' && identificationStatus !== 'completed' && (
+              <CameraIdentificationResult {...identificationResult} />
             )}
             {(photoSaved || saveError) && (
               <p className={`mb-3 text-center text-xs ${photoSaved ? 'text-emerald-200' : 'text-amber-200'}`} role={saveError ? 'alert' : 'status'}>

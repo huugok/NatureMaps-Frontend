@@ -136,8 +136,8 @@ BottomNavigation/
   `Language` y nombres de idioma). Reutilizar uniones de literales en vez de `enum`
   (`erasableSyntaxOnly` lo prohíbe). No añadir tipos de entidades que el modelo de dominio todavía
   no define.
-- **Tailwind inline**, sin archivos CSS por componente. Paleta actual: `emerald` para activo,
-  `neutral` para secundario, fondo `neutral-100`/`neutral-950`. Mobile-first.
+- **Tailwind inline**, sin archivos CSS por componente. La paleta está pendiente de unificar
+  (ver “Layout y tamaño de pantalla”); no introducir colores nuevos a mano. Mobile-first.
 - **Accesibilidad no negociable**: `role="tablist"`/`role="tab"`, `aria-selected`, `aria-label` en
   cada pestaña, roving `tabIndex`, navegación con flechas/Home/End, `focus-visible:ring`, área táctil
   mínima de 48px y `pb-[env(safe-area-inset-bottom,0px)]` para el notch.
@@ -146,6 +146,20 @@ BottomNavigation/
   otra UT (UT44).
 - Estilo: sin Prettier configurado; el scaffold usa comillas simples y sin punto y coma, la rama de
   feature usa punto y coma. Seguir el fichero que se toca y no reformatear código ajeno.
+
+## Layout y tamaño de pantalla
+
+- Todas las pantallas viven dentro de `.app-frame` (`src/App.tsx` + `src/index.css`).
+- Tamaño máximo: **440×956** (iPhone 17/18 Pro Max); base de diseño **402×874**. En escritorio
+  escala por altura manteniendo la proporción; en móvil ocupa `100vw × 100dvh`.
+- Solo `.app-frame` puede usar `dvh`. Las pantallas usan `h-full`/`min-h-full`; nunca `h-dvh`,
+  `100dvh` ni `min-h-screen`.
+- Prohibido `position: fixed` dentro de la app: cámara, resultado, ficha y overlays usan
+  `absolute` sobre `.app-frame`.
+- Los contenedores de pantalla van a `w-full`; no añadir `max-w-*` a nivel de pantalla. Los
+  `max-w-*` solo valen para tarjetas o modales internos.
+- Padding horizontal de pantalla: **16 px** (`px-4`), preferiblemente a través de `Page`.
+- La paleta definitiva, la escala tipográfica y los radios están **pendientes de unificar**.
 
 ## Tests
 

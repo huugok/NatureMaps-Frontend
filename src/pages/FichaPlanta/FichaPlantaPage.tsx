@@ -117,7 +117,7 @@ export function FichaPlantaPage({
   };
 
   return (
-    <article className="mx-auto w-full max-w-md bg-white shadow-sm">
+    <article className="w-full bg-white shadow-sm">
       <div className="relative h-64 w-full overflow-hidden bg-emerald-100 sm:h-72">
         {species.photoUrl ? (
           <img

@@ -20,8 +20,8 @@ export interface BottomNavigationProps {
    */
   className?: string;
   /**
-   * Layout position mode: 'fixed' (viewport bottom), 'sticky', 'relative', or 'absolute'.
-   * Defaults to 'fixed'.
+   * Modo de posición. 'fixed' se conserva por compatibilidad, pero se renderiza como
+   * 'absolute' dentro del marco de la app. Por defecto, 'relative'.
    */
   position?: 'fixed' | 'sticky' | 'relative' | 'absolute';
   /**
@@ -35,7 +35,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   defaultTab = 'mapa',
   onChange,
   className = '',
-  position = 'fixed',
+  position = 'relative',
   tabs = DEFAULT_TABS,
 }) => {
   const [internalTab, setInternalTab] = React.useState<TabId>(defaultTab);
@@ -74,7 +74,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   };
 
   const positionClasses = {
-    fixed: 'fixed bottom-0 left-0 right-0 z-50',
+    fixed: 'absolute bottom-0 left-0 right-0 z-50',
     sticky: 'sticky bottom-0 left-0 right-0 z-40',
     relative: 'relative z-10 w-full',
     absolute: 'absolute bottom-0 left-0 right-0 z-40',
@@ -88,7 +88,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       <div
         role="tablist"
         aria-orientation="horizontal"
-        className="max-w-md mx-auto grid grid-cols-5 h-[62px] items-center px-1 pb-[env(safe-area-inset-bottom,0px)]"
+        className="w-full grid grid-cols-5 h-[62px] items-center px-1 pb-[env(safe-area-inset-bottom,0px)]"
       >
         {tabs.map((tab, index) => {
           const isActive = currentTab === tab.id;
