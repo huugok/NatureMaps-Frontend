@@ -1,0 +1,14 @@
+{
+  "offlineTitle": "Sense connexió a Internet",
+  "offlineBody": "Connecta’t a Internet i prem Reintentar. Conservem la foto per a tornar a enviar-la.",
+  "unreachableTitle": "Sense connexió amb el servidor",
+  "unreachableBody": "No es pot contactar amb el servidor d’identificació. Comprova la connexió a Internet i prem Reintentar. Conservem la foto.",
+  "limitTitle": "Límit diari assolit",
+  "limitBody": "S’ha assolit la quota diària de Pl@ntNet. El pla gratuït permet 500 identificacions al dia. Conservem la foto; prem Reintentar quan torne a haver-hi quota.",
+  "serviceTitle": "Servici d’identificació no disponible",
+  "serviceBody": "El servidor no ha pogut completar la identificació amb Pl@ntNet. Conservem la foto; torna a intentar-ho amb Reintentar.",
+  "genericTitle": "Identificació no completada",
+  "genericBody": "No s’ha pogut identificar la foto. Pots tornar a enviar-la amb Reintentar.",
+  "invalidImageBody": "La imatge capturada no té un format vàlid. Torna a seleccionar una foto.",
+  "httpError": "No s’ha completat la identificació (HTTP {status})"
+}

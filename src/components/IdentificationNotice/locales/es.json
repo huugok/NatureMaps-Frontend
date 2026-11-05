@@ -1,0 +1,14 @@
+{
+  "offlineTitle": "Sin conexión a Internet",
+  "offlineBody": "Conéctate a Internet y pulsa Reintentar. Conservamos tu foto para volver a enviarla.",
+  "unreachableTitle": "Sin conexión con el servidor",
+  "unreachableBody": "No se puede contactar con el servidor de identificación. Comprueba tu conexión a Internet y pulsa Reintentar. Conservamos tu foto.",
+  "limitTitle": "Límite diario alcanzado",
+  "limitBody": "Se ha alcanzado la cuota diaria de Pl@ntNet. El plan gratuito permite 500 identificaciones al día. Conservamos tu foto; pulsa Reintentar cuando vuelva a haber cuota.",
+  "serviceTitle": "Servicio de identificación no disponible",
+  "serviceBody": "El servidor no ha podido completar la identificación con Pl@ntNet. Conservamos tu foto; vuelve a intentarlo con Reintentar.",
+  "genericTitle": "Identificación no completada",
+  "genericBody": "No se ha podido identificar la foto. Puedes volver a enviarla con Reintentar.",
+  "invalidImageBody": "La imagen capturada no tiene un formato válido. Vuelve a seleccionar una foto.",
+  "httpError": "No se ha completado la identificación (HTTP {status})"
+}

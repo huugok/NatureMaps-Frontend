@@ -1,0 +1,14 @@
+{
+  "offlineTitle": "No Internet connection",
+  "offlineBody": "Connect to the Internet and press Retry. Your photo is kept so you can send it again.",
+  "unreachableTitle": "Cannot connect to the server",
+  "unreachableBody": "The identification server could not be reached. Check your Internet connection and press Retry. Your photo is kept.",
+  "limitTitle": "Daily limit reached",
+  "limitBody": "The daily Pl@ntNet quota has been reached. The free plan allows 500 identifications a day. Your photo is kept; press Retry when quota is available again.",
+  "serviceTitle": "Identification service unavailable",
+  "serviceBody": "The server could not complete identification with Pl@ntNet. Your photo is kept; try again using Retry.",
+  "genericTitle": "Identification not completed",
+  "genericBody": "The photo could not be identified. You can send it again using Retry.",
+  "invalidImageBody": "The captured image has an invalid format. Please select a photo again.",
+  "httpError": "Identification could not be completed (HTTP {status})"
+}

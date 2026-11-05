@@ -1,0 +1,60 @@
+{
+  "base": "b99e4db0a841f88c63fb70c08d0fceeb4128bbdf",
+  "method": "all six squash-merge orders; temporary Git objects only; branches unchanged",
+  "results": [
+    {
+      "order": [
+        921,
+        932,
+        933
+      ],
+      "tree": "cf6e259e600c32b6af7ce29a0f6d49f8642ca0a3",
+      "conflicts": false
+    },
+    {
+      "order": [
+        921,
+        933,
+        932
+      ],
+      "tree": "cf6e259e600c32b6af7ce29a0f6d49f8642ca0a3",
+      "conflicts": false
+    },
+    {
+      "order": [
+        932,
+        921,
+        933
+      ],
+      "tree": "cf6e259e600c32b6af7ce29a0f6d49f8642ca0a3",
+      "conflicts": false
+    },
+    {
+      "order": [
+        932,
+        933,
+        921
+      ],
+      "tree": "cf6e259e600c32b6af7ce29a0f6d49f8642ca0a3",
+      "conflicts": false
+    },
+    {
+      "order": [
+        933,
+        921,
+        932
+      ],
+      "tree": "cf6e259e600c32b6af7ce29a0f6d49f8642ca0a3",
+      "conflicts": false
+    },
+    {
+      "order": [
+        933,
+        932,
+        921
+      ],
+      "tree": "cf6e259e600c32b6af7ce29a0f6d49f8642ca0a3",
+      "conflicts": false
+    }
+  ]
+}

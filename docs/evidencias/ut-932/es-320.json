@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-05",
+  "language": "es",
+  "width": 320,
+  "method": "Chrome with simulated identification responses",
+  "PA653": true,
+  "PA654": true,
+  "PA655": true,
+  "PA656": true,
+  "PA657": true,
+  "lastFreeSuccess": true,
+  "samePhoto": true,
+  "retryHeight": 44,
+  "sent": [
+    {
+      "scenario": "offline",
+      "size": 7144,
+      "hash": "3bff93c4a3140eee88b2ae011cc907177edcb76e3dd1f1e42327a27841cebb56"
+    },
+    {
+      "scenario": "available",
+      "size": 7144,
+      "hash": "3bff93c4a3140eee88b2ae011cc907177edcb76e3dd1f1e42327a27841cebb56"
+    },
+    {
+      "scenario": "quota",
+      "size": 7144,
+      "hash": "3bff93c4a3140eee88b2ae011cc907177edcb76e3dd1f1e42327a27841cebb56"
+    },
+    {
+      "scenario": "quota",
+      "size": 7144,
+      "hash": "3bff93c4a3140eee88b2ae011cc907177edcb76e3dd1f1e42327a27841cebb56"
+    },
+    {
+      "scenario": "available",
+      "size": 7144,
+      "hash": "3bff93c4a3140eee88b2ae011cc907177edcb76e3dd1f1e42327a27841cebb56"
+    },
+    {
+      "scenario": "zero",
+      "size": 7144,
+      "hash": "3bff93c4a3140eee88b2ae011cc907177edcb76e3dd1f1e42327a27841cebb56"
+    }
+  ]
+}

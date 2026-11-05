@@ -256,6 +256,8 @@ Reglas:
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
 - La identificación por foto (`src/services/identify.ts`) consume `POST /plants/identify` con la
   base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
+- UT 932 conserva códigos de error hasta `IdentificationNotice` y muestra avisos de red/cuota
+  con JSON propios es/va/en. PA 653–657 y comprobación: `docs/identificacion-sin-red-cuota.md`.
 - La ficha (`src/services/ficha.ts`) consume `GET /species` y `GET /species/:id` con la misma
   base URL. El contenido editorial (descripciones, curiosidades, fuentes) lo sirve el backend.
 - El mapa (`src/pages/Map/MapPage.tsx`) es la única pantalla que llama a servicios externos:

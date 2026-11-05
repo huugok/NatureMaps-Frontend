@@ -1,4 +1,4 @@
-import type { PlantIdentification, PlantMatch } from '../../types/identify';
+import type { IdentificationFailure, PlantIdentification, PlantMatch } from '../../types/identify';
 
 export type CameraMode = 'planta' | 'monumento';
 
@@ -30,6 +30,6 @@ export interface CameraScreenProps {
   onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
   identificationStatus?: 'idle' | 'identifying' | 'completed' | 'error';
   identificationResults?: PlantIdentification | null;
-  identificationError?: string | null;
+  identificationError?: IdentificationFailure | null;
 }
 

@@ -23,7 +23,7 @@ import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
 import { Search } from './pages/Search';
 import { LanguageSettings, Settings } from './pages/Settings';
-import { identifyPlant } from './services/identify';
+import { IdentificationError, identifyPlant } from './services/identify';
 import {
   findSpeciesIndexByScientificName,
   fichaDesdeDetalleConFuentes,
@@ -32,7 +32,7 @@ import {
   getSpeciesList,
 } from './services/ficha';
 import type { Language } from './types/language';
-import type { PlantIdentification, PlantMatch } from './types/identify';
+import type { IdentificationFailure, PlantIdentification, PlantMatch } from './types/identify';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -78,7 +78,7 @@ function MapFallback() {
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, encoded] = dataUrl.split(',');
-  if (!header || !encoded) throw new Error('La imagen capturada no tiene un formato válido');
+  if (!header || !encoded) throw new IdentificationError('invalid-image');
   const mimeType = /^data:(.*?);base64$/.exec(header)?.[1] ?? 'image/jpeg';
   const binary = atob(encoded);
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
@@ -86,13 +86,13 @@ function dataUrlToBlob(dataUrl: string): Blob {
 }
 
 export default function App() {
-  const { mode, lang, setLang, t } = useApp();
+  const { mode, lang, setLang } = useApp();
   const frameScale = useAppFrameScale();
   const navigate = useNavigate();
   const location = useLocation();
   const [identificationStatus, setIdentificationStatus] = useState<IdentificationStatus>('idle');
   const [identificationResults, setIdentificationResults] = useState<PlantIdentification | null>(null);
-  const [identificationError, setIdentificationError] = useState<string | null>(null);
+  const [identificationError, setIdentificationError] = useState<IdentificationFailure | null>(null);
 
   const [fichaList, setFichaList] = useState<FichaListState>({ status: 'loading' });
   const [fichaListAttempt, setFichaListAttempt] = useState(0);
@@ -171,12 +171,17 @@ export default function App() {
     setIdentificationResults(null);
     setIdentificationError(null);
     try {
-      const image = dataUrlToBlob(dataUrl);
+      let image: Blob;
+      try {
+        image = dataUrlToBlob(dataUrl);
+      } catch {
+        throw new IdentificationError('invalid-image');
+      }
       const result = await identifyPlant(image, `captura.${image.type === 'image/png' ? 'png' : 'jpg'}`);
       setIdentificationResults(result);
       setIdentificationStatus('completed');
     } catch (error) {
-      setIdentificationError(error instanceof Error ? error.message : t('camera.error'));
+      setIdentificationError(error instanceof IdentificationError ? error : { code: 'request' });
       setIdentificationStatus('error');
     }
   };

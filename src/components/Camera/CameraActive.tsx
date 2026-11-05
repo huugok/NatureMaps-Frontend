@@ -3,9 +3,9 @@ import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Lea
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
 import { useApp } from '../../context/useApp';
-import { IDENTIFICATION_UNREACHABLE } from '../../services/identify';
-import type { PlantIdentification, PlantMatch } from '../../types/identify';
+import type { IdentificationFailure, PlantIdentification, PlantMatch } from '../../types/identify';
 import { CameraIdentificationResult } from './CameraIdentificationResult';
+import { IdentificationNotice } from '../IdentificationNotice';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -21,7 +21,7 @@ export interface CameraActiveProps {
   onSavePhoto: (photo: SavedPhoto) => boolean;
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
-  identificationError: string | null;
+  identificationError: IdentificationFailure | null;
   /** Foto capturada o elegida de la galería; `null` si todavía no hay ninguna. */
   photo: string | null;
   /** Cambia la foto activa (captura, galería o descarte). */
@@ -52,7 +52,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [hasRealStream, setHasRealStream] = useState(false);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const isBackendConnectionError = identificationError === IDENTIFICATION_UNREACHABLE;
+  const isBackendConnectionError = identificationError?.code === 'unreachable';
 
   useEffect(() => {
     // Con una foto elegida (por ejemplo, desde la galería) no hace falta abrir
@@ -211,7 +211,9 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     status: identificationStatus,
     mode,
     results: identificationResults,
-    error: identificationError,
+    // El aviso traducido se pinta aquí; el componente de resultado sigue siendo
+    // compatible con su contrato anterior y con el cambio de idioma de UT 921.
+    error: null,
     photo,
     onRetry: handleIdentify,
     onOpenSpecies: (match: PlantMatch) => onOpenSpecies?.(match, photo),
@@ -411,7 +413,12 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
             {!isBackendConnectionError &&
               identificationStatus !== 'idle' &&
               identificationStatus !== 'completed' && (
-                <CameraIdentificationResult {...identificationResult} />
+                <div className="[&_button]:min-h-11 [&_button]:rounded-control [&_button]:px-3 [&_button]:focus-visible:ring-2 [&_button]:focus-visible:ring-accent">
+                  {identificationStatus === 'error' && mode === 'planta' && (
+                    <IdentificationNotice failure={identificationError} />
+                  )}
+                  <CameraIdentificationResult {...identificationResult} />
+                </div>
               )}
             {(photoSaved || saveError) && (
               <p className={`mb-3 text-center text-caption ${photoSaved ? 'text-white/80' : 'text-warm'}`} role={saveError ? 'alert' : 'status'}>
@@ -490,6 +497,9 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
                   </span>
                   <h2 className="font-display mt-3 text-heading text-ink">{t('camera.pendingHeading')}</h2>
                   <p className="mt-2 text-small text-muted text-pretty">{t('camera.pendingDesc')}</p>
+                  <div className="mt-4 text-left">
+                    <IdentificationNotice failure={identificationError} />
+                  </div>
                   <button
                     type="button"
                     onClick={handleIdentify}

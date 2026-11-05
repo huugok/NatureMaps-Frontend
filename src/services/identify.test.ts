@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { identifyPlant } from './identify';
+import { IdentificationError, identifyPlant } from './identify';
 
 // Respuesta tal y como la devuelve el backend (ya normalizada):
 // la traducción del JSON de Pl@ntNet ocurre en el servidor.
@@ -68,7 +68,7 @@ describe('identifyPlant — UT F04: envío de foto a Pl@ntNet', () => {
     expect((segundoBody.get('images') as File).name).toBe('dos.png');
   });
 
-  test('PA 660: un error del backend se traduce en un Error con el detalle del fallo', async () => {
+  test('PA 660: conserva el estado HTTP sin utilizar el texto del backend como interfaz', async () => {
     const fetchMock = vi.fn().mockImplementation(
       () =>
         new Response(
@@ -78,24 +78,26 @@ describe('identifyPlant — UT F04: envío de foto a Pl@ntNet', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(identifyPlant(new Blob(['x']), 'a.jpg')).rejects.toThrow(/límite de identificaciones/);
+    await expect(identifyPlant(new Blob(['x']), 'a.jpg')).rejects.toMatchObject({
+      name: 'IdentificationError', code: 'request', status: 429,
+    });
   });
 
-  test('PA 660: una respuesta sin detalle mantiene el mensaje genérico', async () => {
+  test('PA 660: una respuesta sin JSON conserva el estado HTTP', async () => {
     const fetchMock = vi.fn().mockImplementation(() => new Response('', { status: 500 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(identifyPlant(new Blob(['x']), 'a.jpg')).rejects.toThrow(
-      'No se ha completado la identificación (HTTP 500)',
-    );
+    await expect(identifyPlant(new Blob(['x']), 'a.jpg')).rejects.toMatchObject({
+      code: 'request', status: 500,
+    });
   });
 
-  test('PA 660: sin conexión el error indica que no se pudo contactar con el servidor', async () => {
+  test('PA 660: sin conexión comunica un código independiente del idioma', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(identifyPlant(new Blob(['x']), 'a.jpg')).rejects.toThrow(
-      'No se ha podido contactar con el servidor de identificación',
-    );
+    const request = identifyPlant(new Blob(['x']), 'a.jpg');
+    await expect(request).rejects.toBeInstanceOf(IdentificationError);
+    await expect(request).rejects.toMatchObject({ code: 'unreachable' });
   });
 });
