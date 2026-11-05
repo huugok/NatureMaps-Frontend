@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ReactNode } from 'react'
 import { AppProvider } from './AppContext'
 import { useApp } from './useApp'
@@ -12,6 +12,8 @@ describe('AppContext · idioma', () => {
     localStorage.clear()
     document.documentElement.lang = 'es'
   })
+
+  afterEach(() => localStorage.clear())
 
   it('arranca en español y traduce con el diccionario', () => {
     const { result } = renderHook(() => useApp(), { wrapper })

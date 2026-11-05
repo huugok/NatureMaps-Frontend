@@ -28,3 +28,9 @@ export interface PlantIdentification {
   /** Especies candidatas ordenadas por puntuación (de mayor a menor). */
   results: PlantMatch[];
 }
+
+/** Fallo independiente del idioma; el texto se resuelve al pintar la interfaz. */
+export interface IdentificationFailure {
+  code: 'unreachable' | 'request' | 'invalid-image';
+  status?: number;
+}

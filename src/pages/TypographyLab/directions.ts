@@ -1,3 +1,4 @@
+import type { StringKey } from '../../i18n/strings';
 import type { CSSProperties } from 'react';
 
 export interface TypeScale {
@@ -10,9 +11,9 @@ export interface TypeScale {
 
 export interface TypeDirection {
   id: string;
-  name: string;
-  tagline: string;
-  summary: string;
+  name: StringKey;
+  tagline: StringKey;
+  summary: StringKey;
   displayFamily: string;
   bodyFamily: string;
   uiFamily: string;
@@ -30,23 +31,23 @@ export interface TypeDirection {
     caption: CSSProperties;
     ui: CSSProperties;
   };
-  notes: string[];
-  watchOut: string[];
+  notes: StringKey[];
+  watchOut: StringKey[];
 }
 
 interface DirectionInput {
   id: string;
-  name: string;
-  tagline: string;
-  summary: string;
+  name: StringKey;
+  tagline: StringKey;
+  summary: StringKey;
   display: { name: string; stack: string; weight: number };
   body: { name: string; stack: string };
   ui: { name: string; stack: string; weight?: number };
   scale: TypeScale;
   leading: { title: number; heading: number; body: number };
   tracking: { title: string; heading: string; caption?: string };
-  notes: string[];
-  watchOut: string[];
+  notes: StringKey[];
+  watchOut: StringKey[];
 }
 
 function direction(input: DirectionInput): TypeDirection {
@@ -122,10 +123,10 @@ const ATKINSON = "'Atkinson Hyperlegible', 'Inter', system-ui, sans-serif";
 export const DIRECTIONS: TypeDirection[] = [
   direction({
     id: 'actual',
-    name: 'Anterior (Inter)',
-    tagline: 'La línea base que tenía la app antes de la decisión',
+    name: 'lab.direction.actual.name',
+    tagline: 'lab.direction.actual.tagline',
     summary:
-      'La app declara Inter en el token, pero no carga la fuente: en la mayoría de equipos se ve system-ui. Aquí se carga para comparar de verdad.',
+      'lab.direction.actual.summary',
     display: { name: 'Inter', stack: INTER, weight: 700 },
     body: { name: 'Inter', stack: INTER },
     ui: { name: 'Inter', stack: INTER },
@@ -133,20 +134,20 @@ export const DIRECTIONS: TypeDirection[] = [
     leading: { title: 1.15, heading: 1.3, body: 1.5 },
     tracking: { title: '-0.02em', heading: '-0.01em' },
     notes: [
-      'Es la escala que ya está en `src/index.css`; sirve de control.',
-      'Si se elige, basta con cargar Inter de verdad y subir cuerpo y leyenda.',
+      'lab.direction.actual.notes.0',
+      'lab.direction.actual.notes.1',
     ],
     watchOut: [
-      'Cuerpo a 15 px y leyenda a 11.5 px: por debajo de los mínimos cómodos para un público amplio.',
-      'Los títulos no tienen una voz propia; toda la personalidad recae en el verde.',
+      'lab.direction.actual.watchOut.0',
+      'lab.direction.actual.watchOut.1',
     ],
   }),
   direction({
     id: 'guia',
-    name: 'Guía de campo',
-    tagline: 'Serif orgánica para titulares, Inter para todo lo demás',
+    name: 'lab.direction.guia.name',
+    tagline: 'lab.direction.guia.tagline',
     summary:
-      'Fraunces aporta el aire de guía botánica y cuaderno de campo; Inter mantiene la familiaridad de la interfaz. Es el cambio con más carácter y menos riesgo.',
+      'lab.direction.guia.summary',
     display: { name: 'Fraunces', stack: FRAUNCES, weight: 600 },
     body: { name: 'Inter', stack: INTER },
     ui: { name: 'Inter', stack: INTER },
@@ -154,21 +155,21 @@ export const DIRECTIONS: TypeDirection[] = [
     leading: { title: 1.1, heading: 1.3, body: 1.55 },
     tracking: { title: '-0.01em', heading: '-0.01em' },
     notes: [
-      'Fraunces tiene ejes ópticos y un punto “wonk” que la hace cálida sin ser decorativa.',
-      'El cuerpo sigue en Inter: la UI no cambia y la lectura gana 1 px.',
-      'Los nombres científicos pueden ir en cursiva dentro del texto; el titular se queda romano.',
+      'lab.direction.guia.notes.0',
+      'lab.direction.guia.notes.1',
+      'lab.direction.guia.notes.2',
     ],
     watchOut: [
-      'No usar Fraunces por debajo de 20 px: a tamaños pequeños pierde finura.',
-      'El tracking negativo en una serif debe ser mínimo; nunca -0.02em.',
+      'lab.direction.guia.watchOut.0',
+      'lab.direction.guia.watchOut.1',
     ],
   }),
   direction({
     id: 'cuaderno',
-    name: 'Cuaderno botánico',
-    tagline: 'Alegreya para leer, Alegreya Sans para tocar',
+    name: 'lab.direction.cuaderno.name',
+    tagline: 'lab.direction.cuaderno.tagline',
     summary:
-      'Una superfamilia humanista de raíz caligráfica. La prosa se vuelve relato de herbario y los controles siguen claros. La opción más editorial y la más “natural” en el sentido clásico.',
+      'lab.direction.cuaderno.summary',
     display: { name: 'Alegreya', stack: ALEGREYA, weight: 600 },
     body: { name: 'Alegreya', stack: ALEGREYA },
     ui: { name: 'Alegreya Sans', stack: ALEGREYA_SANS },
@@ -176,21 +177,21 @@ export const DIRECTIONS: TypeDirection[] = [
     leading: { title: 1.12, heading: 1.3, body: 1.6 },
     tracking: { title: '0', heading: '0' },
     notes: [
-      'Alegreya y Alegreya Sans comparten esqueleto: cohesión sin repetir la misma voz.',
-      'La serif pide 16.5 px y 1.6 de interlineado para párrafos largos; la sans evita la UI fina.',
-      'Encaja con rutas culturales, fichas y textos de herbario.',
+      'lab.direction.cuaderno.notes.0',
+      'lab.direction.cuaderno.notes.1',
+      'lab.direction.cuaderno.notes.2',
     ],
     watchOut: [
-      'Más clásica y menos “app”: probar formularios, botones y la barra inferior.',
-      'No llevar Alegreya a etiquetas pequeñas; para eso está la Sans.',
+      'lab.direction.cuaderno.watchOut.0',
+      'lab.direction.cuaderno.watchOut.1',
     ],
   }),
   direction({
     id: 'sendero',
-    name: 'Sendero cercano',
-    tagline: 'Grotesca orgánica y sans redondeada',
+    name: 'lab.direction.sendero.name',
+    tagline: 'lab.direction.sendero.tagline',
     summary:
-      'Bricolage Grotesque tiene terminales suaves y un punto humanista; Nunito Sans redondea la lectura. Habla de centro de naturaleza, familias y grupos escolares.',
+      'lab.direction.sendero.summary',
     display: { name: 'Bricolage Grotesque', stack: BRICOLAGE, weight: 600 },
     body: { name: 'Nunito Sans', stack: NUNITO },
     ui: { name: 'Nunito Sans', stack: NUNITO },
@@ -198,20 +199,20 @@ export const DIRECTIONS: TypeDirection[] = [
     leading: { title: 1.1, heading: 1.3, body: 1.55 },
     tracking: { title: '-0.01em', heading: '-0.005em' },
     notes: [
-      'La dirección más cercana y menos académica: buena para público familiar y escolar.',
-      'Nunito Sans mantiene la legibilidad en tamaños pequeños y controles.',
+      'lab.direction.sendero.notes.0',
+      'lab.direction.sendero.notes.1',
     ],
     watchOut: [
-      'Puede leerse más “marca cívica” que botánica; el verde y las fotos tendrán que sostener la naturaleza.',
-      'No abusar de los pesos extremos de Bricolage: 500–700 es suficiente.',
+      'lab.direction.sendero.watchOut.0',
+      'lab.direction.sendero.watchOut.1',
     ],
   }),
   direction({
     id: 'todos',
-    name: 'Guía para todos',
-    tagline: 'Literata para leer, Atkinson para orientarse',
+    name: 'lab.direction.todos.name',
+    tagline: 'lab.direction.todos.tagline',
     summary:
-      'La dirección elegida. Literata está diseñada para lectura; Atkinson Hyperlegible, para distinguir letras. Es la opción que mejor cumple “acercar la naturaleza a todo el mundo” sin renunciar a la calidez.',
+      'lab.direction.todos.summary',
     display: { name: 'Literata', stack: LITERATA, weight: 600 },
     body: { name: 'Literata', stack: LITERATA },
     ui: { name: 'Atkinson Hyperlegible', stack: ATKINSON, weight: 700 },
@@ -219,13 +220,13 @@ export const DIRECTIONS: TypeDirection[] = [
     leading: { title: 1.15, heading: 1.3, body: 1.6 },
     tracking: { title: '0', heading: '0' },
     notes: [
-      'Atkinson separa letras y números que suelen confundirse; ideal para botones, cifras y labels.',
-      'Literata da una lectura de libro sin caer en lo académico.',
-      'La combinación más inclusiva de las cinco, también la más “de servicio público”.',
+      'lab.direction.todos.notes.0',
+      'lab.direction.todos.notes.1',
+      'lab.direction.todos.notes.2',
     ],
     watchOut: [
-      'Atkinson es muy característica: reservarla a UI y datos, no a titulares.',
-      'La mezcla necesita probar jerarquía y pesos para que no parezcan dos apps.',
+      'lab.direction.todos.watchOut.0',
+      'lab.direction.todos.watchOut.1',
     ],
   }),
 ];

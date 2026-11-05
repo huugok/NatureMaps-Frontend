@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { dictionaries, type StringKey } from '../i18n/strings'
+import { translate, type Translator } from '../i18n/strings'
 import { readLanguagePreference, saveLanguagePreference } from '../services/languagePreference'
 import type { Mode } from '../types'
 import type { Language } from '../types/language'
@@ -42,16 +42,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLangState(next)
   }, [])
 
-  const t = useCallback(
-    (key: StringKey, vars?: Record<string, string | number>) => {
-      let text = dictionaries[lang][key] ?? dictionaries.es[key] ?? key
-      if (vars) {
-        for (const [name, value] of Object.entries(vars)) {
-          text = text.replaceAll(`{${name}}`, String(value))
-        }
-      }
-      return text
-    },
+  const t = useCallback<Translator>(
+    (key, vars) => translate(lang, key, vars),
     [lang],
   )
 

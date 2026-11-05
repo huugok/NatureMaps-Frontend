@@ -1,4 +1,5 @@
 import type { TabConfig } from '../../types/navigation';
+import { dictionaries } from '../../i18n/strings';
 import {
   HomeNavIcon,
   SproutNavIcon,
@@ -10,33 +11,33 @@ import {
 export const DEFAULT_TABS: TabConfig[] = [
   {
     id: 'inicio',
-    label: 'Inicio',
+    label: dictionaries.es['nav.home'],
     icon: HomeNavIcon,
-    ariaLabel: 'Ir a Inicio',
+    ariaLabel: dictionaries.es['nav.home.aria'],
   },
   {
     id: 'mapa',
-    label: 'Mapa',
+    label: dictionaries.es['nav.map'],
     icon: SproutNavIcon,
-    ariaLabel: 'Ver Mapa de especies y árboles',
+    ariaLabel: dictionaries.es['nav.map.aria'],
   },
   {
     id: 'escanear',
-    label: 'Escanear',
+    label: dictionaries.es['nav.scan'],
     icon: CameraNavIcon,
-    ariaLabel: 'Escanear e identificar especie con la cámara',
+    ariaLabel: dictionaries.es['nav.scan.aria'],
   },
   {
     id: 'rutas',
-    label: 'Rutas',
+    label: dictionaries.es['nav.routes'],
     icon: RoutesNavIcon,
-    ariaLabel: 'Ver Rutas botánicas y culturales',
+    ariaLabel: dictionaries.es['nav.routes.aria'],
   },
   {
     id: 'buscar',
-    label: 'Buscar',
+    label: dictionaries.es['nav.search'],
     icon: SearchNavIcon,
-    ariaLabel: 'Buscar especies, árboles o puntos de interés',
+    ariaLabel: dictionaries.es['nav.search.aria'],
   },
 ];
 

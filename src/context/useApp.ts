@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { dictionaries } from '../i18n/strings'
+import { translate } from '../i18n/strings'
 import type { AppState } from './state'
 import { AppContext } from './state'
 
@@ -12,15 +12,7 @@ const fallback: AppState = {
   setMode: () => {},
   lang: 'es',
   setLang: () => {},
-  t: (key, vars) => {
-    let text = dictionaries.es[key] ?? key
-    if (vars) {
-      for (const [name, value] of Object.entries(vars)) {
-        text = text.replaceAll(`{${name}}`, String(value))
-      }
-    }
-    return text
-  },
+  t: (key, vars) => translate('es', key, vars),
 }
 
 export function useApp() {

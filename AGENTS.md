@@ -3,9 +3,9 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-11-03 · `main` @ `182cf5d` · Rama de trabajo:
-> `fix/camera-tab-safearea` (worktree `wt-camera-tab-safearea`). La cámara ahora vive en
-> `TabLayout` y conserva visible la navegación inferior.
+> Última verificación: 2026-11-05 · Base `main` @ `b99e4db` · Rama de trabajo:
+> `feat/ut-921-language-files`. Los textos de interfaz viven en JSON separados por idioma;
+> la cámara sigue en `TabLayout` y conserva visible la navegación inferior.
 
 ## Qué es este proyecto
 
@@ -76,7 +76,8 @@ su ficha y la deja marcada.
 
 Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
 `localStorage` con `languagePreference`; la UI está traducida con `t()` y los diccionarios de
-`src/i18n/strings.ts`. El frontend consume el backend para la identificación por foto
+`src/i18n/locales/{es,va,en}.json`, cargados por `src/i18n/strings.ts`.
+La guía de edición está en `docs/traduccion-interfaz.md`. El frontend consume el backend para la identificación por foto
 (`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
 (`src/services/ficha.ts` → `GET /species` y `GET /species/:id`).
 
@@ -114,6 +115,7 @@ src/pages/            Vistas por ruta (Home, Map, RoutesList, Search, FichaPlant
                       Camera dentro de components/, Settings, ModeSelect, Components)
 src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de idioma)
 src/types/            Tipos compartidos (navigation.ts, language.ts)
+src/i18n/             Carga/tipos de traducción y locales/{es,va,en}.json
 public/               Assets estáticos (favicon, icons.svg)
 docs/agents/          Convenciones para agentes (issue tracker, domain docs)
 ```
@@ -247,6 +249,8 @@ Reglas:
   (`getByRole('tab', { name: /ver mapa/i })`), no por clase CSS.
 - Al añadir componentes interactivos, añadir tests de render, estado activo, callback y teclado.
 - Los tests que lean o escriban la preferencia de idioma deben limpiar `localStorage`.
+- `src/i18n/strings.test.ts` comprueba igualdad de claves y variables entre JSON de idiomas.
+  Al añadir texto, actualizar los tres ficheros; no traducir ni eliminar los marcadores `{name}`.
 
 ## Integración con el backend
 

@@ -1,11 +1,21 @@
-import type { PlantIdentification } from '../types/identify';
+import type { IdentificationFailure, PlantIdentification } from '../types/identify';
 
 // URL del backend (NatureMaps-Backend). Se puede ajustar con VITE_API_URL en .env;
 // por defecto apunta a localhost, como la API en desarrollo.
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
-/** Error de red: el backend no responde o no se puede alcanzar. */
-export const IDENTIFICATION_UNREACHABLE = 'No se ha podido contactar con el servidor de identificación';
+/** Los servicios comunican códigos; los componentes eligen el texto traducido. */
+export class IdentificationError extends Error implements IdentificationFailure {
+  readonly code: IdentificationFailure['code'];
+  readonly status?: number;
+
+  constructor(code: IdentificationFailure['code'], status?: number) {
+    super(code);
+    this.name = 'IdentificationError';
+    this.code = code;
+    this.status = status;
+  }
+}
 
 /** Envia la foto al backend (POST /plants/identify) y devuelve las especies candidatas con su puntuación. */
 export async function identifyPlant(image: Blob, filename = 'planta.jpg'): Promise<PlantIdentification> {
@@ -17,25 +27,12 @@ export async function identifyPlant(image: Blob, filename = 'planta.jpg'): Promi
     response = await fetch(`${API_URL}/plants/identify`, { method: 'POST', body: form });
   } catch {
     // Error de red / servidor caído: el mensaje no expone detalles internos.
-    throw new Error(IDENTIFICATION_UNREACHABLE);
+    throw new IdentificationError('unreachable');
   }
 
   if (!response.ok) {
-    // El backend responde { error: string } cuando Pl@ntNet falla; si es legible, se muestra.
-    let detail = '';
-    try {
-      const body = (await response.json()) as { error?: unknown };
-      if (typeof body.error === 'string') {
-        detail = body.error;
-      }
-    } catch {
-      // El cuerpo no es JSON: se queda el mensaje genérico.
-    }
-    throw new Error(
-      detail !== ''
-        ? `No se ha completado la identificación: ${detail}`
-        : `No se ha completado la identificación (HTTP ${response.status})`,
-    );
+    // El texto libre del backend puede estar en otro idioma y contener detalles internos.
+    throw new IdentificationError('request', response.status);
   }
 
   return (await response.json()) as PlantIdentification;

@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { CameraActive } from './CameraActive';
+import type { IdentificationFailure } from '../../types/identify';
 
 const capturedPhoto = 'data:image/jpeg;base64,dGVzdA==';
 
-function renderCamera(identificationError: string) {
+function renderCamera(identificationError: IdentificationFailure) {
   const onIdentifyPhoto = vi.fn();
   const onPhotoCaptured = vi.fn();
   const onPhotoChange = vi.fn();
@@ -30,7 +31,7 @@ function renderCamera(identificationError: string) {
 
 describe('CameraActive — respuesta sin conexión', () => {
   it('muestra la respuesta pendiente sin filtrar el error técnico', () => {
-    renderCamera('No se ha podido contactar con el servidor de identificación');
+    renderCamera({ code: 'unreachable' });
 
     expect(screen.getByRole('heading', { name: 'Planta sin identificar' })).toBeInTheDocument();
     expect(screen.getByText('Identificación pendiente')).toBeInTheDocument();
@@ -46,19 +47,17 @@ describe('CameraActive — respuesta sin conexión', () => {
   });
 
   it('no muestra la respuesta pendiente para errores de identificación o de la API', () => {
-    renderCamera('Respuesta no válida de Pl@ntNet');
+    renderCamera({ code: 'request', status: 500 });
 
     expect(
       screen.queryByRole('heading', { name: 'Planta sin identificar' }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('No se ha podido identificar la foto.');
-    expect(screen.getByText('Respuesta no válida de Pl@ntNet')).toBeInTheDocument();
+    expect(screen.getByText('No se ha completado la identificación (HTTP 500)')).toBeInTheDocument();
   });
 
   it('reintenta la identificación con la foto capturada', () => {
-    const { onIdentifyPhoto } = renderCamera(
-      'No se ha podido contactar con el servidor de identificación',
-    );
+    const { onIdentifyPhoto } = renderCamera({ code: 'unreachable' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar identificación' }));
 
@@ -66,9 +65,7 @@ describe('CameraActive — respuesta sin conexión', () => {
   });
 
   it('vuelve a la cámara descartando la foto y el estado de error', () => {
-    const { onPhotoCaptured, onPhotoChange } = renderCamera(
-      'No se ha podido contactar con el servidor de identificación',
-    );
+    const { onPhotoCaptured, onPhotoChange } = renderCamera({ code: 'unreachable' });
 
     const backButtons = screen.getAllByRole('button', { name: 'Volver a la cámara' });
     fireEvent.click(backButtons[backButtons.length - 1]);

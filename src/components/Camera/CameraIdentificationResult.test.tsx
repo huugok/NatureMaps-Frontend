@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import type { PlantIdentification } from '../../types/identify';
 import { CameraIdentificationResult } from './CameraIdentificationResult';
+import { AppProvider } from '../../context/AppContext';
+import { useApp } from '../../context/useApp';
 
 const resultado = (
   resultados: PlantIdentification['results'],
@@ -143,10 +145,10 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
 
   it('comunica el error y permite reintentar en modo planta', async () => {
     const onRetry = vi.fn();
-    renderResultado({ status: 'error', results: null, error: 'Sin conexión', onRetry });
+    renderResultado({ status: 'error', results: null, error: { code: 'unreachable' }, onRetry });
 
     expect(screen.getByRole('alert')).toHaveTextContent(/no se ha podido identificar/i);
-    expect(screen.getByText('Sin conexión')).toBeInTheDocument();
+    expect(screen.getByText('No se ha podido contactar con el servidor de identificación')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -156,5 +158,43 @@ describe('CameraIdentificationResult — UT F05 (PA 689) en el escaneo con cáma
     renderResultado({ status: 'error', results: null, mode: 'monumento' });
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+function ChangeLanguage() {
+  const { setLang } = useApp();
+  return <button onClick={() => setLang('en')}>English</button>;
+}
+
+describe('CameraIdentificationResult — UT 921', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it('traduce un error ya visible al cambiar de idioma y conserva Reintentar', async () => {
+    const onRetry = vi.fn();
+    render(
+      <AppProvider>
+        <ChangeLanguage />
+        <CameraIdentificationResult
+          status="error"
+          mode="planta"
+          results={null}
+          error={{ code: 'request', status: 429 }}
+          photo={null}
+          onRetry={onRetry}
+          onBack={vi.fn()}
+          onRepeatPhoto={vi.fn()}
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByText(/se ha superado el límite/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'English' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('The photo could not be identified.');
+    expect(screen.getByText(/limit has been reached/i)).toBeInTheDocument();
+    expect(screen.queryByText(/se ha superado el límite/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

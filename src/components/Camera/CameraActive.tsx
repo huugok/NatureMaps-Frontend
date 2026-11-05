@@ -3,8 +3,7 @@ import { ArrowLeft, X, Zap, ZapOff, RefreshCw, Image as ImageIcon, Download, Lea
 import type { CameraMode } from './types';
 import type { SavedPhoto } from './types';
 import { useApp } from '../../context/useApp';
-import { IDENTIFICATION_UNREACHABLE } from '../../services/identify';
-import type { PlantIdentification, PlantMatch } from '../../types/identify';
+import type { IdentificationFailure, PlantIdentification, PlantMatch } from '../../types/identify';
 import { CameraIdentificationResult } from './CameraIdentificationResult';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
@@ -21,7 +20,7 @@ export interface CameraActiveProps {
   onSavePhoto: (photo: SavedPhoto) => boolean;
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
-  identificationError: string | null;
+  identificationError: IdentificationFailure | null;
   /** Foto capturada o elegida de la galería; `null` si todavía no hay ninguna. */
   photo: string | null;
   /** Cambia la foto activa (captura, galería o descarte). */
@@ -52,7 +51,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   const [hasRealStream, setHasRealStream] = useState(false);
   const [photoSaved, setPhotoSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const isBackendConnectionError = identificationError === IDENTIFICATION_UNREACHABLE;
+  const isBackendConnectionError = identificationError?.code === 'unreachable';
 
   useEffect(() => {
     // Con una foto elegida (por ejemplo, desde la galería) no hace falta abrir

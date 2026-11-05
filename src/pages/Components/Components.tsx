@@ -32,18 +32,18 @@ export function Components() {
 
   return (
     <Page title={t('catalog.title')} subtitle={t('catalog.subtitle')} back>
-      <SectionLabel>Diseño</SectionLabel>
+      <SectionLabel>{t('catalog.design')}</SectionLabel>
       <List>
         <ListItem
           icon={Type}
-          title="Laboratorio tipográfico"
-          subtitle="Cinco direcciones para comparar en contexto"
+          title={t('catalog.typeLab')}
+          subtitle={t('catalog.typeLabDesc')}
           to="/tipografia"
         />
         <ListItem
           icon={Palette}
-          title="Laboratorio de color"
-          subtitle="Seis paletas naturales con contraste WCAG"
+          title={t('catalog.colorLab')}
+          subtitle={t('catalog.colorLabDesc')}
           to="/color"
         />
       </List>
@@ -61,7 +61,7 @@ export function Components() {
         <Button variant="secondary" icon={MapPin}>
           {t('catalog.secondary')}
         </Button>
-        <Button variant="ghost">Ghost</Button>
+        <Button variant="ghost">{t('catalog.ghost')}</Button>
         <Button size="sm">{t('catalog.small')}</Button>
       </div>
 

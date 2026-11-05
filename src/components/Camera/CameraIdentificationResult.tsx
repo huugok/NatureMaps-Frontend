@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../../context/useApp';
-import type { PlantIdentification, PlantMatch } from '../../types/identify';
+import type { IdentificationFailure, PlantIdentification, PlantMatch } from '../../types/identify';
+import { identificationErrorText } from '../../i18n/identification';
 import { ResultadoEscaneo } from '../ResultadoEscaneo';
 import type { CameraMode } from './types';
 
@@ -14,7 +15,7 @@ export interface CameraIdentificationResultProps {
   /** Respuesta del backend con las candidatas, si ya llegó. */
   results: PlantIdentification | null;
   /** Mensaje legible cuando la identificación falla. */
-  error: string | null;
+  error: IdentificationFailure | null;
   /** Foto enviada, para la cabecera del resultado. */
   photo: string | null;
   /** Reintenta el envío de la foto actual. */
@@ -78,7 +79,7 @@ export function CameraIdentificationResult({
         className="mb-4 rounded-card bg-black/70 p-3 text-body text-white"
       >
         <p role="alert">{t('camera.error')}</p>
-        {error && <p className="mt-1 text-white/75">{error}</p>}
+        {error && <p className="mt-1 text-white/75">{identificationErrorText(error, t)}</p>}
         <button type="button" onClick={onRetry} className="mt-2 underline underline-offset-2">
           {t('camera.retry')}
         </button>

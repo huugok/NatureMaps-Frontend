@@ -1,4 +1,4 @@
-import { dictionaries } from '../i18n/strings';
+import { dictionaries, translate, type StringKey } from '../i18n/strings';
 import type { Language } from '../types/language';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
 
@@ -91,13 +91,14 @@ export interface FichaDetail extends FichaListItem {
  * la forma de `FichaEspecie` (nulos -> ausentes, fuentes con icono). */
 export type { FichaEspecie } from '../pages/FichaPlanta/types';
 
-async function fetchJson<T>(url: string, mensaje: string): Promise<T> {
+async function fetchJson<T>(url: string, messageKey: StringKey, language: Language): Promise<T> {
+  const message = translate(language, messageKey);
   let response: Response;
   try {
     response = await fetch(url);
   } catch {
     // Error de red / servidor caído: el mensaje no expone detalles internos.
-    throw new Error(mensaje);
+    throw new Error(message);
   }
   if (!response.ok) {
     // El backend responde { error: string } en los fallos controlados.
@@ -108,7 +109,9 @@ async function fetchJson<T>(url: string, mensaje: string): Promise<T> {
     } catch {
       // El cuerpo no es JSON: se queda el mensaje genérico.
     }
-    throw new Error(detail !== '' ? `${mensaje}: ${detail}` : `${mensaje} (HTTP ${response.status})`);
+    throw new Error(detail !== ''
+      ? translate(language, 'common.errorDetail', { message, detail })
+      : translate(language, 'common.httpError', { message, status: response.status }));
   }
   return (await response.json()) as T;
 }
@@ -117,7 +120,8 @@ async function fetchJson<T>(url: string, mensaje: string): Promise<T> {
 export async function getSpeciesList(language: Language): Promise<FichaListItem[]> {
   const body = await fetchJson<{ species: FichaListItem[] }>(
     `${API_URL}/species?lang=${encodeURIComponent(language)}`,
-    'No se ha podido cargar el catálogo de especies',
+    'ficha.errorList',
+    language,
   );
   return body.species ?? [];
 }
@@ -126,7 +130,8 @@ export async function getSpeciesList(language: Language): Promise<FichaListItem[
 export async function getSpeciesDetail(id: number, language: Language): Promise<FichaDetail> {
   return fetchJson<FichaDetail>(
     `${API_URL}/species/${id}?lang=${encodeURIComponent(language)}`,
-    'No se ha podido cargar la ficha de la especie',
+    'ficha.errorDetail',
+    language,
   );
 }
 
@@ -183,7 +188,7 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
     description: item.content ?? undefined,
     flowering: item.profile?.flowering ?? undefined,
     curiosity: item.profile?.curiosity
-      ? { label: 'Dato curioso', text: item.profile.curiosity }
+      ? { label: translate(language, 'ficha.curiosity'), text: item.profile.curiosity }
       : undefined,
     // Fuentes mostradas: las declaradas en la ficha editorial si existe; si no,
     // la del enriquecimiento cuyo extracto es el texto que se está leyendo.

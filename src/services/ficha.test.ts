@@ -105,6 +105,13 @@ describe('getSpeciesList — catálogo para la navegación de la ficha', () => {
     await expect(getSpeciesList('es')).rejects.toThrow('No se ha podido cargar el catálogo de especies');
   });
 
+  test('los errores de red usan el idioma solicitado', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Network error')));
+
+    await expect(getSpeciesList('en')).rejects.toThrow('The species catalogue could not be loaded.');
+    await expect(getSpeciesDetail(7, 'va')).rejects.toThrow('No s’ha pogut carregar la fitxa de l’espècie.');
+  });
+
   test('error HTTP con cuerpo { error } incluye el detalle del backend', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() =>
       new Response(JSON.stringify({ error: 'lang no es válido' }), { status: 400, ...respuestaJson })));
@@ -142,6 +149,12 @@ describe('getSpeciesDetail — ficha completa por especie', () => {
 });
 
 describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
+  test('traduce la etiqueta de curiosidad sin modificar el contenido editorial', () => {
+    const species = fichaDesdeDetalle(detalle, 'en');
+    expect(species.curiosity).toEqual({
+      label: 'Fun fact', text: detalle.profile?.curiosity,
+    });
+  });
   test('mapea nombre común, familia, floración, curiosidad, fuentes e imagen con crédito', () => {
     const especie = fichaDesdeDetalle(detalle, 'es');
 

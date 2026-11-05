@@ -1,3 +1,4 @@
+import type { StringKey } from '../../i18n/strings';
 export interface PaletteTokens {
   accent: string;
   accent2: string;
@@ -20,13 +21,13 @@ export interface PaletteTokens {
 
 export interface Palette {
   id: string;
-  name: string;
-  tagline: string;
-  summary: string;
+  name: StringKey;
+  tagline: StringKey;
+  summary: StringKey;
   tokens: PaletteTokens;
   hex: PaletteTokens;
-  notes: string[];
-  watchOut: string[];
+  notes: StringKey[];
+  watchOut: StringKey[];
 }
 
 /**
@@ -37,10 +38,10 @@ export interface Palette {
 export const PALETTES: Palette[] = [
   {
     id: 'actual',
-    name: 'Actual',
-    tagline: 'Verde bosque: la paleta que ya está en la app',
+    name: 'lab.palette.actual.name',
+    tagline: 'lab.palette.actual.tagline',
     summary:
-      'El verde profundo actual, con tinta azulada y papel cálido. Es el control para medir cuánto cambia cada propuesta.',
+      'lab.palette.actual.summary',
     tokens: {
       accent: 'oklch(0.469 0.09 153.4)',
       accent2: 'oklch(0.594 0.099 150.5)',
@@ -80,20 +81,20 @@ export const PALETTES: Palette[] = [
       danger: '#e85d5d',
     },
     notes: [
-      'Identidad ya reconocible y contraste alto en texto y botones.',
-      'No hay que migrar ningún token para mantenerla.',
+      'lab.palette.actual.notes.0',
+      'lab.palette.actual.notes.1',
     ],
     watchOut: [
-      'La tinta azulada (H 257) enfría el conjunto.',
-      'El verde y el ocre no comparten una lógica de rampa.',
+      'lab.palette.actual.watchOut.0',
+      'lab.palette.actual.watchOut.1',
     ],
   },
   {
     id: 'dehesa',
-    name: 'Verde dehesa',
-    tagline: 'El mismo bosque, con tinta y papel templados',
+    name: 'lab.palette.dehesa.name',
+    tagline: 'lab.palette.dehesa.tagline',
     summary:
-      'Refina la paleta actual: verde algo más profundo, papel cálido y tinta verde-negra. Es la evolución de menor riesgo.',
+      'lab.palette.dehesa.summary',
     tokens: {
       accent: 'oklch(0.445 0.088 151)',
       accent2: 'oklch(0.585 0.098 149)',
@@ -133,20 +134,20 @@ export const PALETTES: Palette[] = [
       danger: '#d04f4b',
     },
     notes: [
-      'Mantiene el verde reconocible y sube el contraste.',
-      'La tinta verde integra texto y marca; el ocre sigue para avisos.',
+      'lab.palette.dehesa.notes.0',
+      'lab.palette.dehesa.notes.1',
     ],
     watchOut: [
-      'El cambio es sutil: si se busca un giro visual fuerte, no es la opción.',
-      'Revisar los neutros fríos que aún quedan en componentes.',
+      'lab.palette.dehesa.watchOut.0',
+      'lab.palette.dehesa.watchOut.1',
     ],
   },
   {
     id: 'olivar',
-    name: 'Olivar y cal',
-    tagline: 'Verde olivo, caliza y arcilla',
+    name: 'lab.palette.olivar.name',
+    tagline: 'lab.palette.olivar.tagline',
     summary:
-      'Un paisaje mediterráneo seco: olivo, piedra caliza y barro cocido. La propuesta más terrenal y arqueológica.',
+      'lab.palette.olivar.summary',
     tokens: {
       accent: 'oklch(0.465 0.075 115)',
       accent2: 'oklch(0.595 0.08 112)',
@@ -186,20 +187,20 @@ export const PALETTES: Palette[] = [
       danger: '#cf4e45',
     },
     notes: [
-      'El olivo y la arcilla se leen como naturaleza y patrimonio.',
-      'El fondo calizo da calidez sin amarillear; los acentos cálidos funcionan en avisos y mapas.',
+      'lab.palette.olivar.notes.0',
+      'lab.palette.olivar.notes.1',
     ],
     watchOut: [
-      'El verde olivo tiene menos energía que el bosque: probar en CTAs.',
-      'Los grises fríos actuales cantan; hay que tokenizar los neutros.',
+      'lab.palette.olivar.watchOut.0',
+      'lab.palette.olivar.watchOut.1',
     ],
   },
   {
     id: 'turia',
-    name: 'Riu Turia',
-    tagline: 'Agua, caña y cielo de Valencia',
+    name: 'lab.palette.turia.name',
+    tagline: 'lab.palette.turia.tagline',
     summary:
-      'Un verde-azulado profundo de agua, con juncos dorados y fondo de cielo pálido. Fresco, limpio y muy legible.',
+      'lab.palette.turia.summary',
     tokens: {
       accent: 'oklch(0.44 0.075 195)',
       accent2: 'oklch(0.58 0.085 192)',
@@ -239,20 +240,20 @@ export const PALETTES: Palette[] = [
       danger: '#d04f4b',
     },
     notes: [
-      'Diferencia bien el mapa y las rutas de agua; el dorado de caña aporta calidez.',
-      'La tinta azul-verde es coherente con el conjunto.',
+      'lab.palette.turia.notes.0',
+      'lab.palette.turia.notes.1',
     ],
     watchOut: [
-      'Puede sentirse más «parque fluvial» que «botánica».',
-      'El azul compite con el marcador de ubicación del mapa; separar roles.',
+      'lab.palette.turia.watchOut.0',
+      'lab.palette.turia.watchOut.1',
     ],
   },
   {
     id: 'azahar',
-    name: 'Azahar',
-    tagline: 'Hoja, azahar y azafrán',
+    name: 'lab.palette.azahar.name',
+    tagline: 'lab.palette.azahar.tagline',
     summary:
-      'El verde de la hoja con un naranja de azahar y azafrán. La propuesta más valenciana y vitalista, pensada para familias y escolares.',
+      'lab.palette.azahar.summary',
     tokens: {
       accent: 'oklch(0.46 0.09 145)',
       accent2: 'oklch(0.59 0.1 143)',
@@ -292,20 +293,20 @@ export const PALETTES: Palette[] = [
       danger: '#d04f4b',
     },
     notes: [
-      'El naranja da energía a CTAs y avisos; el verde sigue siendo la marca.',
-      'Conecta con la identidad cítrica de Valencia sin caer en el tópico.',
+      'lab.palette.azahar.notes.0',
+      'lab.palette.azahar.notes.1',
     ],
     watchOut: [
-      'El naranja necesita el verde o la tinta para no parecer una alerta.',
-      'No usar naranja como fondo de texto blanco: usar `warmStrong`.',
+      'lab.palette.azahar.watchOut.0',
+      'lab.palette.azahar.watchOut.1',
     ],
   },
   {
     id: 'piedra',
-    name: 'Piedra y musgo',
-    tagline: 'Piedra, musgo y arcilla',
+    name: 'lab.palette.piedra.name',
+    tagline: 'lab.palette.piedra.tagline',
     summary:
-      'Baja saturación, tonos de piedra y musgo. La propuesta más sobria y patrimonial, para que las fotos y el contenido lleven el peso.',
+      'lab.palette.piedra.summary',
     tokens: {
       accent: 'oklch(0.48 0.055 135)',
       accent2: 'oklch(0.6 0.06 133)',
@@ -345,12 +346,12 @@ export const PALETTES: Palette[] = [
       danger: '#d04f4b',
     },
     notes: [
-      'El contenido y las fotos ganan protagonismo.',
-      'El musgo y la arcilla se leen como materiales; buena base para rutas culturales.',
+      'lab.palette.piedra.notes.0',
+      'lab.palette.piedra.notes.1',
     ],
     watchOut: [
-      'Menos «naturaleza viva»; puede resultar apagada.',
-      'El contraste bajo del musgo pide cuidado en textos pequeños.',
+      'lab.palette.piedra.watchOut.0',
+      'lab.palette.piedra.watchOut.1',
     ],
   },
 ];
@@ -372,22 +373,22 @@ export const SWATCH_KEYS: Array<keyof PaletteTokens> = [
   'danger',
 ];
 
-export const SWATCH_LABELS: Record<keyof PaletteTokens, string> = {
-  accent: 'acento',
-  accent2: 'acento 2',
-  accentSoft: 'acento suave',
-  onAccent: 'sobre acento',
-  app: 'fondo app',
-  surface: 'superficie',
-  surface2: 'superficie 2',
-  ink: 'tinta',
-  ink2: 'tinta 2',
-  muted: 'apagado',
-  muted2: 'apagado 2',
-  line: 'borde',
-  lineStrong: 'borde fuerte',
-  warm: 'cálido',
-  warmStrong: 'cálido fuerte',
-  night: 'noche',
-  danger: 'peligro',
+export const SWATCH_LABELS: Record<keyof PaletteTokens, StringKey> = {
+  accent: 'lab.swatch.accent',
+  accent2: 'lab.swatch.accent2',
+  accentSoft: 'lab.swatch.accentSoft',
+  onAccent: 'lab.swatch.onAccent',
+  app: 'lab.swatch.app',
+  surface: 'lab.swatch.surface',
+  surface2: 'lab.swatch.surface2',
+  ink: 'lab.swatch.ink',
+  ink2: 'lab.swatch.ink2',
+  muted: 'lab.swatch.muted',
+  muted2: 'lab.swatch.muted2',
+  line: 'lab.swatch.line',
+  lineStrong: 'lab.swatch.lineStrong',
+  warm: 'lab.swatch.warm',
+  warmStrong: 'lab.swatch.warmStrong',
+  night: 'lab.swatch.night',
+  danger: 'lab.swatch.danger',
 };

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Info, Leaf } from 'lucide-react';
 import { Page } from '../../components/Page';
 import { cn } from '../../utils/cn';
+import { useApp } from '../../context/useApp';
 import {
   DEFAULT_DIRECTION,
   DIRECTIONS,
@@ -41,7 +42,7 @@ function useLabFonts() {
   }, []);
 }
 
-const NAV_ITEMS = ['Inicio', 'Mapa', 'Escanear', 'Rutas', 'Buscar'];
+const NAV_ITEMS = ['nav.home', 'nav.map', 'nav.scan', 'nav.routes', 'nav.search'] as const;
 
 function uiStyle(direction: TypeDirection, size?: number, weight = 600) {
   return {
@@ -52,6 +53,7 @@ function uiStyle(direction: TypeDirection, size?: number, weight = 600) {
 }
 
 function DirectionPreview({ direction }: { direction: TypeDirection }) {
+  const { t } = useApp();
   return (
     <div
       className="mt-4 overflow-hidden rounded-panel border border-line bg-app"
@@ -63,13 +65,13 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
           className="absolute left-3 top-3 rounded-full bg-surface/90 px-2.5 py-1 text-accent shadow-raised"
           style={direction.styles.caption}
         >
-          Ficha de planta
+          {t('home.ficha')}
         </span>
       </div>
 
       <div className="p-4">
         <p style={direction.styles.caption} className="text-muted">
-          Especie más probable
+          {t('result.best')}
         </p>
         <h3 style={direction.styles.title} className="mt-1 text-balance text-ink">
           Jacaranda mimosifolia
@@ -79,9 +81,7 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
         </p>
 
         <p style={direction.styles.body} className="mt-3 text-muted text-pretty">
-          Árbol subtropical de flores violetas. En Valencia da sombra en avenidas y jardines
-          desde finales de primavera. Sus hojas bipinnadas recuerdan a un helecho y su
-          floración dura pocas semanas.
+          {t('lab.sampleLong')}
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -89,13 +89,13 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
             style={uiStyle(direction, direction.scale.caption)}
             className="inline-flex min-h-7 items-center rounded-full bg-accent px-2.5 text-on-accent tabular-nums"
           >
-            Confianza: 91%
+            {t('ficha.confidence', { score: 91 })}
           </span>
           <span
             style={uiStyle(direction, direction.scale.caption)}
             className="inline-flex min-h-7 items-center rounded-full bg-accent-soft px-2.5 text-accent tabular-nums"
           >
-            3 ejemplares
+            {t('ficha.specimens', { count: 3 })}
           </span>
         </div>
 
@@ -105,27 +105,27 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
             style={uiStyle(direction)}
             className="min-h-11 flex-1 rounded-control bg-accent px-3 text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
-            Ver ficha
+            {t('result.viewCard')}
           </button>
           <button
             type="button"
             style={uiStyle(direction)}
             className="min-h-11 flex-1 rounded-control bg-surface px-3 text-ink shadow-raised transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            Ver en el mapa
+            {t('ficha.viewOnMap')}
           </button>
         </div>
 
         <input
           type="text"
-          placeholder="Buscar una planta…"
-          aria-label="Buscar una planta"
+          placeholder={t('search.placeholder')}
+          aria-label={t('lab.searchAria')}
           style={{ fontFamily: direction.stack.ui, fontSize: 16 }}
           className="mt-4 min-h-11 w-full rounded-control border border-line bg-surface px-3 text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
         />
 
         <p style={direction.styles.small} className="mt-3 text-muted">
-          Fuente: Pl@ntNet · Actualizado hoy
+          {t('lab.sourceExample')}
         </p>
       </div>
 
@@ -139,7 +139,7 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
             style={{ fontSize: direction.scale.caption, fontWeight: index === 1 ? 700 : 500 }}
             className={index === 1 ? 'text-accent' : 'text-muted'}
           >
-            {item}
+            {t(item)}
           </span>
         ))}
       </div>
@@ -148,46 +148,43 @@ function DirectionPreview({ direction }: { direction: TypeDirection }) {
 }
 
 function ReadingSample({ direction }: { direction: TypeDirection }) {
+  const { t } = useApp();
   return (
     <div
       className="mt-4 rounded-card bg-surface p-4 shadow-raised"
       style={{ fontFamily: direction.stack.body, fontSynthesis: 'none' }}
     >
       <h2 style={direction.styles.heading} className="text-balance text-ink">
-        Una guía para leer en el móvil
+        {t('lab.readingTitle')}
       </h2>
       <p style={direction.styles.body} className="mt-2 text-muted text-pretty">
-        La ficha combina el nombre científico con una explicación breve y una curiosidad. El
-        texto tiene que caber en una columna de unas 45 letras sin que el ojo pierda el
-        regreso a la línea siguiente.
+        {t('lab.readingBody')}
       </p>
       <p style={direction.styles.body} className="mt-2 text-muted text-pretty">
-        En el cuerpo, <em>Jacaranda mimosifolia</em> va en cursiva, como manda la nomenclatura
-        botánica; los botones y las etiquetas no.
+        {t('lab.readingScientificBefore')} <em>Jacaranda mimosifolia</em> {t('lab.readingScientificAfter')}
       </p>
       <p style={direction.styles.small} className="mt-3 text-muted">
-        Texto pequeño para pies de foto, fuentes y ayudas.
+        {t('lab.readingSmall')}
       </p>
     </div>
   );
 }
 
 export function TypographyLab() {
+  const { t } = useApp();
   useLabFonts();
   const [selectedId, setSelectedId] = useState(DEFAULT_DIRECTION);
   const selected = DIRECTIONS.find((direction) => direction.id === selectedId) ?? DIRECTIONS[0];
 
   return (
-    <Page title="Tipografía" subtitle="Laboratorio de direcciones" back settings={false}>
+    <Page title={t('lab.typeTitle')} subtitle={t('lab.typeSubtitle')} back settings={false}>
       <p className="text-body text-muted text-pretty">
-        La dirección elegida es <strong>Guía para todos</strong>: Literata para titulares y
-        lectura, Atkinson Hyperlegible para la interfaz. Las demás quedan como referencia de lo
-        que se descartó y de lo que aún se puede recuperar.
+        {t('lab.typeIntro')}
       </p>
 
       <div
         role="group"
-        aria-label="Direcciones tipográficas"
+        aria-label={t('lab.typeDirections')}
         className="flex flex-wrap gap-2"
       >
         {DIRECTIONS.map((direction) => {
@@ -203,7 +200,7 @@ export function TypographyLab() {
                 active ? 'bg-accent text-on-accent shadow-raised' : 'bg-surface text-ink shadow-raised',
               )}
             >
-              {direction.name}
+              {t(direction.name)}
             </button>
           );
         })}
@@ -211,43 +208,43 @@ export function TypographyLab() {
 
       <section
         id="type-lab-preview"
-        aria-label="Vista previa"
+        aria-label={t('lab.typePreview')}
         className="mt-1 rounded-panel bg-surface p-4 shadow-raised"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="font-display text-heading text-ink">{selected.name}</h2>
-            <p className="mt-0.5 text-small text-muted">{selected.tagline}</p>
+            <h2 className="font-display text-heading text-ink">{t(selected.name)}</h2>
+            <p className="mt-0.5 text-small text-muted">{t(selected.tagline)}</p>
           </div>
           <span className="rounded-full bg-accent-soft px-2.5 py-1 text-caption uppercase tracking-wider text-accent">
             {selected.id === 'todos'
-              ? 'Elegida'
+              ? t('lab.chosen')
               : selected.id === 'actual'
-                ? 'Anterior'
-                : 'Alternativa'}
+                ? t('lab.previous')
+                : t('lab.alternative')}
           </span>
         </div>
 
-        <p className="mt-2 text-small text-muted text-pretty">{selected.summary}</p>
+        <p className="mt-2 text-small text-muted text-pretty">{t(selected.summary)}</p>
 
         <DirectionPreview direction={selected} />
         <ReadingSample direction={selected} />
 
         <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 text-small">
           <div>
-            <p className="text-caption uppercase tracking-wider text-muted">Titulares</p>
+            <p className="text-caption uppercase tracking-wider text-muted">{t('lab.headings')}</p>
             <p className="text-ink">{selected.displayFamily}</p>
           </div>
           <div>
-            <p className="text-caption uppercase tracking-wider text-muted">Cuerpo</p>
+            <p className="text-caption uppercase tracking-wider text-muted">{t('lab.body')}</p>
             <p className="text-ink">{selected.bodyFamily}</p>
           </div>
           <div>
-            <p className="text-caption uppercase tracking-wider text-muted">Interfaz</p>
+            <p className="text-caption uppercase tracking-wider text-muted">{t('lab.interface')}</p>
             <p className="text-ink">{selected.uiFamily}</p>
           </div>
           <div>
-            <p className="text-caption uppercase tracking-wider text-muted">Escala</p>
+            <p className="text-caption uppercase tracking-wider text-muted">{t('lab.scale')}</p>
             <p className="text-ink tabular-nums">
               {selected.scale.title} / {selected.scale.heading} / {selected.scale.body} /{' '}
               {selected.scale.small} / {selected.scale.caption}
@@ -257,23 +254,23 @@ export function TypographyLab() {
 
         <div className="mt-4 grid gap-3">
           <div>
-            <p className="text-caption uppercase tracking-wider text-muted">Por qué funciona</p>
+            <p className="text-caption uppercase tracking-wider text-muted">{t('lab.strengths')}</p>
             <ul className="mt-1.5 space-y-1.5">
               {selected.notes.map((note) => (
                 <li key={note} className="flex gap-2 text-small text-ink">
                   <Check size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
-                  <span>{note}</span>
+                  <span>{t(note)}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div>
-            <p className="text-caption uppercase tracking-wider text-muted">A vigilar</p>
+            <p className="text-caption uppercase tracking-wider text-muted">{t('lab.watchOut')}</p>
             <ul className="mt-1.5 space-y-1.5">
               {selected.watchOut.map((note) => (
                 <li key={note} className="flex gap-2 text-small text-muted">
                   <Info size={15} className="mt-0.5 shrink-0 text-warm-strong" aria-hidden="true" />
-                  <span>{note}</span>
+                  <span>{t(note)}</span>
                 </li>
               ))}
             </ul>
@@ -283,7 +280,7 @@ export function TypographyLab() {
 
       <details className="rounded-panel bg-surface p-4 shadow-raised">
         <summary className="cursor-pointer text-body font-semibold text-ink">
-          Comparar las cinco direcciones
+          {t('lab.compareDirections')}
         </summary>
         <div className="mt-4 space-y-3">
           {DIRECTIONS.map((direction) => (
@@ -297,7 +294,7 @@ export function TypographyLab() {
                   className="text-small font-semibold text-ink"
                   style={{ fontFamily: direction.stack.ui }}
                 >
-                  {direction.name}
+                  {t(direction.name)}
                 </p>
                 <button
                   type="button"
@@ -307,7 +304,7 @@ export function TypographyLab() {
                   }}
                   className="min-h-9 shrink-0 rounded-full px-2 text-caption font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  Ver en grande
+                  {t('lab.enlarge')}
                 </button>
               </div>
               <p
@@ -320,7 +317,7 @@ export function TypographyLab() {
                 style={{ ...direction.styles.body, fontSize: Math.min(direction.scale.body, 15) }}
                 className="mt-1 text-muted text-pretty"
               >
-                Árbol subtropical de flores violetas, sombra de avenidas y jardines.
+                {t('lab.sampleCaption')}
               </p>
               <p className="mt-1 text-caption text-muted" style={{ fontFamily: direction.stack.ui }}>
                 {direction.displayFamily} · {direction.bodyFamily} · {direction.uiFamily}
@@ -331,9 +328,7 @@ export function TypographyLab() {
       </details>
 
       <p className="text-caption text-muted text-pretty">
-        Laboratorio interno: Literata y Atkinson ya están autoalojadas en la app; el resto de
-        direcciones carga sus fuentes desde Google Fonts solo en esta pantalla. La escala y las
-        familias elegidas viven en los tokens de <code className="mx-1">src/index.css</code>.
+        {t('lab.typeFooter')} <code className="mx-1">src/index.css</code>.
       </p>
     </Page>
   );
