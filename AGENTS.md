@@ -263,7 +263,12 @@ Reglas:
   (plantas cercanas, distancia en metros) para los marcadores del mapa y «Cerca de ti» en
   Buscar. El permiso de ubicación sigue el patrón de la cámara
   (`src/components/Location/`, aviso propio antes del nativo, con reintento si se deniega);
-  el radio (100–5000 m) se guarda en `naturemaps:radius` y se configura en Ajustes.
+  el radio (100–10000 m) se guarda en `naturemaps:radius` y se configura en Ajustes
+  (el modo aventura usa un radio fijo de 1000 m). Las plantas cercanas del mismo
+  tipo encadenadas por proximidad se agrupan en un marcador con recuento
+  (`src/pages/Map/plantGroups.ts`): al pulsarlo se pinta el círculo que cubre a
+  sus miembros. Sin posición, el mapa pinta las plantas globales de
+  `src/services/plants.ts` (UT 908).
 - Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta).
 
 ## Git
