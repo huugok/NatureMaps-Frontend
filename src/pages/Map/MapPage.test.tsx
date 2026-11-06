@@ -1,7 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { AppContext } from '../../context/state';
+import type { AppState } from '../../context/state';
+import { dictionaries } from '../../i18n/strings';
+import type { Mode } from '../../types';
 import { MapPage } from './MapPage';
+
+/** Estado de contexto mínimo con el modo fijado para probar reacciones al modo. */
+function appStateWith(mode: Mode | null): AppState {
+  return {
+    mode,
+    setMode: () => {},
+    lang: 'es',
+    setLang: () => {},
+    t: (key, vars) => {
+      let text = dictionaries.es[key] ?? key;
+      if (vars) {
+        for (const [name, value] of Object.entries(vars)) {
+          text = text.replaceAll(`{${name}}`, String(value));
+        }
+      }
+      return text;
+    },
+  };
+}
 
 const leaflet = vi.hoisted(() => {
   const map = {
@@ -141,7 +164,7 @@ describe('MapPage', () => {
       interactive: false,
       zIndexOffset: 1000,
     }));
-    expect(leaflet.circleFactory).toHaveBeenCalledWith([39.48, -0.38], expect.objectContaining({ radius: 25 }));
+    expect(leaflet.circleFactory).toHaveBeenCalledWith([39.48, -0.38], expect.objectContaining({ radius: 1000 }));
     expect(leaflet.map.setView).toHaveBeenCalledWith([39.48, -0.38], 16, { animate: true });
   });
 
@@ -332,6 +355,48 @@ describe('MapPage', () => {
     // Segunda pulsación sobre el mismo grupo: el área se quita.
     onClick();
     expect(leaflet.circle.remove).toHaveBeenCalled();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('el área azul de búsqueda sigue al radio del modo (deslizador y aventura fija)', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    localStorage.setItem('naturemaps:radius', '5000');
+
+    const esencial = appStateWith('esencial');
+    const aventura = appStateWith('aventura');
+    const view = render(
+      <AppContext.Provider value={esencial}>
+        <MapPage />
+      </AppContext.Provider>,
+    );
+
+    // El círculo se crea al conocer la posición, con el radio del deslizador.
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    expect(leaflet.circleFactory).toHaveBeenCalledWith([39.48, -0.38], expect.objectContaining({ radius: 5000 }));
+
+    // Al pasar a aventura el área pasa al radio fijo y vuelve al salir del modo.
+    view.rerender(
+      <AppContext.Provider value={aventura}>
+        <MapPage />
+      </AppContext.Provider>,
+    );
+    expect(leaflet.circle.setRadius).toHaveBeenCalledWith(1000);
+    view.rerender(
+      <AppContext.Provider value={esencial}>
+        <MapPage />
+      </AppContext.Provider>,
+    );
+    expect(leaflet.circle.setRadius).toHaveBeenCalledWith(5000);
+
+    localStorage.removeItem('naturemaps:radius');
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 });

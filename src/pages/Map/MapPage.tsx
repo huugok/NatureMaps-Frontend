@@ -8,6 +8,7 @@ import { LocationPermissionPrompt, useLocationPermission } from '../../component
 import { formatDistance } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
+import type { Mode } from '../../types';
 import type { PlantPin } from '../../types/plant';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 import { groupNearbyPlants, metersBetween } from './plantGroups';
@@ -56,6 +57,11 @@ const NEARBY_RADIUS_AVENTURA = 1000;
 // desde la última consulta, la lista anterior sigue siendo válida.
 const NEARBY_REFRESH_METERS = 200;
 
+/** Radio efectivo de cercanas según el modo: aventura fijo, resto el deslizador. */
+function effectiveNearbyRadius(mode: Mode | null, sliderRadius: number): number {
+  return mode === 'aventura' ? NEARBY_RADIUS_AVENTURA : sliderRadius;
+}
+
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
@@ -70,7 +76,7 @@ export function MapPage() {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
-  const accuracyCircleRef = useRef<L.Circle | null>(null);
+  const searchAreaCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
@@ -107,12 +113,19 @@ export function MapPage() {
     setPlantsState(pins);
   }, []);
 
+  // Radio efectivo de cercanas, vivo para updateUserLocation (memoizado sin
+  // dependencias, como el cargador de abajo).
+  const effectiveRadiusRef = useRef(effectiveNearbyRadius(mode, radius));
+  useEffect(() => {
+    effectiveRadiusRef.current = effectiveNearbyRadius(mode, radius);
+  });
+
   // Cargador cercanas reasignado tras cada render para que updateUserLocation
   // (memoizado) use siempre el radio, idioma y modo vigentes.
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
     loadPlantsRef.current = (coords: Coordinates) => {
-      const modeRadius = mode === 'aventura' ? NEARBY_RADIUS_AVENTURA : radius;
+      const modeRadius = effectiveNearbyRadius(mode, radius);
       // Regla de tres: 100 plantas por cada 1000 m de radio.
       const modeLimit = Math.max(1, Math.round(modeRadius / 10));
       const last = lastFetchCenterRef.current;
@@ -163,11 +176,13 @@ export function MapPage() {
       }).addTo(map);
     }
 
-    if (accuracyCircleRef.current) {
-      accuracyCircleRef.current.setLatLng(point).setRadius(position.coords.accuracy);
+    if (searchAreaCircleRef.current) {
+      searchAreaCircleRef.current.setLatLng(point).setRadius(effectiveRadiusRef.current);
     } else {
-      accuracyCircleRef.current = L.circle(point, {
-        radius: position.coords.accuracy,
+      // Círculo azul = área de búsqueda de plantas cercanas (radio efectivo del
+      // modo), no la precisión del GPS.
+      searchAreaCircleRef.current = L.circle(point, {
+        radius: effectiveRadiusRef.current,
         color: LOCATION_COLOR,
         fillColor: LOCATION_COLOR,
         fillOpacity: 0.12,
@@ -217,7 +232,7 @@ export function MapPage() {
       map.remove();
       mapRef.current = null;
       userMarkerRef.current = null;
-      accuracyCircleRef.current = null;
+      searchAreaCircleRef.current = null;
       searchedPlaceMarkerRef.current = null;
       plantsLayerRef.current = null;
       groupAreaRef.current = null;
@@ -341,6 +356,11 @@ export function MapPage() {
     };
     plantsLayerRef.current = addPlantMarkers(map, pins, popupFor, selectGroup);
   }, [plants, lang, hasPosition, clearGroupArea, t]);
+
+  // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.
+  useEffect(() => {
+    searchAreaCircleRef.current?.setRadius(effectiveNearbyRadius(mode, radius));
+  }, [mode, radius]);
 
   const selectPlace = (place: PlaceResult) => {
     const target: Coordinates = {
