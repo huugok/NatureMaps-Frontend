@@ -307,3 +307,10 @@ Cinco roles canónicos, con el mismo nombre como label. See `docs/agents/triage-
 ### Domain docs
 
 Single-context: `GLOSSARY.md` + `docs/adr/` en la raíz. See `docs/agents/domain.md`.
+
+### Atribución Pl@ntNet (UT 933)
+
+`src/components/PlantNetAttribution/` contiene la atribución y sus JSON es/va/en.
+Los recursos propios permiten integrar UT 933 y UT 921 de forma independiente.
+El logo oficial vive en `public/plantnet-logo.svg`; procedencia y comprobación en
+`docs/atribucion-plantnet.md`.

@@ -1,6 +1,7 @@
 import { ArrowLeft, Sprout } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import type { PlantMatch } from '../../types/identify';
+import { PlantNetAttribution } from '../PlantNetAttribution';
 import {
   CONFIANZA_ALTA,
   CONFIANZA_MINIMA,
@@ -216,14 +217,9 @@ export function ResultadoEscaneo({
           </div>
         </div>
 
-        <footer className="mt-auto flex items-start gap-2.5 border-t border-line bg-surface-2 px-4 pt-4 pb-4 text-caption text-muted">
-          <span
-            aria-hidden="true"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface text-accent"
-          >
-            <Sprout size={14} strokeWidth={2} />
-          </span>
-          <p>{t('result.footer')}</p>
+        <footer className="mt-auto border-t border-line bg-surface-2 px-4 py-4 text-small text-muted">
+          <PlantNetAttribution />
+          <p className="mt-2 text-pretty">{t('result.footer')}</p>
         </footer>
       </div>
     </div>

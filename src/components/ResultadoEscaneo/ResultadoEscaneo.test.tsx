@@ -66,7 +66,7 @@ describe('ResultadoEscaneo — UT F05 (RF18 · PA 689)', () => {
   it('si no hay foto pinta el marcador verde de la cabecera', () => {
     renderResultado({ photoUrl: null });
 
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Foto escaneada de la planta' })).not.toBeInTheDocument();
     expect(screen.getByText('Tu foto')).toBeInTheDocument();
   });
 
@@ -146,6 +146,9 @@ describe('ResultadoEscaneo — UT F05 (RF18 · PA 689)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/no ha encontrado candidatas/i);
     expect(screen.getByRole('button', { name: /repetir foto/i })).toBeInTheDocument();
     expect(screen.queryByText('Especie más probable')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Identificación con Pl@ntNet' })).toBeInTheDocument();
+    expect(screen.getByText(/El servicio de identificación de especies por imagen/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'https://my.plantnet.org/' })).toBeInTheDocument();
   });
 
   it('limita las alternativas a cuatro además de la principal', () => {
