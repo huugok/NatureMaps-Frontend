@@ -1,0 +1,14 @@
+{
+  "provider": "Entitat responsable",
+  "unknownProvider": "No consta",
+  "imported": "Última importació",
+  "retrieved": "Recuperació",
+  "consulted": "Consulta",
+  "date": "Data",
+  "unknownDate": "Data o versió no disponible",
+  "version": "Versió",
+  "inventory": "Inventari",
+  "editorial": "Informació botànica",
+  "image": "Imatge",
+  "inventoryAttribution": "Font de les dades: {provider} – Dades Obertes. Camps normalitzats per Nature MAPS."
+}

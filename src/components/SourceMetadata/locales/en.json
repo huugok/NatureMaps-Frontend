@@ -1,0 +1,14 @@
+{
+  "provider": "Responsible entity",
+  "unknownProvider": "Not recorded",
+  "imported": "Latest import",
+  "retrieved": "Retrieval",
+  "consulted": "Consultation",
+  "date": "Date",
+  "unknownDate": "Date or version unavailable",
+  "version": "Version",
+  "inventory": "Inventory",
+  "editorial": "Botanical information",
+  "image": "Image",
+  "inventoryAttribution": "Data source: {provider} – Dades Obertes. Fields normalized by Nature MAPS."
+}

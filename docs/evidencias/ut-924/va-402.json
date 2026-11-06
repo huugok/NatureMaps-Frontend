@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-11-05T17:43:53.065Z",
+  "apiSimulated": false,
+  "width": 402,
+  "species": "Phoenix canariensis",
+  "language": "ca",
+  "sourceCards": [
+    {
+      "text": "Arbolado — Arbratge\n\nFont de les dades: Ajuntament de València – Dades Obertes. Camps normalitzats per Nature MAPS.\n\nInventari\n\nEntitat responsable: Ajuntament de València\n\nÚltima importació: 31 d’oct. 2026\n\nhttps://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado",
+      "date": "2026-10-31T18:43:15.147Z",
+      "href": "https://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado"
+    },
+    {
+      "text": "Wikipedia\n\nCreative Commons Attribution-Share Alike 4.0\n\nInformació botànica\n\nEntitat responsable: Wikimedia Foundation\n\nRecuperació: 25 d’oct. 2026\n\nhttps://es.wikipedia.org/wiki/Phoenix_canariensis",
+      "date": "2026-10-25T23:22:54.083Z",
+      "href": "https://es.wikipedia.org/wiki/Phoenix_canariensis"
+    },
+    {
+      "text": "Wikimedia Commons\n\nJose Mesa (Mataparda) from island of Tenerife, Canary Islands, Spain — CC BY-SA 2.0\n\nImatge\n\nEntitat responsable: Wikimedia Foundation\n\nRecuperació: 25 d’oct. 2026\n\nhttps://commons.wikimedia.org/wiki/File:Palmera001.jpg",
+      "date": "2026-10-25T23:22:54.083Z",
+      "href": "https://commons.wikimedia.org/wiki/File:Palmera001.jpg"
+    }
+  ],
+  "frameWidth": 402,
+  "frameScrollWidth": 402,
+  "pageWidth": 402,
+  "pageScrollWidth": 402,
+  "linkFocused": true,
+  "linkHeight": 44,
+  "href": "https://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado",
+  "target": "_blank",
+  "rel": "noopener noreferrer",
+  "newTabUrl": "https://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado",
+  "runtimeErrors": []
+}

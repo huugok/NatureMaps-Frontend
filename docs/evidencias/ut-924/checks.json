@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-05",
+  "backend": {
+    "implementationCommit": "bb8e67a",
+    "build": "passed",
+    "testCatalog": { "passed": 23, "failed": 0, "database": "isolated PGlite" }
+  },
+  "frontend": {
+    "implementationCommit": "58ac2c1",
+    "build": "passed",
+    "lint": "passed",
+    "tests": { "passed": 194, "failed": 0 }
+  },
+  "combinedUT921UT932UT933UT924": {
+    "build": "passed",
+    "lint": "passed",
+    "tests": { "passed": 222, "failed": 0 },
+    "mergeOrdersChecked": 24,
+    "conflicts": 0,
+    "identicalFinalTrees": true
+  },
+  "browser": {
+    "apiSimulated": false,
+    "cases": ["es at 320px", "en at 320px", "va at 402px"],
+    "sourceMetadataVisible": true,
+    "sourceLinksOpenNewTab": true,
+    "horizontalOverflow": false,
+    "runtimeErrors": 0
+  },
+  "sharedDatabaseWrites": false,
+  "plantNetRequests": 0
+}

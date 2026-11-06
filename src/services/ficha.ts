@@ -2,6 +2,8 @@ import { dictionaries } from '../i18n/strings';
 import type { Language } from '../types/language';
 import type { PlantPin } from '../types/plant';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
+import type { SourceReference } from '../types/sourceReference';
+import { sourceReferencesForView } from './sourceReferences';
 
 // Servicio de la ficha de planta (RF3, UT F06): conecta la pantalla con la API
 // del backend (NatureMaps-Backend) en lugar de leer datos de ejemplo de
@@ -66,6 +68,8 @@ export interface FichaListItem {
   profile: FichaProfile | null;
   enrichment: FichaEnrichment | null;
   image: FichaImageInfo | null;
+  /** Ausente con una API anterior a UT 924. */
+  provenance?: SourceReference[];
 }
 
 export interface FichaLocation {
@@ -158,12 +162,17 @@ async function getDataSource(code: string): Promise<FichaDataSource> {
  * 'va' acepta también 'ca' y 'en' cae al español: no hay traducción aún.
  */
 export function commonNameFor(names: FichaNameInfo[], language: Language): string | null {
+  // El inventario puede traer a la vez un nombre correcto y otro con UTF-8
+  // deteriorado ("CanÃ ria"). Elegir una alternativa legible, sin adivinar ni
+  // reescribir los datos originales; si no la hay, la ficha usa el científico.
+  const readableNames = names.filter(({ name }) =>
+    name.trim() !== '' && !/\uFFFD|\u00C3[\u0080-\u00BF\s]|\u00C2[\u0080-\u00BF]/u.test(name));
   const preferidos: string[] = language === 'va' ? ['va', 'ca', 'es'] : language === 'en' ? ['en', 'es'] : ['es', 'ca'];
   for (const code of preferidos) {
-    const encontrado = names.find((entrada) => entrada.language === code);
+    const encontrado = readableNames.find((entrada) => entrada.language === code);
     if (encontrado) return encontrado.name;
   }
-  return names[0]?.name ?? null;
+  return readableNames[0]?.name ?? null;
 }
 
 /** Convierte el código de fuente del enriquecimiento ('WIKIPEDIA') en etiqueta
@@ -215,6 +224,7 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
       : item.enrichment
         ? [fuenteDesdeEnriquecimiento(item.enrichment, language)]
         : [],
+    ...sourceReferencesForView(item.provenance),
   };
 }
 

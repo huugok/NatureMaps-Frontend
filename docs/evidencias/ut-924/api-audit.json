@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-05T17:14:38.381Z",
+  "methods": [
+    "GET"
+  ],
+  "simulated": false,
+  "speciesChecked": 265,
+  "speciesWithoutCompleteSource": 0,
+  "plantTotalReportedByApi": 67538,
+  "individualPlantsChecked": 3,
+  "editorialSpeciesChecked": "Jacaranda mimosifolia",
+  "editorialSourceCount": 3,
+  "initialSelectAudit": {
+    "date": "2026-11-05",
+    "plants": 67538,
+    "plantsMissingSourceUrlOrImportDate": 0,
+    "species": 265,
+    "profiles": 6
+  }
+}

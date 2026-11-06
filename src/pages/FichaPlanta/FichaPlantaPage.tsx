@@ -15,6 +15,7 @@ import {
   Trees,
 } from 'lucide-react';
 import { useApp } from '../../context/useApp';
+import { SourceMetadata, SourceDescription } from '../../components/SourceMetadata';
 import { IDENTIFICATION_NOTICE } from './constants';
 import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
@@ -74,20 +75,19 @@ function SourceCard({ source }: SourceCardProps) {
             <Icon size={18} aria-hidden="true" />
           )}
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-body font-semibold text-ink">{source.name}</p>
-          {source.description && (
-            <p className="mt-0.5 text-small break-words text-muted">{source.description}</p>
-          )}
+          <SourceDescription description={source.description} provenance={source.provenance} />
+          <SourceMetadata source={source.provenance} />
           {source.url && (
             <a
               href={source.url}
               target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-small font-medium break-all text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex min-h-11 max-w-full items-center gap-1 text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              {source.url}
-              <ExternalLink size={12} aria-hidden="true" />
+              <span className="min-w-0 break-all">{source.url}</span>
+              <ExternalLink size={12} className="shrink-0" aria-hidden="true" />
             </a>
           )}
         </div>
@@ -149,7 +149,9 @@ export function FichaPlantaPage({
           </div>
         )}
         {species.photoCredit && (
-          <p className="absolute inset-x-0 bottom-0 bg-black/55 px-3 py-1 text-caption text-white/90">
+          // El panel siguiente sube 24 px sobre la foto (-mt-6). Los créditos
+          // terminan antes de ese solapamiento, también cuando ocupan varias líneas.
+          <p className="absolute inset-x-0 bottom-6 break-words bg-black/55 px-3 py-1 text-caption text-white/90">
             {t('ficha.photoCredit', { credit: species.photoCredit })}
           </p>
         )}
@@ -301,7 +303,7 @@ export function FichaPlantaPage({
         {sources.length > 0 ? (
           <ul className="mt-3 space-y-2">
             {sources.map((source) => (
-              <SourceCard key={source.name} source={source} />
+              <SourceCard key={`${source.url}:${source.provenance?.scope ?? ''}:${source.provenance?.dateType ?? ''}:${source.provenance?.date ?? ''}`} source={source} />
             ))}
           </ul>
         ) : (

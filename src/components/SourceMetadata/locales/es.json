@@ -1,0 +1,14 @@
+{
+  "provider": "Entidad responsable",
+  "unknownProvider": "No consta",
+  "imported": "Última importación",
+  "retrieved": "Recuperación",
+  "consulted": "Consulta",
+  "date": "Fecha",
+  "unknownDate": "Fecha o versión no disponible",
+  "version": "Versión",
+  "inventory": "Inventario",
+  "editorial": "Información botánica",
+  "image": "Imagen",
+  "inventoryAttribution": "Fuente de los datos: {provider} – Dades Obertes. Campos normalizados por Nature MAPS."
+}

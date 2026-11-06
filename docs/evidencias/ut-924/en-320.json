@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-11-05T17:43:51.053Z",
+  "apiSimulated": false,
+  "width": 320,
+  "species": "Phoenix canariensis",
+  "language": "en",
+  "sourceCards": [
+    {
+      "text": "Arbolado — Arbratge\n\nData source: Ajuntament de València – Dades Obertes. Fields normalized by Nature MAPS.\n\nInventory\n\nResponsible entity: Ajuntament de València\n\nLatest import: Oct 31, 2026\n\nhttps://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado",
+      "date": "2026-10-31T18:43:15.147Z",
+      "href": "https://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado"
+    },
+    {
+      "text": "Wikipedia\n\nCreative Commons Attribution-Share Alike 4.0\n\nBotanical information\n\nResponsible entity: Wikimedia Foundation\n\nRetrieval: Oct 27, 2026\n\nhttps://en.wikipedia.org/wiki/Phoenix_canariensis",
+      "date": "2026-10-27T19:37:05.401Z",
+      "href": "https://en.wikipedia.org/wiki/Phoenix_canariensis"
+    },
+    {
+      "text": "Wikimedia Commons\n\nFrank Vincentz — CC BY-SA 3.0\n\nImage\n\nResponsible entity: Wikimedia Foundation\n\nRetrieval: Oct 27, 2026\n\nhttps://commons.wikimedia.org/wiki/File:Phoenix_canariensis_(Puntallana)_01.jpg",
+      "date": "2026-10-27T19:37:05.401Z",
+      "href": "https://commons.wikimedia.org/wiki/File:Phoenix_canariensis_(Puntallana)_01.jpg"
+    }
+  ],
+  "frameWidth": 320,
+  "frameScrollWidth": 320,
+  "pageWidth": 320,
+  "pageScrollWidth": 320,
+  "linkFocused": true,
+  "linkHeight": 60.890625,
+  "href": "https://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado",
+  "target": "_blank",
+  "rel": "noopener noreferrer",
+  "newTabUrl": "https://opendata.vlci.valencia.es/es/dataset/arbratge-arbolado",
+  "runtimeErrors": []
+}

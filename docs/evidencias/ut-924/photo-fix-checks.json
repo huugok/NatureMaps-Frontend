@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-05",
+  "build": "passed",
+  "lint": "passed",
+  "tests": { "passed": 198, "failed": 0 },
+  "browserWidths": [320, 402],
+  "apiSimulated": false,
+  "commonName": "Palmera Canària",
+  "captionFullyVisible": true,
+  "captionOverlapsContent": false,
+  "sharedDatabaseWrites": false
+}
