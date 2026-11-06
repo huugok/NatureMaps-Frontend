@@ -8,11 +8,12 @@ import { LocationPermissionPrompt, useLocationPermission } from '../../component
 import { formatDistance } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
+import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
+import type { GroupArea } from '../../services/plantGroups';
 import type { Mode } from '../../types';
 import type { PlantPin } from '../../types/plant';
+import { useSearchParams } from 'react-router-dom';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
-import { groupNearbyPlants, metersBetween } from './plantGroups';
-import type { GroupArea } from './plantGroups';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const LOCATION_COLOR = '#3b7ddd';
@@ -56,6 +57,9 @@ const NEARBY_RADIUS_AVENTURA = 1000;
 // Refresco de plantas cercanas: si el usuario se ha movido menos que esto
 // desde la última consulta, la lista anterior sigue siendo válida.
 const NEARBY_REFRESH_METERS = 200;
+// Círculo mínimo pintado al ir a un ejemplar suelto («Ver en el mapa»), para
+// que el punto sea localizable a simple vista.
+const FOCUS_RADIUS_METERS = 30;
 
 /** Radio efectivo de cercanas según el modo: aventura fijo, resto el deslizador. */
 function effectiveNearbyRadius(mode: Mode | null, sliderRadius: number): number {
@@ -73,6 +77,7 @@ function escapeHtml(value: string): string {
  */
 export function MapPage() {
   const { t, lang, mode } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -82,6 +87,8 @@ export function MapPage() {
   const groupAreaRef = useRef<L.Circle | null>(null);
   const selectedGroupIdRef = useRef<number | null>(null);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
+  // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
+  const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
   const followUserRef = useRef(true);
   const keepBothVisibleRef = useRef(false);
@@ -90,6 +97,7 @@ export function MapPage() {
   const [searchError, setSearchError] = useState('');
   const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
   const [plantsFailed, setPlantsFailed] = useState(false);
+  const [focusFailed, setFocusFailed] = useState(false);
   const lastNominatimSearchAt = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
 
@@ -146,6 +154,7 @@ export function MapPage() {
               latitude: plant.latitude,
               longitude: plant.longitude,
               identified: plant.speciesId !== null,
+              speciesId: plant.speciesId,
               distance: plant.distance,
             })));
           }
@@ -308,6 +317,20 @@ export function MapPage() {
     selectedGroupIdRef.current = null;
   }, []);
 
+  /** Pinta un círculo de área (paleta en index.css) y encuadra el mapa para
+   * verlo entero. Lo comparten los grupos y el «Ver en el mapa» de la ficha. */
+  const paintArea = useCallback((center: Coordinates, radius: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    clearGroupArea();
+    groupAreaRef.current = L.circle([center.latitude, center.longitude], {
+      radius,
+      className: 'plant-group-area',
+      interactive: false,
+    }).addTo(map);
+    map.fitBounds(groupAreaRef.current.getBounds(), { padding: [48, 48], maxZoom: 17 });
+  }, [clearGroupArea]);
+
   // Capa de marcadores de plantas (render de la UT 908): se reconstruye cuando
   // llegan datos nuevos, cambia el idioma o se pasa de globales a cercanas.
   // Con distancia conocida (vía cercanas), cada marcador lleva su popup con
@@ -323,6 +346,7 @@ export function MapPage() {
     clearGroupArea();
     if (!plants || plants.length === 0) {
       groupAreasRef.current = new Map();
+      memberAreasRef.current = new Map();
       return;
     }
     const popupFor = (pin: PlantPin) => {
@@ -334,11 +358,13 @@ export function MapPage() {
     };
     if (!hasPosition) {
       groupAreasRef.current = new Map();
+      memberAreasRef.current = new Map();
       plantsLayerRef.current = addPlantMarkers(map, plants, popupFor);
       return;
     }
-    const { pins, areasById } = groupNearbyPlants(plants);
+    const { pins, areasById, areaByMemberId } = groupNearbyPlants(plants);
     groupAreasRef.current = areasById;
+    memberAreasRef.current = areaByMemberId;
     const selectGroup = (pin: PlantPin) => {
       const area = groupAreasRef.current.get(pin.id);
       if (!area) return;
@@ -346,16 +372,35 @@ export function MapPage() {
       clearGroupArea();
       if (wasSelected) return;
       selectedGroupIdRef.current = pin.id;
-      // Círculo que cubre a todos los miembros, con la paleta en index.css.
-      groupAreaRef.current = L.circle([area.center.latitude, area.center.longitude], {
-        radius: area.radius,
-        className: 'plant-group-area',
-        interactive: false,
-      }).addTo(map);
-      map.fitBounds(groupAreaRef.current.getBounds(), { padding: [48, 48] });
+      paintArea(area.center, area.radius);
     };
     plantsLayerRef.current = addPlantMarkers(map, pins, popupFor, selectGroup);
-  }, [plants, lang, hasPosition, clearGroupArea, t]);
+  }, [plants, lang, hasPosition, clearGroupArea, paintArea, t]);
+
+  // «Ver en el mapa» (ficha, RF3): centra el ejemplar más cercano de la especie
+  // pedida por parámetro y pinta su área; si no hay ninguno dentro del radio
+  // del modo, avisa. Un solo uso: el parámetro se limpia al atenderlo, y se
+  // espera a tener posición y plantas cercanas cargadas.
+  useEffect(() => {
+    const verRaw = searchParams.get('verEspecie');
+    if (verRaw === null || !/^\d+$/.test(verRaw)) return;
+    if (!hasPosition || plants === null) return;
+    setSearchParams({}, { replace: true });
+    const candidates = plants.filter((pin) => pin.speciesId === Number(verRaw));
+    if (candidates.length === 0) {
+      setFocusFailed(true);
+      return;
+    }
+    setFocusFailed(false);
+    const nearest = candidates.reduce((a, b) =>
+      (b.distance ?? Number.POSITIVE_INFINITY) < (a.distance ?? Number.POSITIVE_INFINITY) ? b : a,
+    );
+    const area = memberAreasRef.current.get(nearest.id);
+    paintArea(
+      area?.center ?? { latitude: nearest.latitude, longitude: nearest.longitude },
+      area?.radius ?? FOCUS_RADIUS_METERS,
+    );
+  }, [searchParams, plants, hasPosition, setSearchParams, paintArea]);
 
   // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.
   useEffect(() => {
@@ -591,9 +636,11 @@ export function MapPage() {
             </div>
           )}
 
-          {plantsFailed && (
+          {(plantsFailed || focusFailed) && (
             <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">
-              {t('map.plantsError')}
+              {plantsFailed
+                ? t('map.plantsError')
+                : t('map.noNearbySpecies', { radius: formatDistance(effectiveNearbyRadius(mode, radius), lang) })}
             </p>
           )}
         </div>

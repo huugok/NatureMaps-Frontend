@@ -39,8 +39,9 @@ export interface FichaPlantaPageProps {
   total?: number;
   /** Callback al pulsar el botón de volver. */
   onBack?: () => void;
-  /** Callback al pulsar "Ver en el mapa". */
-  onViewOnMap?: () => void;
+  /** Callback al pulsar "Ver en el mapa": recibe el id de especie del catálogo
+   * (ausente en fichas de solo identificación, sin instancias que buscar). */
+  onViewOnMap?: (speciesId?: number) => void;
   /** Callback al marcar o desmarcar la especie como favorita. */
   onToggleFavorite?: () => void;
   /** Callback al pulsar "Anterior": ausente cuando no hay especie previa. */
@@ -127,7 +128,7 @@ export function FichaPlantaPage({
   };
 
   const handleViewOnMap = () => {
-    onViewOnMap?.();
+    onViewOnMap?.(species.id);
   };
 
   return (
@@ -341,17 +342,21 @@ export function FichaPlantaPage({
 
       {/* El botón va al final de la ficha, no fijo: así nunca tapa el contenido
           (la última fuente, la descripción…). El relleno inferior de la tarjeta
-          lo deja por encima de la barra de navegación al final del scroll. */}
-      <div className="mt-auto border-t border-line bg-surface px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
-        <button
-          type="button"
-          onClick={handleViewOnMap}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-accent px-4 py-3 text-body font-semibold text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-        >
-          <MapPin size={18} aria-hidden="true" />
-          {t('ficha.viewOnMap')}
-        </button>
-      </div>
+          lo deja por encima de la barra de navegación al final del scroll.
+          Solo con especie de catálogo: una ficha de solo identificación no tiene
+          ejemplares en el inventario que buscar. */}
+      {species.id !== undefined && (
+        <div className="mt-auto border-t border-line bg-surface px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
+          <button
+            type="button"
+            onClick={handleViewOnMap}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-card bg-accent px-4 py-3 text-body font-semibold text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            <MapPin size={18} aria-hidden="true" />
+            {t('ficha.viewOnMap')}
+          </button>
+        </div>
+      )}
     </article>
   );
 }

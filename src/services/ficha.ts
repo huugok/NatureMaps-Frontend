@@ -196,6 +196,7 @@ function fuentePintable(fuente: FichaSource): FichaFuente {
 export function fichaDesdeItemLista(item: FichaListItem, language: Language): FichaEspecie {
   const commonName = commonNameFor(item.names, language) ?? item.scientificName;
   return {
+    id: item.id,
     commonName,
     scientificName: item.scientificName,
     family: item.profile?.family ?? undefined,

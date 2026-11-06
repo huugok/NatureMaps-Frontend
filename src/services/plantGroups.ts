@@ -1,4 +1,4 @@
-import type { PlantPin } from '../../types/plant';
+import type { PlantPin } from '../types/plant';
 
 /**
  * Agrupación de plantas cercanas del mismo tipo (RF2). El inventario urbano
@@ -40,6 +40,26 @@ export interface GroupedPlants {
   pins: PlantPin[];
   /** Área de cada grupo, indexada por el id del pin que lo representa. */
   areasById: Map<number, GroupArea>;
+  /** Área de cada grupo indexada por el id de CUALQUIER miembro: así «Ver en
+   * el mapa» (ficha) encuentra el área del grupo aunque el ejemplar más
+   * cercano no sea el que representa al grupo. */
+  areaByMemberId: Map<number, GroupArea>;
+}
+
+/** Agrupa una lista ORDENADA por distancia (como la devuelve el backend en
+ * `/trees/nearby`) por nombre mostrado, conservando el orden de primera
+ * aparición: la primera especie del resultado es la más cercana. La usan el
+ * mapa y Buscar (desplegables por especie). */
+export function groupBySpecies<T extends { displayName: string }>(
+  plants: T[],
+): Array<{ name: string; specimens: T[] }> {
+  const byName = new Map<string, T[]>();
+  for (const plant of plants) {
+    const bucket = byName.get(plant.displayName);
+    if (bucket) bucket.push(plant);
+    else byName.set(plant.displayName, [plant]);
+  }
+  return Array.from(byName, ([name, specimens]) => ({ name, specimens }));
 }
 
 /** Agrupa las plantas cercanas por tipo (su nombre mostrado) y proximidad.
@@ -57,6 +77,7 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
 
   const markers: PlantPin[] = [];
   const areasById = new Map<number, GroupArea>();
+  const areaByMemberId = new Map<number, GroupArea>();
   for (const members of byType.values()) {
     if (members.length === 1) {
       markers.push(members[0]);
@@ -98,14 +119,16 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
         count: cluster.length,
       };
       markers.push(group);
-      areasById.set(group.id, {
+      const area: GroupArea = {
         center,
         radius: Math.max(
           GROUP_AREA_MIN_METERS,
           Math.max(...cluster.map((member) => metersBetween(center, member))) * GROUP_AREA_PADDING,
         ),
-      });
+      };
+      areasById.set(group.id, area);
+      for (const member of cluster) areaByMemberId.set(member.id, area);
     }
   }
-  return { pins: markers, areasById };
+  return { pins: markers, areasById, areaByMemberId };
 }

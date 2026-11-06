@@ -39,6 +39,7 @@ export async function fetchPlantPins(lang: Language, signal?: AbortSignal): Prom
         latitude: tree.latitude,
         longitude: tree.longitude,
         identified: tree.speciesId !== null,
+        speciesId: tree.speciesId,
       });
     }
     offset = page.nextOffset;

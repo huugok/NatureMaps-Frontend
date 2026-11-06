@@ -10,6 +10,8 @@ export interface PlantPin {
   longitude: number;
   /** true si el inventario asocia la planta a una especie conocida. */
   identified: boolean;
+  /** Id de la especie en el catálogo, si la planta está identificada. */
+  speciesId?: number | null;
   /** Distancia en línea recta al usuario, en metros. Solo vía cercanas (RF2). */
   distance?: number;
   /** Plantas del mismo tipo agrupadas tras este marcador (>1: grupo, RF2). */

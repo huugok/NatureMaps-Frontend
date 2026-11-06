@@ -53,6 +53,7 @@ const es = {
   'map.centerTitle': 'Centrar en mi ubicación',
   'map.plantsError': 'No se pudieron cargar las plantas del mapa.',
   'map.plantGroup': '{n} ejemplares',
+  'map.noNearbySpecies': 'No hay ejemplares de esta especie en tu área de búsqueda ({radius}).',
   'map.placeAlt': 'Lugar buscado: {name}',
 
   'search.title': 'Buscar',
@@ -278,6 +279,7 @@ const va: Dict = {
   'map.centerTitle': 'Centrar en la meua ubicació',
   'map.plantsError': 'No s\'han pogut carregar les plantes del mapa.',
   'map.plantGroup': '{n} exemplars',
+  'map.noNearbySpecies': 'No hi ha exemplars d\'aquesta espècie a la teua àrea de cerca ({radius}).',
   'map.placeAlt': 'Lloc buscat: {name}',
 
   'search.title': 'Buscar',
@@ -500,6 +502,7 @@ const en: Dict = {
   'map.centerTitle': 'Centre on my location',
   'map.plantsError': 'Could not load the plants on the map.',
   'map.plantGroup': '{n} specimens',
+  'map.noNearbySpecies': 'There are no specimens of this species in your search area ({radius}).',
   'map.placeAlt': 'Searched place: {name}',
 
   'search.title': 'Search',

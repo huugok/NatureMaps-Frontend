@@ -24,6 +24,8 @@ export interface FichaUbicacion {
 }
 
 export interface FichaEspecie {
+  /** Id de la especie en el catálogo; ausente en fichas de solo identificación. */
+  id?: number;
   /** Nombre común en el idioma de la ficha. */
   commonName: string;
   /** Nombre binomial sin autoría. */
