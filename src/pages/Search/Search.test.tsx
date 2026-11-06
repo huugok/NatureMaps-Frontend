@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { Search } from './Search'
@@ -7,6 +7,7 @@ describe('Search', () => {
   afterEach(() => {
     delete (navigator as unknown as { geolocation?: unknown }).geolocation;
     delete (navigator as unknown as { permissions?: unknown }).permissions;
+    localStorage.clear();
     vi.unstubAllGlobals();
   })
 
@@ -78,5 +79,41 @@ describe('Search', () => {
     const specimenItems = almezRow!.parentElement!.querySelectorAll('ul > li')
     expect(specimenItems).toHaveLength(2)
     expect(screen.getByText('260 m')).toBeInTheDocument()
+  })
+
+  it('en modo aventura usa el radio fijo de 1000 m aunque el deslizador esté a 5000', async () => {
+    localStorage.setItem('naturemaps:prefs', JSON.stringify({ mode: 'aventura' }))
+    localStorage.setItem('naturemaps:radius', '5000')
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: async () => ({ state: 'granted' }) },
+    })
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success: (position: unknown) => void) => {
+          success({ coords: { latitude: 39.47, longitude: -0.37, accuracy: 10 } })
+        },
+      },
+    })
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        center: { latitude: 39.47, longitude: -0.37 },
+        radius: 1000,
+        returned: 0,
+        limit: 100,
+        language: 'es',
+        trees: [],
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderWithProviders(<Search />)
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    const url = String(fetchMock.mock.calls[0][0])
+    expect(url).toContain('radius=1000')
+    expect(url).toContain('limit=100')
   })
 })

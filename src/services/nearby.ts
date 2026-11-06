@@ -1,4 +1,5 @@
 import { apiGet } from './api';
+import type { Mode } from '../types';
 
 // Plantas cercanas al usuario (GET /trees/nearby del backend).
 // El backend devuelve `distance` en metros (línea recta) y ordena de más
@@ -8,6 +9,7 @@ export interface NearbyPlant {
   id: number;
   speciesId: number | null;
   scientificName: string | null;
+  reportedScientificName?: string | null;
   commonName: string | null;
   displayName: string;
   latitude: number;
@@ -29,10 +31,16 @@ export interface NearbyResponse {
 // localStorage para no tocar `naturemaps:prefs`, que solo guarda el modo.
 const RADIUS_KEY = 'naturemaps:radius';
 
-export const DEFAULT_NEARBY_RADIUS = 1000;
+export const NEARBY_RADIUS_AVENTURA = 1000;
+export const DEFAULT_NEARBY_RADIUS = NEARBY_RADIUS_AVENTURA;
 export const NEARBY_RADIUS_MIN = 100;
 export const NEARBY_RADIUS_MAX = 10000;
 export const NEARBY_RADIUS_STEP = 100;
+
+/** Radio de cercanas según el modo: aventura fijo, resto el del deslizador. */
+export function effectiveNearbyRadius(mode: Mode | null, sliderRadius: number): number {
+  return mode === 'aventura' ? NEARBY_RADIUS_AVENTURA : sliderRadius;
+}
 
 /** Radio guardado por el usuario (recortado y alineado al paso), en metros. */
 export function readNearbyRadius(): number {

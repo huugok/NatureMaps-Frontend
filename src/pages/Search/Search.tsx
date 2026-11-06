@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Input } from '../../components/ui/Input'
 import { useApp } from '../../context/useApp'
 import { formatDistance } from '../../i18n/format'
-import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby'
+import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius } from '../../services/nearby'
 import type { NearbyPlant } from '../../services/nearby'
 import { groupBySpecies } from '../../services/plantGroups'
 
@@ -17,7 +17,7 @@ import { groupBySpecies } from '../../services/plantGroups'
  * (`GET /trees/nearby`), ordenadas por distancia y con el radio de Ajustes.
  */
 export function Search() {
-  const { t, lang } = useApp()
+  const { t, lang, mode } = useApp()
   const [query, setQuery] = useState('')
   const { status, position, allow, deny, retry } = useLocationPermission()
   const [plants, setPlants] = useState<NearbyPlant[] | null>(null)
@@ -25,8 +25,9 @@ export function Search() {
   useEffect(() => {
     if (status !== 'granted' || !position) return
     const controller = new AbortController()
-    // Misma regla de tres que el mapa: 100 plantas por cada 1000 m de radio.
-    const nearbyRadius = readNearbyRadius()
+    // Misma regla de tres y mismo radio por modo que el mapa: aventura fijo,
+    // resto el deslizador (100 plantas por cada 1000 m).
+    const nearbyRadius = effectiveNearbyRadius(mode, readNearbyRadius())
     fetchNearbyTrees(
       {
         latitude: position.latitude,
@@ -44,7 +45,7 @@ export function Search() {
         if (!controller.signal.aborted) setPlants(null)
       })
     return () => controller.abort()
-  }, [status, position, lang])
+  }, [status, position, lang, mode])
 
   // Mismo flujo que el mapa: primero el aviso de permiso, pantalla completa.
   if (status === 'prompt') {
