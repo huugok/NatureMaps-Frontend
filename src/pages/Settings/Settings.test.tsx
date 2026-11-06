@@ -50,7 +50,7 @@ describe('Settings', () => {
     vi.mocked(checkHealth).mockResolvedValue(true)
     renderWithProviders(<Settings language="es" onBack={onBack} />)
 
-    const slider = screen.getByLabelText('Radio para mostrar plantas cercanas')
+    const slider = screen.getByLabelText('Radio para mostrar plantas cercanas (excepto en modo aventura)')
     expect(slider).toHaveValue('1000')
     expect(screen.getByText('1 km')).toBeInTheDocument()
 
@@ -65,7 +65,7 @@ describe('Settings', () => {
     vi.mocked(checkHealth).mockResolvedValue(true)
     renderWithProviders(<Settings language="es" onBack={onBack} />)
 
-    expect(screen.getByLabelText('Radio para mostrar plantas cercanas')).toHaveValue('700')
+    expect(screen.getByLabelText('Radio para mostrar plantas cercanas (excepto en modo aventura)')).toHaveValue('700')
     expect(screen.getByText('700 m')).toBeInTheDocument()
     await screen.findByText('Conectado')
   })
