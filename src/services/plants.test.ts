@@ -21,8 +21,8 @@ describe('fetchPlantPins', () => {
     const pins = await fetchPlantPins('es');
 
     expect(pins).toEqual([
-      { id: 1, displayName: 'Planta 1', latitude: 39.47, longitude: -0.37, identified: true },
-      { id: 2, displayName: 'Planta 2', latitude: 39.47, longitude: -0.37, identified: false },
+      { id: 1, displayName: 'Planta 1', latitude: 39.47, longitude: -0.37, identified: true, speciesId: 7 },
+      { id: 2, displayName: 'Planta 2', latitude: 39.47, longitude: -0.37, identified: false, speciesId: null },
     ]);
   });
 

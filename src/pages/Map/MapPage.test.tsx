@@ -1,11 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+
+vi.setConfig({ testTimeout: 15000 });
 import '@testing-library/jest-dom/vitest';
 import { AppContext } from '../../context/state';
 import type { AppState } from '../../context/state';
 import { dictionaries } from '../../i18n/strings';
 import type { Mode } from '../../types';
 import { MapPage } from './MapPage';
+
+/** MapPage usa useSearchParams («Ver en el mapa»): todo render lleva router. */
+function renderMap(ui: React.ReactNode = <MapPage />, route = '/mapa') {
+  return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);
+}
 
 /** Estado de contexto mínimo con el modo fijado para probar reacciones al modo. */
 function appStateWith(mode: Mode | null): AppState {
@@ -128,7 +136,7 @@ describe('MapPage', () => {
       return 7;
     });
 
-    render(<MapPage />);
+    renderMap();
 
     expect(leaflet.mapFactory).toHaveBeenCalledWith(expect.any(HTMLDivElement), expect.objectContaining({
       center: [39.4699, -0.3763],
@@ -142,7 +150,7 @@ describe('MapPage', () => {
   });
 
   it('519-1: muestra el mapa y libera el recurso al desmontarse', () => {
-    const { unmount } = render(<MapPage />);
+    const { unmount } = renderMap();
 
     expect(screen.getByRole('textbox', { name: 'Buscar sitios en el mapa' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Centrar el mapa en mi ubicación' })).toBeInTheDocument();
@@ -155,7 +163,7 @@ describe('MapPage', () => {
   });
 
   it('520-3: añade el marcador y el radio de precisión y centra el mapa en la ubicación recibida', () => {
-    render(<MapPage />);
+    renderMap();
     const onPosition = geo.watchPosition.mock.calls[0][0];
     onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
 
@@ -169,7 +177,7 @@ describe('MapPage', () => {
   });
 
   it('permite buscar un lugar y anuncia cuando no hay resultados', async () => {
-    render(<MapPage />);
+    renderMap();
     fireEvent.change(screen.getByRole('textbox', { name: 'Buscar sitios en el mapa' }), { target: { value: 'Xàtiva' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
@@ -191,7 +199,7 @@ describe('MapPage', () => {
         : [],
     })) as unknown as typeof fetch);
 
-    render(<MapPage />);
+    renderMap();
 
     await waitFor(() => expect(leaflet.layerGroupFactory).toHaveBeenCalledOnce());
     expect(leaflet.markerFactory).toHaveBeenCalledWith([39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo', alt: 'Naranjo amargo' }));
@@ -206,7 +214,7 @@ describe('MapPage', () => {
 
   it('908: avisa si no se pueden cargar las plantas y mantiene el mapa', async () => {
     vi.mocked(fetch).mockRejectedValue(new Error('network'));
-    render(<MapPage />);
+    renderMap();
 
     expect(await screen.findByRole('status')).toHaveTextContent('No se pudieron cargar las plantas del mapa.');
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
@@ -221,7 +229,7 @@ describe('MapPage', () => {
       success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
     });
 
-    render(<MapPage />);
+    renderMap();
 
     expect(await screen.findByRole('button', { name: 'Permitir ubicación' })).toBeInTheDocument();
     expect(geo.watchPosition).not.toHaveBeenCalled();
@@ -238,7 +246,7 @@ describe('MapPage', () => {
       value: { query: vi.fn(async () => ({ state: 'denied' })) },
     });
 
-    render(<MapPage />);
+    renderMap();
 
     expect(await screen.findByRole('button', { name: 'Volver a pedir la ubicación' })).toBeInTheDocument();
     expect(geo.watchPosition).not.toHaveBeenCalled();
@@ -274,7 +282,7 @@ describe('MapPage', () => {
           : [],
     })) as unknown as typeof fetch);
 
-    render(<MapPage />);
+    renderMap();
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
     onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
@@ -329,7 +337,7 @@ describe('MapPage', () => {
           : [],
     })) as unknown as typeof fetch);
 
-    render(<MapPage />);
+    renderMap();
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
     onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
@@ -370,7 +378,7 @@ describe('MapPage', () => {
 
     const esencial = appStateWith('esencial');
     const aventura = appStateWith('aventura');
-    const view = render(
+    const view = renderMap(
       <AppContext.Provider value={esencial}>
         <MapPage />
       </AppContext.Provider>,
@@ -384,19 +392,115 @@ describe('MapPage', () => {
 
     // Al pasar a aventura el área pasa al radio fijo y vuelve al salir del modo.
     view.rerender(
-      <AppContext.Provider value={aventura}>
-        <MapPage />
-      </AppContext.Provider>,
+      <MemoryRouter initialEntries={['/mapa']}>
+        <AppContext.Provider value={aventura}>
+          <MapPage />
+        </AppContext.Provider>
+      </MemoryRouter>,
     );
     expect(leaflet.circle.setRadius).toHaveBeenCalledWith(1000);
     view.rerender(
-      <AppContext.Provider value={esencial}>
-        <MapPage />
-      </AppContext.Provider>,
+      <MemoryRouter initialEntries={['/mapa']}>
+        <AppContext.Provider value={esencial}>
+          <MapPage />
+        </AppContext.Provider>
+      </MemoryRouter>,
     );
     expect(leaflet.circle.setRadius).toHaveBeenCalledWith(5000);
 
     localStorage.removeItem('naturemaps:radius');
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('«Ver en el mapa»: centra el ejemplar más cercano de la especie y pinta su área', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    // Dos Plátanos de sombra (specie 3) vecinos —el más cercano NO es el primero
+    // del grupo— y una Morera (specie 4) que no debe recibir el foco.
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees/nearby')
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 },
+            radius: 1000,
+            returned: 3,
+            limit: 100,
+            language: 'es',
+            trees: [
+              {
+                id: 7, speciesId: 3, scientificName: 'Platanus hispanica', commonName: 'Plátano de sombra',
+                displayName: 'Plátano de sombra', latitude: 39.4795, longitude: -0.3795, distance: 300,
+              },
+              {
+                id: 8, speciesId: 3, scientificName: 'Platanus hispanica', commonName: 'Plátano de sombra',
+                displayName: 'Plátano de sombra', latitude: 39.4797, longitude: -0.3795, distance: 150,
+              },
+              {
+                id: 9, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
+                displayName: 'Morera', latitude: 39.4801, longitude: -0.3801, distance: 50,
+              },
+            ],
+          }
+        : { nextOffset: null, trees: [] },
+    })) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verEspecie=3');
+
+    // El área pintada cubre al grupo (no el círculo mínimo) y el mapa encuadra.
+    await waitFor(() => expect(leaflet.map.fitBounds).toHaveBeenCalled());
+    const areaCall = (leaflet.circleFactory.mock.calls as unknown as Array<[unknown, { className?: string }]>)
+      .find(([, options]) => options.className === 'plant-group-area');
+    expect(areaCall).toBeDefined();
+    expect(leaflet.circle.setRadius).not.toHaveBeenCalledWith(30);
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('«Ver en el mapa»: avisa si la especie no tiene ejemplares en el área', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees/nearby')
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 },
+            radius: 1000,
+            returned: 1,
+            limit: 100,
+            language: 'es',
+            trees: [{
+              id: 9, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
+              displayName: 'Morera', latitude: 39.4801, longitude: -0.3801, distance: 50,
+            }],
+          }
+        : { nextOffset: null, trees: [] },
+    })) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verEspecie=3');
+
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    await act(async () => {
+      onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+      for (let i = 0; i < 10; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    });
+
+    // No se pinta área para una especie sin ejemplares en el área.
+    expect(leaflet.circleFactory).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ className: 'plant-group-area' }),
+    );
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 });

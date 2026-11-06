@@ -22,7 +22,7 @@ describe('Search', () => {
     expect(await screen.findByRole('button', { name: 'Activar ubicación' })).toBeInTheDocument()
   })
 
-  it('lista las plantas cercanas ordenadas por distancia y con formato por idioma', async () => {
+  it('agrupa las plantas cercanas por especie en desplegables con su distancia', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: async () => ({ state: 'granted' }) },
@@ -40,7 +40,7 @@ describe('Search', () => {
       json: async () => ({
         center: { latitude: 39.47, longitude: -0.37 },
         radius: 1000,
-        returned: 2,
+        returned: 3,
         limit: 100,
         language: 'es',
         trees: [
@@ -49,7 +49,11 @@ describe('Search', () => {
             displayName: 'Almez', latitude: 39.47, longitude: -0.37, distance: 250,
           },
           {
-            id: 2, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
+            id: 2, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
+            displayName: 'Almez', latitude: 39.47, longitude: -0.37, distance: 260,
+          },
+          {
+            id: 3, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
             displayName: 'Morera', latitude: 39.47, longitude: -0.37, distance: 2500,
           },
         ],
@@ -59,10 +63,20 @@ describe('Search', () => {
     renderWithProviders(<Search />)
 
     expect(await screen.findByRole('heading', { name: 'Cerca de ti' })).toBeInTheDocument()
-    const items = screen.getAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('Almez')
-    expect(items[0]).toHaveTextContent('250 m')
-    expect(items[1]).toHaveTextContent('Morera')
-    expect(items[1]).toHaveTextContent('2,5 km')
+
+    // Una fila desplegable por especie, la más cercana primero, con recuento
+    // de ejemplares y la distancia del más próximo.
+    const almezRow = screen.getByText('Almez').closest('summary')
+    expect(almezRow).toHaveTextContent('2')
+    expect(almezRow).toHaveTextContent('250 m')
+    const moreraRow = screen.getByText('Morera').closest('summary')
+    expect(moreraRow).toHaveTextContent('2,5 km')
+
+    // Al abrir el desplegable se listan los ejemplares con su distancia.
+    fireEvent.click(almezRow!)
+    expect(almezRow!.parentElement).toHaveAttribute('open')
+    const specimenItems = almezRow!.parentElement!.querySelectorAll('ul > li')
+    expect(specimenItems).toHaveLength(2)
+    expect(screen.getByText('260 m')).toBeInTheDocument()
   })
 })

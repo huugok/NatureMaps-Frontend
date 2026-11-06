@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { groupNearbyPlants, metersBetween } from './plantGroups';
-import type { PlantPin } from '../../types/plant';
+import type { PlantPin } from '../types/plant';
 
 function pin(id: number, latitude: number, longitude: number, extra: Partial<PlantPin> = {}): PlantPin {
   return { id, displayName: 'Plátano de sombra', latitude, longitude, identified: true, distance: 10, ...extra };
