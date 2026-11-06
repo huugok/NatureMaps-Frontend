@@ -357,8 +357,10 @@ export default function App() {
           </Routes>
         </div>
 
+        {/* Por encima de los panes de Leaflet (marcadores 600, popups 700,
+            controles 1000): con un z-index menor el mapa tapa la ficha. */}
         {ficha !== null && (
-          <div className="absolute inset-0 z-[70] overflow-y-auto overscroll-contain bg-surface-2">
+          <div className="absolute inset-0 z-[1200] overflow-y-auto overscroll-contain bg-surface-2">
             <FichaPlantaPage
               species={ficha.species}
               identification={ficha.identification}
