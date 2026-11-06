@@ -210,9 +210,11 @@ export default function App() {
       });
   };
 
-  const handleViewOnMap = () => {
+  /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
+   * mapa que centre su ejemplar más cercano (parámetro de un solo uso). */
+  const handleViewOnMap = (speciesId?: number) => {
     setFicha(null);
-    navigate('/mapa');
+    navigate(speciesId === undefined ? '/mapa' : `/mapa?verEspecie=${speciesId}`);
   };
 
   return (

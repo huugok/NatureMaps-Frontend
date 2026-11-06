@@ -146,7 +146,7 @@ describe('FichaPlantaPage conectada a la API (RF3)', () => {
     const onBack = vi.fn();
     const onViewOnMap = vi.fn();
     const onToggleFavorite = vi.fn();
-    renderFicha({ onBack, onViewOnMap, onToggleFavorite });
+    renderFicha({ species: { ...especie, id: 1 }, onBack, onViewOnMap, onToggleFavorite });
 
     fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
     fireEvent.click(screen.getByRole('button', { name: /ver en el mapa/i }));
@@ -267,7 +267,7 @@ describe('FichaPlantaPage con la especie de la demo', () => {
 
   it('el botón "Ver en el mapa" avisa', () => {
     const onViewOnMap = vi.fn();
-    renderDemo({ onViewOnMap });
+    renderDemo({ species: { ...DEMO_SPECIES[0], id: 1 }, onViewOnMap });
 
     fireEvent.click(screen.getByRole('button', { name: /ver en el mapa/i }));
 

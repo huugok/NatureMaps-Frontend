@@ -23,7 +23,7 @@ export interface FichaRouteProps {
   onRetryDetail: () => void;
   onPrevious?: (() => void) | undefined;
   onNext?: (() => void) | undefined;
-  onViewOnMap: () => void;
+  onViewOnMap: (speciesId?: number) => void;
 }
 
 function FichaEstado({ mensaje }: { mensaje: string }) {
