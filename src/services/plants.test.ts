@@ -1,8 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAX_PLANTS, fetchPlantPins } from './plants';
 
-function tree(id: number, speciesId: number | null = 1) {
-  return { id, speciesId, displayName: `Planta ${id}`, latitude: 39.47, longitude: -0.37 };
+function tree(id: number, speciesId: number | null = 1, scientificName: string | null = `Species ${id}`) {
+  return {
+    id,
+    speciesId,
+    displayName: `Planta ${id}`,
+    scientificName,
+    reportedScientificName: null as string | null,
+    latitude: 39.47,
+    longitude: -0.37,
+  };
 }
 
 function respond(pages: Array<{ nextOffset: number | null; trees: ReturnType<typeof tree>[] }>) {
@@ -21,9 +29,29 @@ describe('fetchPlantPins', () => {
     const pins = await fetchPlantPins('es');
 
     expect(pins).toEqual([
-      { id: 1, displayName: 'Planta 1', latitude: 39.47, longitude: -0.37, identified: true, speciesId: 7 },
-      { id: 2, displayName: 'Planta 2', latitude: 39.47, longitude: -0.37, identified: false, speciesId: null },
+      {
+        id: 1, displayName: 'Planta 1', scientificName: 'Species 1',
+        latitude: 39.47, longitude: -0.37, identified: true, speciesId: 7,
+      },
+      {
+        id: 2, displayName: 'Planta 2', scientificName: 'Species 2',
+        latitude: 39.47, longitude: -0.37, identified: false, speciesId: null,
+      },
     ]);
+  });
+
+  it('usa el nombre científico reportado cuando la planta no está enlazada', async () => {
+    respond([{
+      nextOffset: null,
+      trees: [{
+        ...tree(3, null, null),
+        reportedScientificName: 'Platanus x hispanica',
+      }],
+    }]);
+
+    const pins = await fetchPlantPins('es');
+
+    expect(pins[0].scientificName).toBe('Platanus x hispanica');
   });
 
   it('pide el valenciano al backend como catalán y recorre las páginas', async () => {

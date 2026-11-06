@@ -29,6 +29,16 @@ describe('groupNearbyPlants', () => {
     expect(area!.radius).toBeGreaterThan(metersBetween(group, { latitude: 39.471, longitude: -0.37 }));
   });
 
+  it('conserva la especie del grupo para poder abrir su ficha (F03.1)', () => {
+    const { pins } = groupNearbyPlants([
+      pin(1, 39.47, -0.37, { speciesId: null }),
+      pin(2, 39.4705, -0.37, { speciesId: 42 }),
+    ]);
+
+    expect(pins).toHaveLength(1);
+    expect(pins[0].speciesId).toBe(42);
+  });
+
   it('no agrupa plantas del mismo tipo separadas más allá del enlace', () => {
     const { pins, areasById } = groupNearbyPlants([pin(1, 39.47, -0.37), pin(2, 39.472, -0.37)]);
 

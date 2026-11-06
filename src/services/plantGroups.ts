@@ -115,6 +115,9 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
         latitude: center.latitude,
         longitude: center.longitude,
         identified: cluster.some((member) => member.identified),
+        // La ficha desde el mapa (F03.1) necesita la especie también en grupos.
+        speciesId: cluster.find((member) => member.speciesId != null)?.speciesId ?? null,
+        scientificName: cluster.find((member) => member.scientificName != null)?.scientificName ?? null,
         distance: Number.isFinite(nearest) ? nearest : undefined,
         count: cluster.length,
       };

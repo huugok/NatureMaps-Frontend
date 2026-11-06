@@ -59,13 +59,14 @@ export function createPlantIcon(pin: PlantPin): L.DivIcon {
 export const PLANT_LABEL_MIN_ZOOM = 16;
 
 /** Dibuja las plantas en una capa propia y devuelve la capa. `popupFor` permite
- * añadir un popup por marcador (vía cercanas: nombre y distancia) y `onSelect`
- * responde al clic sobre un marcador (grupos RF2: pintar su área). */
+ * añadir un popup por marcador (vía cercanas: nombre y distancia) y
+ * `onOpenPlant` responde al toque de un marcador: abre su ficha (F03.1) y, en
+ * los grupos RF2, pinta además el área que ocupan. */
 export function addPlantMarkers(
   map: L.Map,
   pins: PlantPin[],
   popupFor?: (pin: PlantPin) => string | undefined,
-  onSelect?: (pin: PlantPin) => void,
+  onOpenPlant?: (pin: PlantPin) => void,
 ): L.LayerGroup {
   const layer = L.layerGroup();
   for (const pin of pins) {
@@ -76,7 +77,7 @@ export function addPlantMarkers(
     });
     const popup = popupFor?.(pin);
     if (popup) marker.bindPopup(popup, { closeButton: false, autoPan: false });
-    if (onSelect) marker.on('click', () => onSelect(pin));
+    if (onOpenPlant) marker.on('click', () => onOpenPlant(pin));
     marker.addTo(layer);
   }
   return layer.addTo(map);

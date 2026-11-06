@@ -15,6 +15,8 @@ interface TreesResponse {
     id: number;
     speciesId: number | null;
     displayName: string;
+    scientificName: string | null;
+    reportedScientificName: string | null;
     latitude: number;
     longitude: number;
   }>;
@@ -36,6 +38,7 @@ export async function fetchPlantPins(lang: Language, signal?: AbortSignal): Prom
       pins.push({
         id: tree.id,
         displayName: tree.displayName,
+        scientificName: tree.scientificName ?? tree.reportedScientificName,
         latitude: tree.latitude,
         longitude: tree.longitude,
         identified: tree.speciesId !== null,

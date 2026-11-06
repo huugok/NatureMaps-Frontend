@@ -3,6 +3,7 @@ import {
   commonNameFor,
   fichaDesdeDetalle,
   fichaDesdeItemLista,
+  fichaDesdePlanta,
   findSpeciesIndexByScientificName,
   getSpeciesDetail,
   getSpeciesList,
@@ -260,19 +261,54 @@ describe('fichaDesdeItemLista — ficha instantánea desde la fila de la lista',
   });
 });
 
+describe('fichaDesdePlanta — ficha mínima al tocar un punto del mapa', () => {
+  test('conserva la especie y el nombre científico reportado', () => {
+    const ficha = fichaDesdePlanta({
+      id: 7,
+      displayName: 'Plátano de sombra',
+      scientificName: 'Platanus x hispanica',
+      latitude: 39.47,
+      longitude: -0.37,
+      identified: false,
+      speciesId: null,
+    });
+
+    expect(ficha.id).toBeUndefined();
+    expect(ficha.commonName).toBe('Plátano de sombra');
+    expect(ficha.scientificName).toBe('Platanus x hispanica');
+  });
+
+  test('sin nombre científico usa el nombre visible y conserva el id de especie', () => {
+    const ficha = fichaDesdePlanta({
+      id: 7,
+      displayName: 'Almez',
+      latitude: 39.47,
+      longitude: -0.37,
+      identified: true,
+      speciesId: 3,
+    });
+
+    expect(ficha.id).toBe(3);
+    expect(ficha.scientificName).toBe('Almez');
+  });
+});
+
 describe('findSpeciesIndexByScientificName — match de Pl@ntNet contra el catálogo', () => {
   const items: FichaListItem[] = [
     itemLista,
     { ...itemLista, id: 8, scientificName: 'Citrus aurantium', names: [{ name: 'Naranjo amargo', language: 'es' }] },
+    { ...itemLista, id: 9, scientificName: 'Platanus × hispanica', names: [{ name: 'Plátano de sombra', language: 'es' }] },
   ];
 
   test('encuentra la especie por su nombre científico', () => {
     expect(findSpeciesIndexByScientificName(items, 'Jacaranda mimosifolia')).toBe(0);
   });
 
-  test('es inmune a mayúsculas y a la notación de híbrido (×)', () => {
+  test('es inmune a mayúsculas y a la notación de híbrido (× y x)', () => {
     expect(findSpeciesIndexByScientificName(items, 'citrus × aurantium')).toBe(1);
     expect(findSpeciesIndexByScientificName(items, 'Citrus aurantium')).toBe(1);
+    // El inventario de Valencia escribe el híbrido con una «x» latina.
+    expect(findSpeciesIndexByScientificName(items, 'Platanus x hispanica')).toBe(2);
   });
 
   test('devuelve null sin candidato o cuando la especie no está en el catálogo', () => {
