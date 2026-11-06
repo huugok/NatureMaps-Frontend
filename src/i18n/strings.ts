@@ -52,6 +52,7 @@ const es = {
   'map.centerAria': 'Centrar el mapa en mi ubicación',
   'map.centerTitle': 'Centrar en mi ubicación',
   'map.plantsError': 'No se pudieron cargar las plantas del mapa.',
+  'map.plantGroup': '{n} ejemplares',
   'map.placeAlt': 'Lugar buscado: {name}',
 
   'search.title': 'Buscar',
@@ -276,6 +277,7 @@ const va: Dict = {
   'map.centerAria': 'Centrar el mapa en la meua ubicació',
   'map.centerTitle': 'Centrar en la meua ubicació',
   'map.plantsError': 'No s\'han pogut carregar les plantes del mapa.',
+  'map.plantGroup': '{n} exemplars',
   'map.placeAlt': 'Lloc buscat: {name}',
 
   'search.title': 'Buscar',
@@ -497,6 +499,7 @@ const en: Dict = {
   'map.centerAria': 'Centre the map on my location',
   'map.centerTitle': 'Centre on my location',
   'map.plantsError': 'Could not load the plants on the map.',
+  'map.plantGroup': '{n} specimens',
   'map.placeAlt': 'Searched place: {name}',
 
   'search.title': 'Search',

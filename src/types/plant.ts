@@ -12,4 +12,6 @@ export interface PlantPin {
   identified: boolean;
   /** Distancia en línea recta al usuario, en metros. Solo vía cercanas (RF2). */
   distance?: number;
+  /** Plantas del mismo tipo agrupadas tras este marcador (>1: grupo, RF2). */
+  count?: number;
 }

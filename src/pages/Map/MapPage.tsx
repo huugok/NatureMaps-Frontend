@@ -10,6 +10,8 @@ import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
 import type { PlantPin } from '../../types/plant';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
+import { groupNearbyPlants, metersBetween } from './plantGroups';
+import type { GroupArea } from './plantGroups';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const LOCATION_COLOR = '#3b7ddd';
@@ -54,12 +56,6 @@ const NEARBY_RADIUS_AVENTURA = 1000;
 // desde la última consulta, la lista anterior sigue siendo válida.
 const NEARBY_REFRESH_METERS = 200;
 
-function metersBetween(a: Coordinates, b: Coordinates): number {
-  const dLat = (b.latitude - a.latitude) * 111_320;
-  const dLon = (b.longitude - a.longitude) * 111_320 * Math.max(Math.cos((a.latitude * Math.PI) / 180), 0.01);
-  return Math.hypot(dLat, dLon);
-}
-
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
@@ -77,6 +73,9 @@ export function MapPage() {
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
+  const groupAreaRef = useRef<L.Circle | null>(null);
+  const selectedGroupIdRef = useRef<number | null>(null);
+  const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
   const followUserRef = useRef(true);
   const keepBothVisibleRef = useRef(false);
@@ -221,6 +220,8 @@ export function MapPage() {
       accuracyCircleRef.current = null;
       searchedPlaceMarkerRef.current = null;
       plantsLayerRef.current = null;
+      groupAreaRef.current = null;
+      selectedGroupIdRef.current = null;
     };
   }, []);
 
@@ -284,9 +285,19 @@ export function MapPage() {
 
   useEffect(() => () => plantsAbortRef.current?.abort(), []);
 
+  // Área de un grupo de plantas (RF2): círculo que cubre a sus miembros, fuera
+  // de React porque es estado puro de Leaflet. Se limpia al reconstruir la capa.
+  const clearGroupArea = useCallback(() => {
+    groupAreaRef.current?.remove();
+    groupAreaRef.current = null;
+    selectedGroupIdRef.current = null;
+  }, []);
+
   // Capa de marcadores de plantas (render de la UT 908): se reconstruye cuando
-  // llegan datos nuevos o cambia el idioma. Con distancia conocida (vía
-  // cercanas), cada marcador lleva su popup con nombre y distancia.
+  // llegan datos nuevos, cambia el idioma o se pasa de globales a cercanas.
+  // Con distancia conocida (vía cercanas), cada marcador lleva su popup con
+  // nombre y distancia; las plantas del mismo tipo encadenadas se agrupan en
+  // un marcador con recuento y, al pulsarlo, pintan el área del grupo.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -294,13 +305,42 @@ export function MapPage() {
       plantsLayerRef.current.remove();
       plantsLayerRef.current = null;
     }
-    if (!plants || plants.length === 0) return;
-    const popupFor = (pin: PlantPin) =>
-      pin.distance === undefined
-        ? undefined
-        : `<strong>${escapeHtml(pin.displayName)}</strong><br>${escapeHtml(formatDistance(pin.distance, lang))}`;
-    plantsLayerRef.current = addPlantMarkers(map, plants, popupFor);
-  }, [plants, lang]);
+    clearGroupArea();
+    if (!plants || plants.length === 0) {
+      groupAreasRef.current = new Map();
+      return;
+    }
+    const popupFor = (pin: PlantPin) => {
+      if (pin.distance === undefined) return undefined;
+      const detail = pin.count !== undefined && pin.count > 1
+        ? `${escapeHtml(t('map.plantGroup', { n: pin.count }))} · `
+        : '';
+      return `<strong>${escapeHtml(pin.displayName)}</strong><br>${detail}${escapeHtml(formatDistance(pin.distance, lang))}`;
+    };
+    if (!hasPosition) {
+      groupAreasRef.current = new Map();
+      plantsLayerRef.current = addPlantMarkers(map, plants, popupFor);
+      return;
+    }
+    const { pins, areasById } = groupNearbyPlants(plants);
+    groupAreasRef.current = areasById;
+    const selectGroup = (pin: PlantPin) => {
+      const area = groupAreasRef.current.get(pin.id);
+      if (!area) return;
+      const wasSelected = selectedGroupIdRef.current === pin.id;
+      clearGroupArea();
+      if (wasSelected) return;
+      selectedGroupIdRef.current = pin.id;
+      // Círculo que cubre a todos los miembros, con la paleta en index.css.
+      groupAreaRef.current = L.circle([area.center.latitude, area.center.longitude], {
+        radius: area.radius,
+        className: 'plant-group-area',
+        interactive: false,
+      }).addTo(map);
+      map.fitBounds(groupAreaRef.current.getBounds(), { padding: [48, 48] });
+    };
+    plantsLayerRef.current = addPlantMarkers(map, pins, popupFor, selectGroup);
+  }, [plants, lang, hasPosition, clearGroupArea, t]);
 
   const selectPlace = (place: PlaceResult) => {
     const target: Coordinates = {

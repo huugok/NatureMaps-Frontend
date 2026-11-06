@@ -10,6 +10,7 @@ const leaflet = vi.hoisted(() => {
     remove: vi.fn(),
     setView: vi.fn(),
     flyTo: vi.fn(),
+    fitBounds: vi.fn(),
     getZoom: vi.fn(() => 15),
     getBounds: vi.fn(() => ({
       getWest: () => -0.5,
@@ -22,6 +23,7 @@ const leaflet = vi.hoisted(() => {
   };
   const marker = {
     addTo: vi.fn(function (this: unknown) { return this; }),
+    on: vi.fn(),
     setLatLng: vi.fn(),
     bindTooltip: vi.fn(function (this: unknown) { return this; }),
     unbindTooltip: vi.fn(function (this: unknown) { return this; }),
@@ -40,6 +42,8 @@ const leaflet = vi.hoisted(() => {
     addTo: vi.fn(function (this: unknown) { return this; }),
     setLatLng: vi.fn(function (this: unknown) { return this; }),
     setRadius: vi.fn(function (this: unknown) { return this; }),
+    remove: vi.fn(),
+    getBounds: vi.fn(() => ({ pad: () => ({}) })),
   };
   return {
     map,
@@ -223,20 +227,29 @@ describe('MapPage', () => {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
     });
-    vi.mocked(fetch).mockResolvedValue({
+    // La posición la fija el hook de permisos vía getCurrentPosition.
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    // Cada endpoint recibe su forma: cercanas con datos, paginación de globales vacía.
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
-      json: async () => ({
-        center: { latitude: 39.48, longitude: -0.38 },
-        radius: 1000,
-        returned: 1,
-        limit: 100,
-        language: 'es',
-        trees: [{
-          id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
-          displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 250,
-        }],
-      }),
-    } as Response);
+      json: async () => String(url).includes('/trees/nearby')
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 },
+            radius: 1000,
+            returned: 1,
+            limit: 100,
+            language: 'es',
+            trees: [{
+              id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
+              displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 250,
+            }],
+          }
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [] }
+          : [],
+    })) as unknown as typeof fetch);
 
     render(<MapPage />);
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
@@ -254,6 +267,71 @@ describe('MapPage', () => {
     expect(leaflet.markerFactory).toHaveBeenCalledWith([39.4795, -0.3795], expect.objectContaining({
       title: 'Almez',
     }));
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('agrupa las plantas cercanas del mismo tipo y pinta su área al seleccionarla', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    // La posición la fija el hook de permisos vía getCurrentPosition.
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    // Cada endpoint recibe su forma: cercanas con dos Plátanos de sombra
+    // vecinos (misma fila), paginación de globales vacía.
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees/nearby')
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 },
+            radius: 1000,
+            returned: 2,
+            limit: 100,
+            language: 'es',
+            trees: [
+              {
+                id: 7, speciesId: 3, scientificName: 'Platanus hispanica', commonName: 'Plátano de sombra',
+                displayName: 'Plátano de sombra', latitude: 39.4795, longitude: -0.3795, distance: 250,
+              },
+              {
+                id: 8, speciesId: 3, scientificName: 'Platanus hispanica', commonName: 'Plátano de sombra',
+                displayName: 'Plátano de sombra', latitude: 39.4798, longitude: -0.3795, distance: 280,
+              },
+            ],
+          }
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [] }
+          : [],
+    })) as unknown as typeof fetch);
+
+    render(<MapPage />);
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+
+    // Un solo marcador de planta con la pastilla de recuento (2 ejemplares).
+    await waitFor(() => expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(
+      expect.stringContaining('2 ejemplares'),
+      expect.anything(),
+    ));
+    const iconCalls = leaflet.divIcon.mock.calls as unknown as Array<[{ className: string; html?: HTMLElement }]>;
+    const plantIcons = iconCalls.map(([options]) => options).filter((o) => o.className === 'plant-icon');
+    expect(plantIcons).toHaveLength(1);
+    expect(plantIcons[0].html?.querySelector('.plant-pin__count')?.textContent).toBe('2');
+
+    // Al pulsar el grupo se pinta el área que cubre y se encuadra en el mapa.
+    const onClick = leaflet.marker.on.mock.calls.find(([event]) => event === 'click')?.[1] as () => void;
+    onClick();
+    const areaCall = (leaflet.circleFactory.mock.calls as unknown as Array<[unknown, { className?: string }]>)
+      .find(([, options]) => options.className === 'plant-group-area');
+    expect(areaCall).toBeDefined();
+    expect(leaflet.map.fitBounds).toHaveBeenCalled();
+
+    // Segunda pulsación sobre el mismo grupo: el área se quita.
+    onClick();
+    expect(leaflet.circle.remove).toHaveBeenCalled();
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 });

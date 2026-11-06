@@ -23,7 +23,8 @@ function leafIcon(): SVGSVGElement {
 /**
  * Icono de una planta: hoja + nombre. El nombre se inserta como texto (nunca como
  * HTML) porque viene de datos abiertos externos. Las plantas sin especie asociada
- * usan una variante apagada para distinguirlas de las identificadas.
+ * usan una variante apagada para distinguirlas de las identificadas. Los grupos
+ * del mismo tipo (RF2) llevan una pastilla con el recuento de ejemplares.
  */
 export function createPlantIcon(pin: PlantPin): L.DivIcon {
   const root = document.createElement('span');
@@ -33,11 +34,19 @@ export function createPlantIcon(pin: PlantPin): L.DivIcon {
   badge.className = 'plant-pin__icon';
   badge.appendChild(leafIcon());
 
+  root.append(badge);
+  if (pin.count !== undefined && pin.count > 1) {
+    const count = document.createElement('span');
+    count.className = 'plant-pin__count';
+    count.textContent = String(pin.count);
+    root.append(count);
+  }
+
   const label = document.createElement('span');
   label.className = 'plant-pin__label';
   label.textContent = pin.displayName;
 
-  root.append(badge, label);
+  root.append(label);
   return L.divIcon({
     className: 'plant-icon',
     html: root,
@@ -50,11 +59,13 @@ export function createPlantIcon(pin: PlantPin): L.DivIcon {
 export const PLANT_LABEL_MIN_ZOOM = 16;
 
 /** Dibuja las plantas en una capa propia y devuelve la capa. `popupFor` permite
- * añadir un popup por marcador (vía cercanas: nombre y distancia). */
+ * añadir un popup por marcador (vía cercanas: nombre y distancia) y `onSelect`
+ * responde al clic sobre un marcador (grupos RF2: pintar su área). */
 export function addPlantMarkers(
   map: L.Map,
   pins: PlantPin[],
   popupFor?: (pin: PlantPin) => string | undefined,
+  onSelect?: (pin: PlantPin) => void,
 ): L.LayerGroup {
   const layer = L.layerGroup();
   for (const pin of pins) {
@@ -65,6 +76,7 @@ export function addPlantMarkers(
     });
     const popup = popupFor?.(pin);
     if (popup) marker.bindPopup(popup, { closeButton: false, autoPan: false });
+    if (onSelect) marker.on('click', () => onSelect(pin));
     marker.addTo(layer);
   }
   return layer.addTo(map);
