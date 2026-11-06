@@ -24,8 +24,16 @@ export function Search() {
   useEffect(() => {
     if (status !== 'granted' || !position) return
     const controller = new AbortController()
+    // Misma regla de tres que el mapa: 100 plantas por cada 1000 m de radio.
+    const nearbyRadius = readNearbyRadius()
     fetchNearbyTrees(
-      { latitude: position.latitude, longitude: position.longitude, radius: readNearbyRadius(), limit: 100, lang },
+      {
+        latitude: position.latitude,
+        longitude: position.longitude,
+        radius: nearbyRadius,
+        limit: Math.max(1, Math.round(nearbyRadius / 10)),
+        lang,
+      },
       controller.signal,
     )
       .then((response) => {

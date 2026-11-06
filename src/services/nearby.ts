@@ -31,7 +31,7 @@ const RADIUS_KEY = 'naturemaps:radius';
 
 export const DEFAULT_NEARBY_RADIUS = 1000;
 export const NEARBY_RADIUS_MIN = 100;
-export const NEARBY_RADIUS_MAX = 5000;
+export const NEARBY_RADIUS_MAX = 10000;
 export const NEARBY_RADIUS_STEP = 100;
 
 /** Radio guardado por el usuario (recortado y alineado al paso), en metros. */
