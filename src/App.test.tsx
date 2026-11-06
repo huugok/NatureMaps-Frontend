@@ -121,8 +121,10 @@ describe('rutas, pestañas y marco', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Tocar almez' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).toBeInTheDocument()
-    // La ficha es un overlay: la pantalla del mapa sigue montada debajo.
+    // La ficha es un overlay: la pantalla del mapa sigue montada debajo y no
+    // ofrece «Ver en el mapa» porque ya se viene de él.
     expect(screen.getByTestId('mapa')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ver en el mapa/i })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
 

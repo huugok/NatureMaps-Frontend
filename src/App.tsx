@@ -43,6 +43,9 @@ type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 interface FichaAbierta {
   species: FichaEspecie;
   identification: IdentificacionFicha | null;
+  /** «mapa» cuando se abrió tocando un punto: ya se está en el mapa y no
+   * tiene sentido ofrecer «Ver en el mapa». */
+  origin?: 'mapa';
 }
 
 const MapPage = lazy(() =>
@@ -235,6 +238,7 @@ export default function App() {
     setFicha({
       species: item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant),
       identification: null,
+      origin: 'mapa',
     });
     if (speciesId === undefined) return;
 
@@ -243,7 +247,7 @@ export default function App() {
       .then((species) => {
         setFicha((actual) =>
           actual !== null && actual.species.id === speciesId
-            ? { species, identification: actual.identification }
+            ? { species, identification: actual.identification, origin: actual.origin }
             : actual,
         );
       })
@@ -359,7 +363,7 @@ export default function App() {
               species={ficha.species}
               identification={ficha.identification}
               onBack={() => setFicha(null)}
-              onViewOnMap={handleViewOnMap}
+              onViewOnMap={ficha.origin === 'mapa' ? undefined : handleViewOnMap}
             />
           </div>
         )}
