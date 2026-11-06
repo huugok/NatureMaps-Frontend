@@ -1,5 +1,6 @@
 import { dictionaries } from '../i18n/strings';
 import type { Language } from '../types/language';
+import type { PlantPin } from '../types/plant';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
 
 // Servicio de la ficha de planta (RF3, UT F06): conecta la pantalla con la API
@@ -217,6 +218,18 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
   };
 }
 
+/** Ficha mínima desde un punto del mapa (F03.1). El marcador solo trae el
+ * nombre visible y, si está identificado, su especie; la ficha se abre al
+ * instante con eso y App la enriquece con `GET /species/:id`. Sin especie no
+ * lleva `id`, así que la página oculta «Ver en el mapa». */
+export function fichaDesdePlanta(plant: PlantPin): FichaEspecie {
+  return {
+    ...(plant.speciesId != null ? { id: plant.speciesId } : {}),
+    commonName: plant.displayName,
+    scientificName: plant.scientificName ?? plant.displayName,
+  };
+}
+
 /** Mapea la respuesta del detalle al modelo de vista de la ficha: la ficha de
  * la fila más sus ubicaciones reales (chips y recuento de ejemplares). */
 export function fichaDesdeDetalle(detail: FichaDetail, language: Language): FichaEspecie {
@@ -274,7 +287,8 @@ export async function fichaDesdeDetalleConFuentes(
 /** Pl@ntNet y el catálogo escriben los híbridos distinto ('Citrus × aurantium'
  * vs 'Citrus aurantium'): se compara sin la '×' ni mayúsculas. */
 function normalizarNombreCientifico(nombre: string): string {
-  return nombre.toLowerCase().replaceAll('×', ' ').replace(/\s+/g, ' ').trim();
+  // El inventario escribe los híbridos con «x» y el catálogo con «×».
+  return nombre.toLowerCase().replaceAll('×', ' ').replace(/\sx\s/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Índice en la lista de la especie identificada por Pl@ntNet, o null si no hay ficha para ella. */

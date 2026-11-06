@@ -4,7 +4,34 @@ import App from './App'
 import { LANGUAGE_STORAGE_KEY } from './services/languagePreference'
 import { renderWithProviders } from './test/renderWithProviders'
 
-vi.mock('./pages/Map', () => ({ MapPage: () => <div data-testid="mapa" /> }))
+vi.mock('./pages/Map', () => ({
+  MapPage: ({ onOpenPlant }: {
+    onOpenPlant?: (plant: {
+      id: number;
+      speciesId: number | null;
+      displayName: string;
+      latitude: number;
+      longitude: number;
+      identified: boolean;
+    }) => void;
+  }) => (
+    <div data-testid="mapa">
+      <button
+        type="button"
+        onClick={() => onOpenPlant?.({
+          id: 7,
+          speciesId: 1,
+          displayName: 'Jacaranda',
+          latitude: 39.47,
+          longitude: -0.37,
+          identified: true,
+        })}
+      >
+        Tocar almez
+      </button>
+    </div>
+  ),
+}))
 vi.mock('./services/api', () => ({ checkHealth: vi.fn().mockResolvedValue(true) }))
 
 const respuestaJson = { headers: { 'content-type': 'application/json' } }
@@ -85,6 +112,24 @@ describe('rutas, pestañas y marco', () => {
     withMode()
     renderWithProviders(<App />, { route: '/inicio' })
     expect(screen.getAllByRole('tab')).toHaveLength(5)
+  })
+
+  it('PA 690/691: abre la ficha de la planta tocada y mantiene el mapa montado al volver', async () => {
+    withMode()
+    renderWithProviders(<App />, { route: '/mapa' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Tocar almez' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).toBeInTheDocument()
+    // La ficha es un overlay: la pantalla del mapa sigue montada debajo y no
+    // ofrece «Ver en el mapa» porque ya se viene de él.
+    expect(screen.getByTestId('mapa')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ver en el mapa/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+
+    expect(screen.queryByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('mapa')).toBeInTheDocument()
   })
 
   it('mantiene el selector inferior visible y activo durante el escaneo', async () => {
@@ -458,6 +503,11 @@ describe('PA 574 — ficha con datos parciales de catálogo', () => {
       'fetch',
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input)
+        // La ficha pide metadatos de la fuente de cada ubicación; en este caso
+        // la fuente no está disponible y la ficha debe decirlo.
+        if (url.includes('/sources/')) {
+          return Promise.resolve(new Response('{}', { status: 404, ...respuestaJson }))
+        }
         return Promise.resolve(new Response(
           JSON.stringify(url.includes('/species/13') ? detalleParcial : {
             total: 1,

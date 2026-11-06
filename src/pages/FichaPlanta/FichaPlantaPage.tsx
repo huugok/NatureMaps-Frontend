@@ -343,9 +343,10 @@ export function FichaPlantaPage({
       {/* El botón va al final de la ficha, no fijo: así nunca tapa el contenido
           (la última fuente, la descripción…). El relleno inferior de la tarjeta
           lo deja por encima de la barra de navegación al final del scroll.
-          Solo con especie de catálogo: una ficha de solo identificación no tiene
-          ejemplares en el inventario que buscar. */}
-      {species.id !== undefined && (
+          Solo con especie de catálogo y callback: una ficha de solo
+          identificación no tiene ejemplares que buscar y, si ya se abrió desde
+          el mapa, no tiene sentido volver a él. */}
+      {species.id !== undefined && onViewOnMap !== undefined && (
         <div className="mt-auto border-t border-line bg-surface px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
           <button
             type="button"

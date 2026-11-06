@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { CameraScreen } from './components/Camera';
 import type { CameraMode } from './components/Camera';
@@ -28,18 +28,24 @@ import {
   findSpeciesIndexByScientificName,
   fichaDesdeDetalleConFuentes,
   fichaDesdeItemLista,
+  fichaDesdePlanta,
   getSpeciesDetail,
   getSpeciesList,
 } from './services/ficha';
 import type { Language } from './types/language';
 import type { PlantIdentification, PlantMatch } from './types/identify';
+import type { PlantPin } from './types/plant';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
-/** Ficha abierta por encima del escaneo: conserva foto, resultado y especie marcada. */
+/** Ficha abierta por encima del escaneo o del mapa: conserva foto, resultado y
+ * especie marcada, y deja viva la pantalla que había debajo. */
 interface FichaAbierta {
   species: FichaEspecie;
   identification: IdentificacionFicha | null;
+  /** «mapa» cuando se abrió tocando un punto: ya se está en el mapa y no
+   * tiene sentido ofrecer «Ver en el mapa». */
+  origin?: 'mapa';
 }
 
 const MapPage = lazy(() =>
@@ -210,6 +216,46 @@ export default function App() {
       });
   };
 
+  /** Abre la ficha de la planta tocada en el mapa (F03.1) como overlay: el
+   * mapa sigue montado debajo, así que al volver conserva centro y zoom
+   * (PA 691). Se pinta al instante con la lista del catálogo o, si aún no está
+   * cargada, con el nombre del propio punto; el detalle la enriquece después. */
+  const handleOpenPlantFromMap = useCallback((plant: PlantPin) => {
+    const items = fichaList.status === 'ready' ? fichaList.items : [];
+    const matchedIndex =
+      plant.speciesId == null
+        ? findSpeciesIndexByScientificName(items, plant.scientificName ?? null)
+        : null;
+    const item =
+      plant.speciesId != null
+        ? items.find((entry) => entry.id === plant.speciesId)
+        : matchedIndex === null
+          ? undefined
+          : items[matchedIndex];
+    // El inventario no enlaza todas sus plantas con el catálogo: si el nombre
+    // científico reportado coincide (incluido «x»/«×»), se abre esa ficha.
+    const speciesId = item?.id ?? plant.speciesId ?? undefined;
+    setFicha({
+      species: item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant),
+      identification: null,
+      origin: 'mapa',
+    });
+    if (speciesId === undefined) return;
+
+    getSpeciesDetail(speciesId, lang)
+      .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+      .then((species) => {
+        setFicha((actual) =>
+          actual !== null && actual.species.id === speciesId
+            ? { species, identification: actual.identification, origin: actual.origin }
+            : actual,
+        );
+      })
+      .catch(() => {
+        // La ficha instantánea ya identifica la planta; el detalle solo añade contenido.
+      });
+  }, [fichaList, lang]);
+
   /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
    * mapa que centre su ejemplar más cercano (parámetro de un solo uso). */
   const handleViewOnMap = (speciesId?: number) => {
@@ -244,7 +290,7 @@ export default function App() {
                 path="/mapa"
                 element={
                   <Suspense fallback={<MapFallback />}>
-                    <MapPage />
+                    <MapPage onOpenPlant={handleOpenPlantFromMap} />
                   </Suspense>
                 }
               />
@@ -317,7 +363,7 @@ export default function App() {
               species={ficha.species}
               identification={ficha.identification}
               onBack={() => setFicha(null)}
-              onViewOnMap={handleViewOnMap}
+              onViewOnMap={ficha.origin === 'mapa' ? undefined : handleViewOnMap}
             />
           </div>
         )}

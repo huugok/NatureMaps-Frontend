@@ -301,7 +301,7 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('agrupa las plantas cercanas del mismo tipo y pinta su área al seleccionarla', async () => {
+  it('agrupa las plantas cercanas del mismo tipo y abre su ficha sin mover el mapa', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
@@ -337,7 +337,8 @@ describe('MapPage', () => {
           : [],
     })) as unknown as typeof fetch);
 
-    renderMap();
+    const onOpenPlant = vi.fn();
+    renderMap(<MapPage onOpenPlant={onOpenPlant} />);
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
     onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
@@ -352,17 +353,77 @@ describe('MapPage', () => {
     expect(plantIcons).toHaveLength(1);
     expect(plantIcons[0].html?.querySelector('.plant-pin__count')?.textContent).toBe('2');
 
-    // Al pulsar el grupo se pinta el área que cubre y se encuadra en el mapa.
+    // Al tocar el grupo se pinta su área y se abre la ficha de su especie; el
+    // mapa no se mueve (PA 691: al volver conserva centro y zoom).
+    leaflet.map.setView.mockClear();
+    leaflet.map.flyTo.mockClear();
     const onClick = leaflet.marker.on.mock.calls.find(([event]) => event === 'click')?.[1] as () => void;
     onClick();
     const areaCall = (leaflet.circleFactory.mock.calls as unknown as Array<[unknown, { className?: string }]>)
       .find(([, options]) => options.className === 'plant-group-area');
     expect(areaCall).toBeDefined();
-    expect(leaflet.map.fitBounds).toHaveBeenCalled();
+    expect(leaflet.map.fitBounds).not.toHaveBeenCalled();
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+    expect(leaflet.map.flyTo).not.toHaveBeenCalled();
+    expect(onOpenPlant).toHaveBeenCalledWith(expect.objectContaining({
+      speciesId: 3,
+      count: 2,
+      displayName: 'Plátano de sombra',
+    }));
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
 
-    // Segunda pulsación sobre el mismo grupo: el área se quita.
+  it('PA 690: tocar una planta abre su ficha con los datos de ese punto', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees/nearby')
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 },
+            radius: 1000,
+            returned: 1,
+            limit: 100,
+            language: 'es',
+            trees: [{
+              id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
+              displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 250,
+            }],
+          }
+        : { nextOffset: null, trees: [] },
+    })) as unknown as typeof fetch);
+
+    const onOpenPlant = vi.fn();
+    renderMap(<MapPage onOpenPlant={onOpenPlant} />);
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+
+    await waitFor(() => expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(
+      expect.stringContaining('Almez'),
+      expect.anything(),
+    ));
+    leaflet.map.setView.mockClear();
+    leaflet.map.flyTo.mockClear();
+    const onClick = leaflet.marker.on.mock.calls.find(([event]) => event === 'click')?.[1] as () => void;
     onClick();
-    expect(leaflet.circle.remove).toHaveBeenCalled();
+
+    expect(onOpenPlant).toHaveBeenCalledWith(expect.objectContaining({
+      id: 7,
+      speciesId: 3,
+      displayName: 'Almez',
+      latitude: 39.4795,
+      longitude: -0.3795,
+    }));
+    // Abrir la ficha no cambia la vista: al volver se conservan centro y zoom.
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+    expect(leaflet.map.flyTo).not.toHaveBeenCalled();
+    expect(leaflet.map.fitBounds).not.toHaveBeenCalled();
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 

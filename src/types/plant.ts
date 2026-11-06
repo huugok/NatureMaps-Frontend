@@ -6,6 +6,9 @@ export interface PlantPin {
   id: number;
   /** Nombre común en el idioma pedido; si falta, científico o "Planta sin identificar". */
   displayName: string;
+  /** Nombre científico del catálogo o, si la planta no está enlazada, el
+   * reportado por el inventario. Permite abrir su ficha desde el mapa. */
+  scientificName?: string | null;
   latitude: number;
   longitude: number;
   /** true si el inventario asocia la planta a una especie conocida. */

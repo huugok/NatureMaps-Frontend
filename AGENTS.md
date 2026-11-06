@@ -3,9 +3,9 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-11-03 · `main` @ `182cf5d` · Rama de trabajo:
-> `fix/camera-tab-safearea` (worktree `wt-camera-tab-safearea`). La cámara ahora vive en
-> `TabLayout` y conserva visible la navegación inferior.
+> Última verificación: 2026-11-06 · `main` @ `5122686` · Rama de trabajo:
+> `feat/ficha-desde-punto-mapa` (worktree `wt-ficha-mapa`). El mapa abre la ficha de la
+> planta tocada como overlay y conserva centro y zoom al volver (UT F03.1, PA 690/691).
 
 ## Qué es este proyecto
 
@@ -267,7 +267,11 @@ Reglas:
   (el modo aventura usa un radio fijo de 1000 m). Las plantas cercanas del mismo
   tipo encadenadas por proximidad se agrupan en un marcador con recuento
   (`src/pages/Map/plantGroups.ts`): al pulsarlo se pinta el círculo que cubre a
-  sus miembros. Sin posición, el mapa pinta las plantas globales de
+  sus miembros. Tocar cualquier marcador de planta abre su ficha (F03.1) como
+  overlay de App: el mapa sigue montado debajo y al volver conserva centro y
+  zoom (PA 691); la ficha se resuelve por `speciesId` o, si el inventario no
+  enlaza la especie, por el nombre científico reportado. Sin posición, el mapa
+  pinta las plantas globales de
   `src/services/plants.ts` (UT 908). El círculo azul sobre el usuario muestra el
   área de búsqueda (radio efectivo del modo), no la precisión del GPS.
 - Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta).
