@@ -26,7 +26,7 @@ import { LanguageSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
 import {
   findSpeciesIndexByScientificName,
-  fichaDesdeDetalle,
+  fichaDesdeDetalleConFuentes,
   fichaDesdeItemLista,
   getSpeciesDetail,
   getSpeciesList,
@@ -125,8 +125,9 @@ export default function App() {
     if (location.pathname !== '/ficha' || !fichaItem) return;
     let cancelled = false;
     getSpeciesDetail(fichaItem.id, lang)
-      .then((detail) => {
-        if (!cancelled) setFichaDetail({ status: 'ready', especie: fichaDesdeDetalle(detail, lang) });
+      .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+      .then((especie) => {
+        if (!cancelled) setFichaDetail({ status: 'ready', especie });
       })
       .catch(() => {
         if (!cancelled) setFichaDetail({ status: 'error' });
@@ -196,10 +197,11 @@ export default function App() {
     const item = items[identifiedIndex];
     setFicha({ species: fichaDesdeItemLista(item, lang), identification: identificacion });
     getSpeciesDetail(item.id, lang)
-      .then((detail) => {
+      .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+      .then((species) => {
         setFicha((actual) =>
-          actual?.species.scientificName === detail.scientificName
-            ? { species: fichaDesdeDetalle(detail, lang), identification: actual.identification }
+          actual?.species.scientificName === species.scientificName
+            ? { species, identification: actual.identification }
             : actual,
         );
       })

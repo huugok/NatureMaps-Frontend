@@ -77,6 +77,19 @@ export interface FichaLocation {
   sourceUrl: string;
 }
 
+/** Metadatos de una fuente de datos de inventario (`GET /sources/:code`). */
+export interface FichaDataSource {
+  code: string;
+  provider: string;
+  name: string;
+  url: string;
+  license: string;
+  licenseUrl: string;
+  attribution: string;
+  logoUrl: string | null;
+  lastDownloadedAt: string | null;
+}
+
 /** Respuesta de GET /species/:id: ficha completa con ubicaciones reales. */
 export interface FichaDetail extends FichaListItem {
   locations: {
@@ -127,6 +140,14 @@ export async function getSpeciesDetail(id: number, language: Language): Promise<
   return fetchJson<FichaDetail>(
     `${API_URL}/species/${id}?lang=${encodeURIComponent(language)}`,
     'No se ha podido cargar la ficha de la especie',
+  );
+}
+
+/** Consulta los metadatos de una fuente asociada a las ubicaciones de la especie. */
+async function getDataSource(code: string): Promise<FichaDataSource> {
+  return fetchJson<FichaDataSource>(
+    `${API_URL}/sources/${encodeURIComponent(code)}`,
+    'No se ha podido cargar una fuente de datos',
   );
 }
 
@@ -208,6 +229,45 @@ export function fichaDesdeDetalle(detail: FichaDetail, language: Language): Fich
       })),
     locationTotal: detail.locations.total,
   };
+}
+
+/** Añade metadatos (incluido el logo) de las fuentes asociadas a ubicaciones. */
+export async function fichaDesdeDetalleConFuentes(
+  detail: FichaDetail,
+  language: Language,
+): Promise<FichaEspecie> {
+  const ficha = fichaDesdeDetalle(detail, language);
+  const codes = [...new Set(detail.locations.items.map((location) => location.source).filter(Boolean))];
+  const resolved = await Promise.all(codes.map(async (code) => {
+    try {
+      return await getDataSource(code);
+    } catch {
+      return null;
+    }
+  }));
+  const asociadas: FichaFuente[] = resolved
+    .filter((source): source is FichaDataSource => source !== null)
+    .map((source) => ({
+      name: source.name,
+      description: [source.provider, source.attribution, `Licencia: ${source.license}`]
+        .filter(Boolean)
+        .join(' · '),
+      url: source.url,
+      logoUrl: source.logoUrl,
+      icon: 'landmark',
+    }));
+  const fuentesActuales = [...(ficha.sources ?? [])];
+  for (const asociada of asociadas) {
+    const existente = fuentesActuales.find((source) => source.url === asociada.url);
+    if (existente) {
+      existente.logoUrl ??= asociada.logoUrl;
+      existente.description = [existente.description, asociada.description].filter(Boolean).join(' · ');
+    } else {
+      fuentesActuales.push(asociada);
+    }
+  }
+  ficha.sources = fuentesActuales;
+  return ficha;
 }
 
 /** Pl@ntNet y el catálogo escriben los híbridos distinto ('Citrus × aurantium'

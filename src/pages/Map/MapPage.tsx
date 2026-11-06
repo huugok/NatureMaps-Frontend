@@ -7,7 +7,9 @@ import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
-import type { NearbyPlant } from '../../services/nearby';
+import { fetchPlantPins } from '../../services/plants';
+import type { PlantPin } from '../../types/plant';
+import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const LOCATION_COLOR = '#3b7ddd';
@@ -44,17 +46,13 @@ function zoomToKeepUserAndPlaceVisible(map: L.Map, user: Coordinates, place: L.L
   return Math.min(16, Math.max(3, map.getBoundsZoom(bounds, false, L.point(48, 112)) - 1));
 }
 
-const NEARBY_LIMIT = 100;
+// Plantas cercanas (RF2): el radio del modo aventura es fijo y el resto de
+// modos usa el de Ajustes; el número de plantas sale de una regla de tres
+// (100 plantas por cada 1000 m) para no saturar el mapa con radios pequeños.
+const NEARBY_RADIUS_AVENTURA = 1000;
 // Refresco de plantas cercanas: si el usuario se ha movido menos que esto
 // desde la última consulta, la lista anterior sigue siendo válida.
 const NEARBY_REFRESH_METERS = 200;
-
-const plantIcon = L.divIcon({
-  className: 'plant-location-icon',
-  html: '<span aria-hidden="true"></span>',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
 
 function metersBetween(a: Coordinates, b: Coordinates): number {
   const dLat = (b.latitude - a.latitude) * 111_320;
@@ -64,17 +62,6 @@ function metersBetween(a: Coordinates, b: Coordinates): number {
 
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-}
-
-// TODO(RF5/RNF8): la UT de puntos en el mapa definirá icono y texto por
-// especie y agrupación de puntos cercanos; este marcador neutral es
-// provisional y vive aislado para sustituirlo sin tocar el resto.
-function createPlantMarker(plant: NearbyPlant): L.Marker {
-  return L.marker([plant.latitude, plant.longitude], {
-    icon: plantIcon,
-    title: plant.displayName,
-    alt: plant.displayName,
-  });
 }
 
 /**
@@ -89,6 +76,7 @@ export function MapPage() {
   const userMarkerRef = useRef<L.Marker | null>(null);
   const accuracyCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
+  const plantsLayerRef = useRef<L.LayerGroup | null>(null);
   const currentPositionRef = useRef<Coordinates | null>(null);
   const followUserRef = useRef(true);
   const keepBothVisibleRef = useRef(false);
@@ -96,17 +84,17 @@ export function MapPage() {
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState('');
   const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
+  const [plantsFailed, setPlantsFailed] = useState(false);
   const lastNominatimSearchAt = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
 
-  // Plantas cercanas (RF2): radio configurable en Ajustes, cargadas al tener
-  // ubicación y refrescadas si cambia el radio, el idioma o el modo.
+  // Plantas del mapa: sin posición conocida se pintan las globales (UT 908);
+  // en cuanto hay posición, las cercanas al usuario con parámetros por modo.
   const [radius] = useState(readNearbyRadius);
-  const [nearbyPlants, setNearbyPlants] = useState<NearbyPlant[] | null>(null);
-  const nearbyPlantsRef = useRef<NearbyPlant[] | null>(null);
+  const [plants, setPlantsState] = useState<PlantPin[] | null>(null);
+  const plantsRef = useRef<PlantPin[] | null>(null);
   const plantsAbortRef = useRef<AbortController | null>(null);
   const lastFetchCenterRef = useRef<Coordinates | null>(null);
-  const plantsLayerRef = useRef<L.LayerGroup | null>(null);
   const {
     status: locationPermission,
     position: locatedPosition,
@@ -114,33 +102,41 @@ export function MapPage() {
     deny: denyLocation,
     retry: retryLocation,
   } = useLocationPermission();
-  // El modo `educativo` no muestra plantas del inventario (pendiente de la UT
-  // de contenidos por modo).
-  const showPlants = mode !== 'educativo';
 
-  const setPlants = useCallback((plants: NearbyPlant[] | null) => {
-    nearbyPlantsRef.current = plants;
-    setNearbyPlants(plants);
+  const setPlants = useCallback((pins: PlantPin[] | null) => {
+    plantsRef.current = pins;
+    setPlantsState(pins);
   }, []);
 
-  // Cargador reasignado tras cada render para que updateUserLocation
+  // Cargador cercanas reasignado tras cada render para que updateUserLocation
   // (memoizado) use siempre el radio, idioma y modo vigentes.
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
     loadPlantsRef.current = (coords: Coordinates) => {
-      if (!showPlants) return;
+      const modeRadius = mode === 'aventura' ? NEARBY_RADIUS_AVENTURA : radius;
+      // Regla de tres: 100 plantas por cada 1000 m de radio.
+      const modeLimit = Math.max(1, Math.round(modeRadius / 10));
       const last = lastFetchCenterRef.current;
-      if (last && nearbyPlantsRef.current !== null && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
+      if (last && plantsRef.current !== null && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
       plantsAbortRef.current?.abort();
       const controller = new AbortController();
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
       fetchNearbyTrees(
-        { latitude: coords.latitude, longitude: coords.longitude, radius, limit: NEARBY_LIMIT, lang },
+        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, limit: modeLimit, lang },
         controller.signal,
       )
         .then((response) => {
-          if (!controller.signal.aborted) setPlants(response.trees);
+          if (!controller.signal.aborted) {
+            setPlants(response.trees.map((plant) => ({
+              id: plant.id,
+              displayName: plant.displayName,
+              latitude: plant.latitude,
+              longitude: plant.longitude,
+              identified: plant.speciesId !== null,
+              distance: plant.distance,
+            })));
+          }
         })
         .catch(() => {
           // Fallo de red silencioso: el mapa sigue con lo último mostrado.
@@ -224,6 +220,52 @@ export function MapPage() {
       userMarkerRef.current = null;
       accuracyCircleRef.current = null;
       searchedPlaceMarkerRef.current = null;
+      plantsLayerRef.current = null;
+    };
+  }, []);
+
+  // Con posición conocida (la fija el permiso) la vía cercanas toma el relevo.
+  const hasPosition = locatedPosition !== null;
+
+  // Plantas del inventario: sin posición conocida, las globales de la UT 908;
+  // en cuanto hay posición, la vía cercanas toma el relevo con parámetros por
+  // modo (aventura: radio fijo; resto: radio de Ajustes).
+  useEffect(() => {
+    if (hasPosition) {
+      const current = locatedPosition ?? currentPositionRef.current;
+      if (current) {
+        lastFetchCenterRef.current = null;
+        loadPlantsRef.current(current);
+      }
+      return;
+    }
+    const map = mapRef.current;
+    if (!map) return;
+    const controller = new AbortController();
+    fetchPlantPins(lang, controller.signal)
+      .then((pins) => {
+        if (!controller.signal.aborted) {
+          setPlants(pins);
+          setPlantsFailed(false);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPlantsFailed(true);
+      });
+    return () => controller.abort();
+  }, [hasPosition, locatedPosition, lang, setPlants]);
+
+  // Etiquetas de plantas junto al icono solo a partir del zoom de la UT 908.
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = mapElementRef.current;
+    if (!map || !container) return;
+    const syncLabels = () =>
+      container.classList.toggle('plants-labels-visible', map.getZoom() >= PLANT_LABEL_MIN_ZOOM);
+    syncLabels();
+    map.on('zoomend', syncLabels);
+    return () => {
+      map.off('zoomend', syncLabels);
     };
   }, []);
 
@@ -240,27 +282,11 @@ export function MapPage() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [updateUserLocation, locationPermission]);
 
-  // Plantas cercanas: la primera carga (o el refresco tras cambios de radio,
-  // idioma o modo) usa la posición del permiso o la última conocida; los
-  // siguientes refrescos por movimiento los decide el propio cargador.
-  useEffect(() => {
-    if (locationPermission !== 'granted' || !showPlants) {
-      plantsAbortRef.current?.abort();
-      plantsAbortRef.current = null;
-      lastFetchCenterRef.current = null;
-      return;
-    }
-    const current = locatedPosition ?? currentPositionRef.current;
-    if (current) {
-      lastFetchCenterRef.current = null;
-      loadPlantsRef.current(current);
-    }
-  }, [locationPermission, locatedPosition, showPlants, radius, lang]);
-
   useEffect(() => () => plantsAbortRef.current?.abort(), []);
 
-  // Capa de marcadores de plantas: se reconstruye cuando llegan datos nuevos,
-  // cambia el idioma (textos del popup) o se ocultan por modo o sin permiso.
+  // Capa de marcadores de plantas (render de la UT 908): se reconstruye cuando
+  // llegan datos nuevos o cambia el idioma. Con distancia conocida (vía
+  // cercanas), cada marcador lleva su popup con nombre y distancia.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -268,19 +294,13 @@ export function MapPage() {
       plantsLayerRef.current.remove();
       plantsLayerRef.current = null;
     }
-    if (locationPermission !== 'granted' || !showPlants || !nearbyPlants || nearbyPlants.length === 0) return;
-    const layer = L.layerGroup();
-    for (const plant of nearbyPlants) {
-      layer.addLayer(
-        createPlantMarker(plant).bindPopup(
-          `<strong>${escapeHtml(plant.displayName)}</strong><br>${escapeHtml(formatDistance(plant.distance, lang))}`,
-          { closeButton: false, autoPan: false },
-        ),
-      );
-    }
-    layer.addTo(map);
-    plantsLayerRef.current = layer;
-  }, [nearbyPlants, lang, showPlants, locationPermission]);
+    if (!plants || plants.length === 0) return;
+    const popupFor = (pin: PlantPin) =>
+      pin.distance === undefined
+        ? undefined
+        : `<strong>${escapeHtml(pin.displayName)}</strong><br>${escapeHtml(formatDistance(pin.distance, lang))}`;
+    plantsLayerRef.current = addPlantMarkers(map, plants, popupFor);
+  }, [plants, lang]);
 
   const selectPlace = (place: PlaceResult) => {
     const target: Coordinates = {
@@ -509,6 +529,12 @@ export function MapPage() {
                 </button>
               ))}
             </div>
+          )}
+
+          {plantsFailed && (
+            <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">
+              {t('map.plantsError')}
+            </p>
           )}
         </div>
       </div>

@@ -51,6 +51,7 @@ const es = {
   'map.searchErrorGeneric': 'No se pudo completar la búsqueda.',
   'map.centerAria': 'Centrar el mapa en mi ubicación',
   'map.centerTitle': 'Centrar en mi ubicación',
+  'map.plantsError': 'No se pudieron cargar las plantas del mapa.',
   'map.placeAlt': 'Lugar buscado: {name}',
 
   'search.title': 'Buscar',
@@ -274,6 +275,7 @@ const va: Dict = {
   'map.searchErrorGeneric': 'No s’ha pogut completar la búsqueda.',
   'map.centerAria': 'Centrar el mapa en la meua ubicació',
   'map.centerTitle': 'Centrar en la meua ubicació',
+  'map.plantsError': 'No s\'han pogut carregar les plantes del mapa.',
   'map.placeAlt': 'Lloc buscat: {name}',
 
   'search.title': 'Buscar',
@@ -494,6 +496,7 @@ const en: Dict = {
   'map.searchErrorGeneric': 'The search could not be completed.',
   'map.centerAria': 'Centre the map on my location',
   'map.centerTitle': 'Centre on my location',
+  'map.plantsError': 'Could not load the plants on the map.',
   'map.placeAlt': 'Searched place: {name}',
 
   'search.title': 'Search',

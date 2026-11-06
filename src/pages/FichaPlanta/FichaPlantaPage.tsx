@@ -55,12 +55,23 @@ interface SourceCardProps {
 
 function SourceCard({ source }: SourceCardProps) {
   const Icon = source.icon === 'landmark' ? Landmark : Search;
+  const [logoError, setLogoError] = useState(false);
 
   return (
     <li className="rounded-card bg-surface p-4 shadow-raised">
       <div className="flex gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
-          <Icon size={18} aria-hidden="true" />
+          {source.logoUrl && !logoError ? (
+            <img
+              src={source.logoUrl}
+              alt=""
+              aria-hidden="true"
+              onError={() => setLogoError(true)}
+              className="h-7 w-7 object-contain"
+            />
+          ) : (
+            <Icon size={18} aria-hidden="true" />
+          )}
         </span>
         <div className="min-w-0">
           <p className="text-body font-semibold text-ink">{source.name}</p>
