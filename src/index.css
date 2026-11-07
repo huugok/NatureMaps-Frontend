@@ -321,3 +321,11 @@
 .plants-labels-visible .plant-pin__label {
   display: block;
 }
+
+.poi-distance-label {
+  display: none;
+}
+
+.plants-labels-visible .poi-distance-label {
+  display: block;
+}
