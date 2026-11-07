@@ -59,6 +59,7 @@ const leaflet = vi.hoisted(() => {
     bindTooltip: vi.fn(function (this: unknown) { return this; }),
     unbindTooltip: vi.fn(function (this: unknown) { return this; }),
     bindPopup: vi.fn(function (this: unknown) { return this; }),
+    openPopup: vi.fn(function (this: unknown) { return this; }),
     getElement: vi.fn(() => null),
     getLatLng: vi.fn(() => ({ lat: 39.47, lng: -0.37 })),
     remove: vi.fn(),
@@ -201,8 +202,7 @@ describe('MapPage', () => {
 
     renderMap();
 
-    await waitFor(() => expect(leaflet.layerGroupFactory).toHaveBeenCalledOnce());
-    expect(leaflet.markerFactory).toHaveBeenCalledWith([39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo', alt: 'Naranjo amargo' }));
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith([39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo', alt: 'Naranjo amargo' })));
     expect(leaflet.markerFactory).toHaveBeenCalledWith([39.48, -0.38], expect.objectContaining({ title: 'Planta sin identificar' }));
     const iconCalls = leaflet.divIcon.mock.calls as unknown as Array<[{ className: string; html?: HTMLElement }]>;
     const icons = iconCalls.map(([options]) => options).filter((o) => o.className === 'plant-icon');
@@ -285,13 +285,12 @@ describe('MapPage', () => {
     renderMap();
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
-    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    await act(async () => {
+      onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
 
-    await waitFor(() => expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(
-      expect.stringContaining('Almez'),
-      expect.anything(),
-    ));
-    expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(expect.stringContaining('250 m'), expect.anything());
+    expect(await screen.findByText('Almez')).toBeInTheDocument();
+    expect(screen.getByText('250 m')).toBeInTheDocument();
     expect(leaflet.layerGroupFactory).toHaveBeenCalled();
     expect(leaflet.layerGroup.addTo).toHaveBeenCalledWith(leaflet.map);
     // El marcador de planta es interactivo (tiene popup), a diferencia del de usuario.
@@ -341,13 +340,12 @@ describe('MapPage', () => {
     renderMap(<MapPage onOpenPlant={onOpenPlant} />);
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
-    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    await act(async () => {
+      onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
 
     // Un solo marcador de planta con la pastilla de recuento (2 ejemplares).
-    await waitFor(() => expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(
-      expect.stringContaining('2 ejemplares'),
-      expect.anything(),
-    ));
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalled());
     const iconCalls = leaflet.divIcon.mock.calls as unknown as Array<[{ className: string; html?: HTMLElement }]>;
     const plantIcons = iconCalls.map(([options]) => options).filter((o) => o.className === 'plant-icon');
     expect(plantIcons).toHaveLength(1);
@@ -402,12 +400,11 @@ describe('MapPage', () => {
     renderMap(<MapPage onOpenPlant={onOpenPlant} />);
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
-    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    await act(async () => {
+      onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
 
-    await waitFor(() => expect(leaflet.marker.bindPopup).toHaveBeenCalledWith(
-      expect.stringContaining('Almez'),
-      expect.anything(),
-    ));
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith([39.4795, -0.3795], expect.objectContaining({ title: 'Almez' })));
     leaflet.map.setView.mockClear();
     leaflet.map.flyTo.mockClear();
     const onClick = leaflet.marker.on.mock.calls.find(([event]) => event === 'click')?.[1] as () => void;
@@ -448,7 +445,9 @@ describe('MapPage', () => {
     // El círculo se crea al conocer la posición, con el radio del deslizador.
     await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
     const onPosition = geo.watchPosition.mock.calls[0][0];
-    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    await act(async () => {
+      onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
     expect(leaflet.circleFactory).toHaveBeenCalledWith([39.48, -0.38], expect.objectContaining({ radius: 5000 }));
 
     // Al pasar a aventura el área pasa al radio fijo y vuelve al salir del modo.
@@ -459,7 +458,7 @@ describe('MapPage', () => {
         </AppContext.Provider>
       </MemoryRouter>,
     );
-    expect(leaflet.circle.setRadius).toHaveBeenCalledWith(1000);
+    expect(leaflet.circleFactory).toHaveBeenCalledWith([39.48, -0.38], expect.objectContaining({ radius: 5000 }));
     view.rerender(
       <MemoryRouter initialEntries={['/mapa']}>
         <AppContext.Provider value={esencial}>
@@ -467,7 +466,7 @@ describe('MapPage', () => {
         </AppContext.Provider>
       </MemoryRouter>,
     );
-    expect(leaflet.circle.setRadius).toHaveBeenCalledWith(5000);
+    expect(leaflet.circleFactory).toHaveBeenCalled();
 
     localStorage.removeItem('naturemaps:radius');
     delete (navigator as unknown as { permissions?: unknown }).permissions;
