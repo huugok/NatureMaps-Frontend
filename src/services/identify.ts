@@ -1,4 +1,5 @@
 import type { PlantIdentification } from '../types/identify';
+import { repairTextEncoding } from '../i18n/format';
 
 // URL del backend (NatureMaps-Backend). Se puede ajustar con VITE_API_URL en .env;
 // por defecto apunta a localhost, como la API en desarrollo.
@@ -26,7 +27,7 @@ export async function identifyPlant(image: Blob, filename = 'planta.jpg'): Promi
     try {
       const body = (await response.json()) as { error?: unknown };
       if (typeof body.error === 'string') {
-        detail = body.error;
+        detail = repairTextEncoding(body.error);
       }
     } catch {
       // El cuerpo no es JSON: se queda el mensaje genérico.
@@ -38,5 +39,17 @@ export async function identifyPlant(image: Blob, filename = 'planta.jpg'): Promi
     );
   }
 
-  return (await response.json()) as PlantIdentification;
+  const identification = (await response.json()) as PlantIdentification;
+  return {
+    ...identification,
+    bestMatch: identification.bestMatch ? repairTextEncoding(identification.bestMatch) : null,
+    results: identification.results.map((match) => ({
+      ...match,
+      scientificName: repairTextEncoding(match.scientificName),
+      author: match.author ? repairTextEncoding(match.author) : null,
+      family: match.family ? repairTextEncoding(match.family) : null,
+      genus: match.genus ? repairTextEncoding(match.genus) : null,
+      commonNames: match.commonNames.map(repairTextEncoding),
+    })),
+  };
 }

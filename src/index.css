@@ -32,6 +32,7 @@
   --color-accent-2: oklch(0.585 0.098 149);
   --color-accent-soft: oklch(0.945 0.026 132);
   --color-on-accent: oklch(1 0 0);
+  --color-selection: oklch(0.55 0.15 305);
   --color-app: oklch(0.977 0.008 95);
   --color-canvas: oklch(0.915 0.008 95);
 
@@ -308,6 +309,23 @@
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+/* Recuento centrado en los grupos morados de ubicaciones seleccionadas. */
+.leaflet-tooltip.selected-species-count {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-on-accent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaflet-tooltip.selected-species-count::before {
+  display: none;
 }
 
 /* Área pintada al seleccionar un grupo (RF2): círculo que cubre a sus miembros. */

@@ -1,122 +1,177 @@
-import { ChevronDown, MapPin, Search as SearchIcon } from 'lucide-react'
+import { Search as SearchIcon, Sprout } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location'
+import { useLocationPermission } from '../../components/Location'
 import { Page } from '../../components/Page'
-import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Input } from '../../components/ui/Input'
 import { useApp } from '../../context/useApp'
-import { formatDistance } from '../../i18n/format'
-import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius } from '../../services/nearby'
-import type { NearbyPlant } from '../../services/nearby'
-import { groupBySpecies } from '../../services/plantGroups'
+import { formatDistance, repairTextEncoding } from '../../i18n/format'
+import { commonNameFor, getAllSpeciesList } from '../../services/ficha'
+import type { FichaListItem } from '../../services/ficha'
+import { fetchNearbyTrees } from '../../services/nearby'
 
-/**
- * Búsqueda. El catálogo completo filtrando por nombre llega con otra UT; hoy
- * la página muestra las plantas del inventario más cercanas al usuario
- * (`GET /trees/nearby`), ordenadas por distancia y con el radio de Ajustes.
- */
-export function Search() {
-  const { t, lang, mode } = useApp()
+interface SearchProps { onSelectSpecies?: (species: FichaListItem) => void }
+
+interface SpeciesCardProps {
+  species: FichaListItem
+  lang: ReturnType<typeof useApp>['lang']
+  distance?: number
+}
+
+function SpeciesThumbnail({ species }: Pick<SpeciesCardProps, 'species'>) {
+  return (
+    <span className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-card bg-accent-soft text-accent">
+      <Sprout size={24} aria-hidden="true" />
+      {species.image?.url && (
+        <img
+          src={species.image.url}
+          alt=""
+          loading="lazy"
+          onError={(event) => { event.currentTarget.style.display = 'none' }}
+          className="absolute inset-0 h-full w-full object-cover outline outline-1 -outline-offset-1 outline-black/10"
+        />
+      )}
+    </span>
+  )
+}
+
+function SpeciesResultNames({ species, lang, distance }: SpeciesCardProps) {
+  const { t } = useApp()
+  return (
+    <span className="min-w-0">
+      <span className="block truncate text-body font-semibold text-ink">{commonNameFor(species.names, lang) ?? repairTextEncoding(species.scientificName)}</span>
+      <span className="block truncate text-small italic text-muted">{repairTextEncoding(species.scientificName)}</span>
+      {distance !== undefined && (
+        <span className="mt-1 block text-caption font-semibold tabular-nums text-muted">{t('search.distance', { distance: formatDistance(distance, lang) })}</span>
+      )}
+    </span>
+  )
+}
+
+function normalizeSearch(value: string) {
+  return repairTextEncoding(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
+}
+
+/** Búsqueda del catálogo por nombre común o científico. */
+export function Search({ onSelectSpecies }: SearchProps) {
+  const { t, lang } = useApp()
   const [query, setQuery] = useState('')
-  const { status, position, allow, deny, retry } = useLocationPermission()
-  const [plants, setPlants] = useState<NearbyPlant[] | null>(null)
+  const { status: locationStatus, position, allow, deny, retry } = useLocationPermission()
+  const [catalog, setCatalog] = useState<FichaListItem[] | null>(null)
+  const [catalogFailed, setCatalogFailed] = useState(false)
+  const [nearestDistanceBySpecies, setNearestDistanceBySpecies] = useState<Record<number, number>>({})
 
   useEffect(() => {
-    if (status !== 'granted' || !position) return
+    let cancelled = false
+    setCatalog(null)
+    setCatalogFailed(false)
+    getAllSpeciesList(lang)
+      .then((items) => { if (!cancelled) setCatalog(items) })
+      .catch(() => { if (!cancelled) { setCatalog([]); setCatalogFailed(true) } })
+    return () => { cancelled = true }
+  }, [lang])
+
+  useEffect(() => {
+    if (!position) {
+      setNearestDistanceBySpecies({})
+      return
+    }
     const controller = new AbortController()
-    // Misma regla de tres y mismo radio por modo que el mapa: aventura fijo,
-    // resto el deslizador (100 plantas por cada 1000 m).
-    const nearbyRadius = effectiveNearbyRadius(mode, readNearbyRadius())
-    fetchNearbyTrees(
-      {
-        latitude: position.latitude,
-        longitude: position.longitude,
-        radius: nearbyRadius,
-        limit: Math.max(1, Math.round(nearbyRadius / 10)),
-        lang,
-      },
-      controller.signal,
-    )
+    fetchNearbyTrees({
+      latitude: position.latitude,
+      longitude: position.longitude,
+      radius: 10_000,
+      limit: 1000,
+      lang: lang === 'va' ? 'ca' : lang,
+    }, controller.signal)
       .then((response) => {
-        if (!controller.signal.aborted) setPlants(response.trees)
+        if (controller.signal.aborted) return
+        const distances: Record<number, number> = {}
+        for (const plant of response.trees) {
+          if (plant.speciesId === null) continue
+          distances[plant.speciesId] = Math.min(distances[plant.speciesId] ?? Infinity, plant.distance)
+        }
+        setNearestDistanceBySpecies(distances)
       })
       .catch(() => {
-        if (!controller.signal.aborted) setPlants(null)
+        if (!controller.signal.aborted) setNearestDistanceBySpecies({})
       })
     return () => controller.abort()
-  }, [status, position, lang, mode])
+  }, [position, lang])
 
-  // Mismo flujo que el mapa: primero el aviso de permiso, pantalla completa.
-  if (status === 'prompt') {
-    return <LocationPermissionPrompt onAllow={allow} onDeny={deny} />
-  }
+  const normalizedQuery = normalizeSearch(query)
+  const matches = catalog
+    ? catalog.filter((item) => normalizeSearch([item.scientificName, ...item.names.map((name) => name.name)].join(' ')).includes(normalizedQuery))
+    : []
+  const orderedMatches = [...matches].sort((a, b) => {
+    const distanceA = nearestDistanceBySpecies[a.id] ?? Infinity
+    const distanceB = nearestDistanceBySpecies[b.id] ?? Infinity
+    return distanceA - distanceB || commonNameFor(a.names, lang)?.localeCompare(commonNameFor(b.names, lang) ?? '', lang) || a.scientificName.localeCompare(b.scientificName)
+  })
 
   return (
     <Page title={t('search.title')}>
       <Input icon={SearchIcon} type="search" value={query} placeholder={t('search.placeholder')} onChange={(e) => setQuery(e.target.value)} />
 
-      {status === 'denied' ? (
-        <EmptyState
-          icon={MapPin}
-          title={t('search.locationEmpty')}
-          description={t('search.locationEmptyDesc')}
-          action={<Button onClick={retry}>{t('search.activateLocation')}</Button>}
-        />
-      ) : plants === null ? (
+      {locationStatus === 'prompt' && (
+        <section className="mt-3 rounded-card bg-surface p-3 shadow-raised" aria-label={t('search.locationOrder')}>
+          <p className="text-small text-muted">{t('search.locationOrderDesc')}</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={allow} className="min-h-11 rounded-control bg-accent px-3 text-small font-semibold text-on-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('location.allowButton')}</button>
+            <button type="button" onClick={deny} className="min-h-11 rounded-control px-3 text-small font-semibold text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('location.denyButton')}</button>
+          </div>
+        </section>
+      )}
+      {locationStatus === 'denied' && (
+        <button type="button" onClick={retry} className="mt-3 text-left text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('search.locationRetry')}</button>
+      )}
+
+      {normalizedQuery && (
+        <section className="mt-3" aria-label={t('search.results')}>
+          {catalog === null ? <p role="status" className="p-3 text-small text-muted">{t('search.loading')}</p> : catalogFailed ? (
+            <p role="status" className="rounded-card bg-surface p-4 text-small text-muted">{t('search.catalogError')}</p>
+          ) : orderedMatches.length === 0 ? (
+            <p role="status" className="rounded-card bg-surface p-4 text-small text-muted">{t('search.noResults')}</p>
+          ) : (
+            <ul className="overflow-hidden rounded-card bg-surface shadow-raised">
+              {orderedMatches.map((species) => (
+                <li key={species.id} className="border-b border-line last:border-0">
+                  <button type="button" onClick={() => onSelectSpecies?.(species)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <SpeciesThumbnail species={species} />
+                    <SpeciesResultNames species={species} lang={lang} distance={nearestDistanceBySpecies[species.id]} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+      {!normalizedQuery && catalogFailed && (
+        <p role="status" className="mt-3 rounded-card bg-surface p-4 text-small text-muted">{t('search.catalogError')}</p>
+      )}
+      {!normalizedQuery && catalog === null && (
+        <p role="status" className="mt-3 p-3 text-small text-muted">{t('search.loading')}</p>
+      )}
+      {!normalizedQuery && catalog !== null && !catalogFailed && orderedMatches.length === 0 && (
         <div className="relative flex-1">
           <div className="pointer-events-none absolute inset-0 flex">
-            <EmptyState icon={SearchIcon} title={t('search.empty')} description={t('search.emptyDesc')} />
+            <EmptyState icon={SearchIcon} title={t('search.noResults')} description={t('search.emptyDesc')} />
           </div>
         </div>
-      ) : plants.length === 0 ? (
+      )}
+      {!normalizedQuery && catalog !== null && !catalogFailed && orderedMatches.length > 0 && (
         <div className="relative flex-1">
-          <div className="pointer-events-none absolute inset-0 flex">
-            <EmptyState icon={SearchIcon} title={t('search.nearbyEmpty')} description={t('search.nearbyDesc')} />
-          </div>
-        </div>
-      ) : (
-        <section aria-label={t('search.nearby')} className="mt-4">
-          <h2 className="font-display text-heading text-ink">{t('search.nearby')}</h2>
-          <p className="text-small text-muted mt-0.5">{t('search.nearbyDesc')}</p>
-          {/* Misma agrupación que el mapa (RF2): una especie cercana, un
-              desplegable; dentro, cada ejemplar con su distancia. La lista
-              llega ordenada por distancia del backend, así que la primera
-              especie es siempre la más cercana. */}
           <ul className="mt-3 overflow-hidden rounded-card bg-surface shadow-raised">
-            {groupBySpecies(plants).map((group) => (
-              <li key={group.name} className="border-b border-line last:border-0">
-                <details className="group">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent [&::-webkit-details-marker]:hidden">
-                    <span className="min-w-0">
-                      <span className="block truncate text-body font-semibold text-ink">{group.name}</span>
-                      {group.specimens[0].scientificName && group.specimens[0].scientificName !== group.name && (
-                        <span className="block truncate text-small text-muted">{group.specimens[0].scientificName}</span>
-                      )}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-caption tabular-nums text-on-accent">
-                        {group.specimens.length}
-                      </span>
-                      <span className="text-small tabular-nums text-muted">{formatDistance(group.specimens[0].distance, lang)}</span>
-                      <ChevronDown size={16} aria-hidden="true" className="text-muted transition-transform group-open:rotate-180" />
-                    </span>
-                  </summary>
-                  <ul className="border-t border-line bg-surface-2">
-                    {group.specimens.map((specimen) => (
-                      <li key={specimen.id} className="flex items-center justify-between gap-3 border-b border-line px-4 py-2 pl-8 last:border-0">
-                        <span className="min-w-0 truncate text-small text-ink">
-                          {specimen.scientificName ?? specimen.displayName}
-                        </span>
-                        <span className="shrink-0 text-small tabular-nums text-muted">{formatDistance(specimen.distance, lang)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
+            {orderedMatches.map((species) => (
+              <li key={species.id} className="border-b border-line last:border-0">
+                <button type="button" onClick={() => onSelectSpecies?.(species)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  <SpeciesThumbnail species={species} />
+                  <SpeciesResultNames species={species} lang={lang} distance={nearestDistanceBySpecies[species.id]} />
+                </button>
               </li>
             ))}
           </ul>
-        </section>
+        </div>
       )}
     </Page>
   )

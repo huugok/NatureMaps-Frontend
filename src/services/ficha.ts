@@ -1,4 +1,5 @@
 import { dictionaries } from '../i18n/strings';
+import { repairTextEncoding } from '../i18n/format';
 import type { Language } from '../types/language';
 import type { PlantPin } from '../types/plant';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
@@ -136,6 +137,36 @@ export async function getSpeciesList(language: Language): Promise<FichaListItem[
   return body.species ?? [];
 }
 
+/** Catálogo completo paginado, para búsquedas por nombre. */
+export async function getAllSpeciesList(language: Language): Promise<FichaListItem[]> {
+  const all: FichaListItem[] = [];
+  let offset = 0;
+  while (true) {
+    const body = await fetchJson<{ species: FichaListItem[]; returned: number }>(
+      `${API_URL}/species?limit=200&offset=${offset}&lang=${encodeURIComponent(language)}`,
+      'No se ha podido cargar el catálogo de especies',
+    );
+    all.push(...(body.species ?? []));
+    if ((body.returned ?? body.species?.length ?? 0) < 200) return all;
+    offset += 200;
+  }
+}
+
+/** Carga todas las ubicaciones de una especie; el backend pagina en bloques de hasta 200. */
+export async function getSpeciesLocations(id: number, language: Language): Promise<FichaLocation[]> {
+  const locations: FichaLocation[] = [];
+  let afterLocationId = 0;
+  while (true) {
+    const detail = await fetchJson<FichaDetail>(
+      `${API_URL}/species/${id}?lang=${encodeURIComponent(language)}&locationLimit=200&afterLocationId=${afterLocationId}`,
+      'No se han podido cargar las ubicaciones de la especie',
+    );
+    locations.push(...detail.locations.items);
+    if (detail.locations.nextAfterId === null) return locations;
+    afterLocationId = detail.locations.nextAfterId;
+  }
+}
+
 /** Ficha completa de una especie, con sus ubicaciones reales. */
 export async function getSpeciesDetail(id: number, language: Language): Promise<FichaDetail> {
   return fetchJson<FichaDetail>(
@@ -161,20 +192,21 @@ export function commonNameFor(names: FichaNameInfo[], language: Language): strin
   const preferidos: string[] = language === 'va' ? ['va', 'ca', 'es'] : language === 'en' ? ['en', 'es'] : ['es', 'ca'];
   for (const code of preferidos) {
     const encontrado = names.find((entrada) => entrada.language === code);
-    if (encontrado) return encontrado.name;
+    if (encontrado) return repairTextEncoding(encontrado.name);
   }
-  return names[0]?.name ?? null;
+  return names[0] ? repairTextEncoding(names[0].name) : null;
 }
 
 /** Convierte el código de fuente del enriquecimiento ('WIKIPEDIA') en etiqueta
  * de UI ('Wikipedia'), para cuando el texto mostrado es el extracto automático
  * y no hay ficha editorial que traiga sus propias fuentes (RNF6). */
 function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment, language: Language): FichaFuente {
-  const nombre = enrichment.source.charAt(0).toUpperCase() + enrichment.source.slice(1).toLowerCase();
+  const source = repairTextEncoding(enrichment.source);
+  const nombre = source.charAt(0).toUpperCase() + source.slice(1).toLowerCase();
   return {
     name: nombre,
     description: enrichment.license
-      ? `${dictionaries[language]['ficha.enrichment']} · ${enrichment.license}`
+      ? `${dictionaries[language]['ficha.enrichment']} · ${repairTextEncoding(enrichment.license)}`
       : dictionaries[language]['ficha.enrichment'],
     url: enrichment.url,
     icon: 'search',
@@ -186,6 +218,8 @@ function fuenteDesdeEnriquecimiento(enrichment: FichaEnrichment, language: Langu
 function fuentePintable(fuente: FichaSource): FichaFuente {
   return {
     ...fuente,
+    name: repairTextEncoding(fuente.name),
+    description: repairTextEncoding(fuente.description),
     icon: fuente.url.includes('geoportal.valencia.es') ? 'landmark' : 'search',
   };
 }
@@ -195,18 +229,19 @@ function fuentePintable(fuente: FichaSource): FichaFuente {
  * detalle. Los campos que la BD no tiene se quedan ausentes y la página oculta
  * esas secciones en lugar de pintarlas vacías. */
 export function fichaDesdeItemLista(item: FichaListItem, language: Language): FichaEspecie {
-  const commonName = commonNameFor(item.names, language) ?? item.scientificName;
+  const scientificName = repairTextEncoding(item.scientificName);
+  const commonName = commonNameFor(item.names, language) ?? scientificName;
   return {
     id: item.id,
     commonName,
-    scientificName: item.scientificName,
-    family: item.profile?.family ?? undefined,
+    scientificName,
+    family: item.profile?.family ? repairTextEncoding(item.profile.family) : undefined,
     photoUrl: item.image?.url,
-    photoCredit: item.image?.attribution,
-    description: item.content ?? undefined,
-    flowering: item.profile?.flowering ?? undefined,
+    photoCredit: item.image?.attribution ? repairTextEncoding(item.image.attribution) : undefined,
+    description: item.content ? repairTextEncoding(item.content) : undefined,
+    flowering: item.profile?.flowering ? repairTextEncoding(item.profile.flowering) : undefined,
     curiosity: item.profile?.curiosity
-      ? { label: 'Dato curioso', text: item.profile.curiosity }
+      ? { label: 'Dato curioso', text: repairTextEncoding(item.profile.curiosity) }
       : undefined,
     // Fuentes mostradas: las declaradas en la ficha editorial si existe; si no,
     // la del enriquecimiento cuyo extracto es el texto que se está leyendo.
@@ -225,8 +260,8 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
 export function fichaDesdePlanta(plant: PlantPin): FichaEspecie {
   return {
     ...(plant.speciesId != null ? { id: plant.speciesId } : {}),
-    commonName: plant.displayName,
-    scientificName: plant.scientificName ?? plant.displayName,
+    commonName: repairTextEncoding(plant.displayName),
+    scientificName: repairTextEncoding(plant.scientificName ?? plant.displayName),
   };
 }
 
@@ -238,8 +273,10 @@ export function fichaDesdeDetalle(detail: FichaDetail, language: Language): Fich
     locations: detail.locations.items
       .filter((ubicacion) => ubicacion.neighborhood !== null || ubicacion.district !== null)
       .map((ubicacion) => ({
-        name: ubicacion.neighborhood ?? ubicacion.district ?? '',
-        district: ubicacion.district ?? undefined,
+        name: repairTextEncoding(ubicacion.neighborhood ?? ubicacion.district ?? ''),
+        district: ubicacion.district ? repairTextEncoding(ubicacion.district) : undefined,
+        latitude: ubicacion.latitude,
+        longitude: ubicacion.longitude,
       })),
     locationTotal: detail.locations.total,
   };
@@ -262,8 +299,9 @@ export async function fichaDesdeDetalleConFuentes(
   const asociadas: FichaFuente[] = resolved
     .filter((source): source is FichaDataSource => source !== null)
     .map((source) => ({
-      name: source.name,
+      name: repairTextEncoding(source.name),
       description: [source.provider, source.attribution, `Licencia: ${source.license}`]
+        .map(repairTextEncoding)
         .filter(Boolean)
         .join(' · '),
       url: source.url,
@@ -288,7 +326,7 @@ export async function fichaDesdeDetalleConFuentes(
  * vs 'Citrus aurantium'): se compara sin la '×' ni mayúsculas. */
 function normalizarNombreCientifico(nombre: string): string {
   // El inventario escribe los híbridos con «x» y el catálogo con «×».
-  return nombre.toLowerCase().replaceAll('×', ' ').replace(/\sx\s/g, ' ').replace(/\s+/g, ' ').trim();
+  return repairTextEncoding(nombre).toLowerCase().replaceAll('×', ' ').replace(/\sx\s/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Índice en la lista de la especie identificada por Pl@ntNet, o null si no hay ficha para ella. */

@@ -21,6 +21,8 @@ export interface FichaUbicacion {
   /** Nombre que se muestra: barrio si se conoce y distrito en su defecto. */
   name: string;
   district?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface FichaEspecie {

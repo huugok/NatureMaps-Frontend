@@ -15,6 +15,8 @@ import {
   Trees,
 } from 'lucide-react';
 import { useApp } from '../../context/useApp';
+import { useLocationPermission } from '../../components/Location';
+import { formatDistance } from '../../i18n/format';
 import { IDENTIFICATION_NOTICE } from './constants';
 import type { FichaEspecie, FichaFuente, IdentificacionFicha } from './types';
 
@@ -41,13 +43,24 @@ export interface FichaPlantaPageProps {
   onBack?: () => void;
   /** Callback al pulsar "Ver en el mapa": recibe el id de especie del catálogo
    * (ausente en fichas de solo identificación, sin instancias que buscar). */
-  onViewOnMap?: (speciesId?: number) => void;
+  onViewOnMap?: (speciesId?: number, neighborhood?: string) => void;
+  /** Abre el mapa filtrado al barrio pulsado, también desde una ficha abierta en el mapa. */
+  onViewNeighborhoodOnMap?: (speciesId: number, neighborhood: string) => void;
   /** Callback al marcar o desmarcar la especie como favorita. */
   onToggleFavorite?: () => void;
   /** Callback al pulsar "Anterior": ausente cuando no hay especie previa. */
   onPrevious?: () => void;
   /** Callback al pulsar "Siguiente": ausente cuando no hay especie siguiente. */
   onNext?: () => void;
+}
+
+function metersBetween(latitudeA: number, longitudeA: number, latitudeB: number, longitudeB: number) {
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latitudeDelta = radians(latitudeB - latitudeA);
+  const longitudeDelta = radians(longitudeB - longitudeA);
+  const value = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(radians(latitudeA)) * Math.cos(radians(latitudeB)) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
 interface SourceCardProps {
@@ -112,14 +125,26 @@ export function FichaPlantaPage({
   total,
   onBack,
   onViewOnMap,
+  onViewNeighborhoodOnMap,
   onToggleFavorite,
   onPrevious,
   onNext,
 }: FichaPlantaPageProps) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
+  const { status: locationStatus, position: userPosition, allow, deny, retry } = useLocationPermission();
   const [isFavorite, setIsFavorite] = useState(false);
 
-  const primaryLocation = species.locations?.[0];
+  const locationsByName = new Map<string, { name: string; distance: number }>();
+  for (const location of species.locations ?? []) {
+    const distance = userPosition && location.latitude !== undefined && location.longitude !== undefined
+      ? metersBetween(userPosition.latitude, userPosition.longitude, location.latitude, location.longitude)
+      : Number.POSITIVE_INFINITY;
+    const current = locationsByName.get(location.name);
+    if (!current || distance < current.distance) locationsByName.set(location.name, { name: location.name, distance });
+  }
+  const locations = [...locationsByName.values()].sort((a, b) =>
+    a.distance - b.distance || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  );
   const sources = species.sources ?? [];
 
   const handleToggleFavorite = () => {
@@ -129,6 +154,10 @@ export function FichaPlantaPage({
 
   const handleViewOnMap = () => {
     onViewOnMap?.(species.id);
+  };
+
+  const handleViewNeighborhoodOnMap = (neighborhood: string) => {
+    if (species.id !== undefined) onViewNeighborhoodOnMap?.(species.id, neighborhood);
   };
 
   return (
@@ -229,12 +258,6 @@ export function FichaPlantaPage({
               {t('ficha.noFlowering')}
             </li>
           )}
-          {primaryLocation && (
-            <li className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-caption font-medium text-accent">
-              <MapPin size={14} aria-hidden="true" />
-              {primaryLocation.name}
-            </li>
-          )}
           {(species.locationTotal ?? 0) > 0 && (
             <li className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-caption font-medium text-ink-2">
               <Trees size={14} aria-hidden="true" />
@@ -242,7 +265,6 @@ export function FichaPlantaPage({
             </li>
           )}
         </ul>
-
         <h2 className="font-display mt-6 text-heading text-ink">{t('ficha.description')}</h2>
         {species.description ? (
           <p className="font-body mt-2 break-words whitespace-pre-line text-body text-muted text-pretty">{species.description}</p>
@@ -289,6 +311,39 @@ export function FichaPlantaPage({
             </a>
           </p>
         </div>
+
+        {species.id !== undefined && locations.length > 0 && (
+          <section className="mt-6" aria-label={t('ficha.specimenLocations')}>
+            <h2 className="font-display text-heading text-ink">{t('ficha.specimenLocations')}</h2>
+            {locationStatus === 'prompt' && (
+              <div className="mt-2 rounded-card bg-surface-2 p-3">
+                <p className="text-small text-muted">{t('ficha.locationDistancePrompt')}</p>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" onClick={allow} className="min-h-11 rounded-control bg-accent px-3 text-small font-semibold text-on-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('location.allowButton')}</button>
+                  <button type="button" onClick={deny} className="min-h-11 rounded-control px-3 text-small font-semibold text-muted hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('location.denyButton')}</button>
+                </div>
+              </div>
+            )}
+            {locationStatus === 'denied' && (
+              <button type="button" onClick={retry} className="mt-2 text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('ficha.locationDistanceRetry')}</button>
+            )}
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {locations.map((location) => (
+                <li key={location.name}>
+                  <button
+                    type="button"
+                    onClick={() => handleViewNeighborhoodOnMap(location.name)}
+                    disabled={!onViewNeighborhoodOnMap}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-card bg-accent-soft px-3 py-2 text-small font-medium text-accent hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
+                  >
+                    <MapPin size={14} aria-hidden="true" />{location.name}
+                    {Number.isFinite(location.distance) && <span className="text-caption tabular-nums text-muted">· {formatDistance(location.distance, lang)}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="mt-6 flex items-center gap-2">
           <h2 className="font-display text-heading text-ink">{t('ficha.sources')}</h2>
