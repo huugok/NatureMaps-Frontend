@@ -3,9 +3,10 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-11-06 · `main` @ `5122686` · Rama de trabajo:
-> `feat/ficha-desde-punto-mapa` (worktree `wt-ficha-mapa`). El mapa abre la ficha de la
-> planta tocada como overlay y conserva centro y zoom al volver (UT F03.1, PA 690/691).
+> Última verificación: 2026-11-10 · `main` @ `0f8b6ef` · Rama de trabajo:
+> `feat/foto-ficha` (worktree `wt-pa-2941-foto-ficha`). El resultado de la identificación permite
+> guardar la captura en la ficha de la especie (PA 2941): sustituye a la foto del catálogo y se
+> conserva en el dispositivo.
 
 ## Qué es este proyecto
 
@@ -74,6 +75,14 @@ mayúsculas y a la notación de híbrido `×`): si hay ficha, «Ver ficha» abre
 no, se construye una ficha honesta con `fichaDesdeIdentificacion`. Tocar una alternativa abre
 su ficha y la deja marcada.
 
+El resultado de la identificación ofrece también «Usar esta foto en la ficha» (PA 2941):
+guarda la captura como imagen de la especie con `src/services/speciesPhoto.ts` (único escritor
+de `naturemaps.speciesPhotos`) y abre su ficha con esa cabecera. La foto se queda en el
+dispositivo —el backend todavía no acepta fotos de usuario— y App la aplica al construir
+cualquier ficha (escaneo, mapa o `/ficha`), por encima de la imagen del catálogo y de sus
+créditos. Se conservan las 6 capturas más recientes; si localStorage la rechaza (modo privado,
+cuota llena), la ficha se abre igualmente con la foto, pero no persiste.
+
 Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
 `localStorage` con `languagePreference`; la UI está traducida con `t()` y los diccionarios de
 `src/i18n/strings.ts`. El frontend consume el backend para la identificación por foto
@@ -112,8 +121,10 @@ src/index.css         @import "tailwindcss"
 src/components/       Componentes (una carpeta por componente)
 src/pages/            Vistas por ruta (Home, Map, RoutesList, Search, FichaPlanta,
                       Camera dentro de components/, Settings, ModeSelect, Components)
-src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de idioma)
+src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de
+                      idioma, foto propia de la especie en localStorage)
 src/types/            Tipos compartidos (navigation.ts, language.ts)
+src/utils/            Utilidades sin estado (cn.ts, speciesName.ts)
 public/               Assets estáticos (favicon, icons.svg)
 docs/agents/          Convenciones para agentes (issue tracker, domain docs)
 ```
@@ -258,9 +269,11 @@ Reglas:
   base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
 - La ficha (`src/services/ficha.ts`) consume `GET /species` y `GET /species/:id` con la misma
   base URL. El contenido editorial (descripciones, curiosidades, fuentes) lo sirve el backend.
+- La foto que guarda el usuario en una ficha (PA 2941) **no** se envía al backend: vive en
+  `localStorage` (`naturemaps.speciesPhotos`) mediante `src/services/speciesPhoto.ts`, que es su
+  único escritor. No leer esa clave desde componentes.
 - El mapa (`src/pages/Map/MapPage.tsx`) llama a servicios externos (teselas de OpenStreetMap y
-  búsqueda en Nominatim) y al backend: `src/services/nearby.ts` consume `GET /trees/nearby`
-  (plantas cercanas, distancia en metros) para los marcadores del mapa y «Cerca de ti» en
+  búsqueda en Nominatim) y al backend: `src/services/nearby.ts` consume `GET /trees/nearby`  (plantas cercanas, distancia en metros) para los marcadores del mapa y «Cerca de ti» en
   Buscar. El permiso de ubicación sigue el patrón de la cámara
   (`src/components/Location/`, aviso propio antes del nativo, con reintento si se deniega);
   el radio (100–10000 m) se guarda en `naturemaps:radius` y se configura en Ajustes
