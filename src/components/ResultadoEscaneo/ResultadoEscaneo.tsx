@@ -1,4 +1,4 @@
-import { ArrowLeft, Sprout } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Sprout } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import type { PlantMatch } from '../../types/identify';
 import {
@@ -23,6 +23,11 @@ export interface ResultadoEscaneoProps {
    * cuando se pulsa una fila.
    */
   onOpenPrimary?: (match: PlantMatch) => void;
+  /**
+   * Guarda la foto capturada como imagen de la ficha de la especie más
+   * probable (PA 2941). Solo se pinta cuando hay foto y este callback.
+   */
+  onSavePhoto?: (match: PlantMatch) => void;
   /** Vuelve a la pantalla anterior. */
   onBack: () => void;
   /** Descarta el resultado y vuelve a hacer la foto. */
@@ -65,6 +70,7 @@ export function ResultadoEscaneo({
   selectedName = null,
   onSelectAlternative,
   onOpenPrimary,
+  onSavePhoto,
   onBack,
   onRepeatPhoto,
   maxAlternatives = MAX_ALTERNATIVAS,
@@ -183,6 +189,17 @@ export function ResultadoEscaneo({
                     className="mt-3 flex min-h-12 w-full items-center justify-center rounded-card bg-accent px-4 text-body font-semibold text-on-accent shadow-raised transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                   >
                     {t('result.viewCard')}
+                  </button>
+                )}
+
+                {onSavePhoto !== undefined && photoUrl !== null && (
+                  <button
+                    type="button"
+                    onClick={() => onSavePhoto(principal)}
+                    className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-card border border-line bg-surface-2 px-4 text-body font-semibold text-accent transition-colors hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  >
+                    <ImagePlus size={18} aria-hidden="true" />
+                    {t('result.usePhoto')}
                   </button>
                 )}
               </article>

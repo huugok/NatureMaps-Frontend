@@ -35,6 +35,7 @@ import {
 import type { Language } from './types/language';
 import type { PlantIdentification, PlantMatch } from './types/identify';
 import type { PlantPin } from './types/plant';
+import { getSpeciesPhoto, saveSpeciesPhoto } from './services/speciesPhoto';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -91,6 +92,16 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mimeType });
 }
 
+/**
+ * PA 2941: la foto que el usuario guardó para la especie manda sobre la del
+ * catálogo (y sobre sus créditos), para que la ficha muestre la muestra que
+ * se observó. Sin foto propia, la ficha se queda como viene del backend.
+ */
+function conFotoPropia(especie: FichaEspecie): FichaEspecie {
+  const foto = getSpeciesPhoto(especie);
+  return foto === null ? especie : { ...especie, photoUrl: foto, photoCredit: undefined };
+}
+
 export default function App() {
   const { mode, lang, setLang, t } = useApp();
   const frameScale = useAppFrameScale();
@@ -133,7 +144,7 @@ export default function App() {
     getSpeciesDetail(fichaItem.id, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
       .then((especie) => {
-        if (!cancelled) setFichaDetail({ status: 'ready', especie });
+        if (!cancelled) setFichaDetail({ status: 'ready', especie: conFotoPropia(especie) });
       })
       .catch(() => {
         if (!cancelled) setFichaDetail({ status: 'error' });
@@ -187,33 +198,57 @@ export default function App() {
     }
   };
 
-  /** Abre la ficha real si la especie está en el catálogo; si no, la de Pl@ntNet. */
-  const handleOpenSpecies = (match: PlantMatch, photo: string | null) => {
+  /** Abre la ficha real si la especie está en el catálogo; si no, la de Pl@ntNet.
+   * `fotoEnCabecera` fuerza la captura en la cabecera aunque el dispositivo no
+   * haya podido guardarla (PA 2941). */
+  const handleOpenSpecies = (
+    match: PlantMatch,
+    photo: string | null,
+    fotoEnCabecera: string | null = null,
+  ) => {
     const identificacion = { score: match.score };
+    const conFoto = (especie: FichaEspecie): FichaEspecie =>
+      fotoEnCabecera === null
+        ? conFotoPropia(especie)
+        : { ...especie, photoUrl: fotoEnCabecera, photoCredit: undefined };
     const items = fichaList.status === 'ready' ? fichaList.items : null;
     const identifiedIndex = items
       ? findSpeciesIndexByScientificName(items, match.scientificName)
       : null;
 
     if (items === null || identifiedIndex === null) {
-      setFicha({ species: fichaDesdeIdentificacion(match, photo, lang), identification: identificacion });
+      setFicha({ species: conFoto(fichaDesdeIdentificacion(match, photo, lang)), identification: identificacion });
       return;
     }
 
     const item = items[identifiedIndex];
-    setFicha({ species: fichaDesdeItemLista(item, lang), identification: identificacion });
+    setFicha({ species: conFoto(fichaDesdeItemLista(item, lang)), identification: identificacion });
     getSpeciesDetail(item.id, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
       .then((species) => {
         setFicha((actual) =>
           actual?.species.scientificName === species.scientificName
-            ? { species, identification: actual.identification }
+            ? { species: conFoto(species), identification: actual.identification }
             : actual,
         );
       })
       .catch(() => {
         // La ficha instantánea ya es válida; el detalle solo añade ubicaciones.
       });
+  };
+
+  /**
+   * PA 2941: guarda la foto de la muestra en la ficha de la especie
+   * identificada y la abre, para que el usuario vea la cabecera con su foto.
+   * La foto se queda en este dispositivo (el backend no acepta fotos de
+   * usuario): al volver a abrir la ficha, manda sobre la del catálogo.
+   */
+  const handleSavePhotoToFicha = (match: PlantMatch, photo: string | null) => {
+    if (photo === null) return;
+    const guardada = saveSpeciesPhoto(match, photo);
+    // Con la foto ya persistida, la ficha la aplica sola; si el almacenamiento
+    // la rechaza, se fuerza en esta apertura para no prometer de más.
+    handleOpenSpecies(match, photo, guardada ? null : photo);
   };
 
   /** Abre la ficha de la planta tocada en el mapa (F03.1) como overlay: el
@@ -236,7 +271,7 @@ export default function App() {
     // científico reportado coincide (incluido «x»/«×»), se abre esa ficha.
     const speciesId = item?.id ?? plant.speciesId ?? undefined;
     setFicha({
-      species: item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant),
+      species: conFotoPropia(item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant)),
       identification: null,
       origin: 'mapa',
     });
@@ -247,7 +282,7 @@ export default function App() {
       .then((species) => {
         setFicha((actual) =>
           actual !== null && actual.species.id === speciesId
-            ? { species, identification: actual.identification, origin: actual.origin }
+            ? { species: conFotoPropia(species), identification: actual.identification, origin: actual.origin }
             : actual,
         );
       })
@@ -280,6 +315,7 @@ export default function App() {
                     onPhotoCaptured={handlePhotoCaptured}
                     onIdentifyPhoto={handleIdentifyPhoto}
                     onOpenSpecies={handleOpenSpecies}
+                    onSavePhotoToFicha={handleSavePhotoToFicha}
                     identificationStatus={identificationStatus}
                     identificationResults={identificationResults}
                     identificationError={identificationError}
