@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteList } from '../../services/routes';
-import type { RouteSummary, RouteTheme } from '../../services/routes';
+import type { RouteShape, RouteSummary, RouteTheme } from '../../services/routes';
 
 /** Rutas: catálogo predefinido del backend (GET /routes). Cada tarjeta lleva
  * nombre, tema, longitud, duración y número de paradas; la ficha abre en
@@ -20,6 +20,9 @@ type ListState = { status: 'loading' } | { status: 'ready'; routes: RouteSummary
 // continuo, no como una pantalla nueva).
 let savedScrollTop = 0;
 
+/** Etiqueta del tema y de la forma de la ruta: con las dos se distinguen las
+ * rutas del catálogo (el tema dice de qué va; la forma, si cierra el anillo o
+ * va recta). */
 function ThemeBadge({ theme }: { theme: RouteTheme }) {
   const { t } = useApp();
   const label = theme === 'botanica'
@@ -28,6 +31,11 @@ function ThemeBadge({ theme }: { theme: RouteTheme }) {
       ? t('routes.theme.cultural')
       : t('routes.theme.mixta');
   return <Badge>{label}</Badge>;
+}
+
+function ShapeBadge({ shape }: { shape: RouteShape }) {
+  const { t } = useApp();
+  return <Badge>{shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal')}</Badge>;
 }
 
 function RouteCard({ route, onOpen }: { route: RouteSummary, onOpen: (route: RouteSummary) => void }) {
@@ -41,9 +49,12 @@ function RouteCard({ route, onOpen }: { route: RouteSummary, onOpen: (route: Rou
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-display text-body font-bold text-balance break-words">{route.name}</h2>
-        <ThemeBadge theme={route.theme} />
+        <ShapeBadge shape={route.shape} />
       </div>
       <p className="mt-1.5 text-small text-muted text-pretty break-words">{route.description}</p>
+      <div className="mt-2">
+        <ThemeBadge theme={route.theme} />
+      </div>
       <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted">
         <li className="flex items-center gap-1.5">
           <RouteIcon aria-hidden className="size-3.5" />

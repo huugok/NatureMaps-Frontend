@@ -277,9 +277,11 @@ Reglas:
   área de búsqueda (radio efectivo del modo), no la precisión del GPS.
 - Rutas predefinidas (`src/services/routes.ts`): `GET /routes` (listado ligero)
   y `GET /routes/:id` (ficha con paradas y `path`). El listado (`/rutas`,
-  `RoutesList`) pinta una tarjeta por ruta (nombre, tema, longitud, duración y
-  nº de paradas) sin filtros; guarda la posición del scroll y la restaura al
-  volver, para que el listado se lea como un scroll continuo. La ficha
+  `RoutesList`) pinta una tarjeta por ruta con nombre, **tema y forma**
+  (botánica/cultural/mixta y circular/lineal: con las dos se distinguen todas
+  las del catálogo), longitud, duración y nº de paradas; sin filtros. Guarda la
+  posición del scroll y la restaura al volver, para que el listado se lea como
+  un scroll continuo. La ficha
   (`/rutas/:id`, `RouteDetail` + `RouteMap`) pinta el recorrido como polilínea
   con el punto de partida y las paradas: las de planta usan el mismo pin de hoja
   del mapa y se pulsan para abrir la ficha de la planta; las de POI son un punto

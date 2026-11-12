@@ -37,13 +37,14 @@ function route(overrides: Partial<RouteSummary> = {}): RouteSummary {
 }
 
 describe('RoutesList', () => {
-  it('lista las rutas con nombre, tema, longitud, duración y paradas', async () => {
+  it('lista las rutas con nombre, tema, forma, longitud, duración y paradas', async () => {
     mockFetchRouteList.mockResolvedValue([
       route(),
       route({
         id: 2,
         name: 'Monumentos del casco antiguo',
         theme: 'cultural',
+        shape: 'lineal',
         distanceMeters: 2300,
         durationSeconds: 1900,
         stopsCount: 6,
@@ -56,6 +57,9 @@ describe('RoutesList', () => {
     expect(screen.getByText('Monumentos del casco antiguo')).toBeInTheDocument()
     expect(screen.getByText('Botánica')).toBeInTheDocument()
     expect(screen.getByText('Cultural')).toBeInTheDocument()
+    // La forma también se distingue: anillo o recta.
+    expect(screen.getByText('Circular')).toBeInTheDocument()
+    expect(screen.getByText('Lineal')).toBeInTheDocument()
     // Distancias y duraciones formateadas (29 min = 1740 s).
     expect(screen.getAllByText('2,1 km')).toHaveLength(1)
     expect(screen.getByText('2,3 km')).toBeInTheDocument()
