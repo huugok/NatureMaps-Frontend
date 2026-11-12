@@ -83,19 +83,25 @@ export function addRouteOverlay(
         title: stop.name,
         alt: stop.name,
       });
+      // El nombre también como tooltip: en el mapa pequeño de la ficha las
+      // etiquetas de las plantas solo se ven a partir de cierto zoom.
+      marker.bindTooltip(stop.name, { direction: 'top' });
       if (options.onOpenStop) marker.on('click', () => options.onOpenStop?.(stop));
       marker.addTo(layer);
       continue;
     }
-    // Punto de POI: visible, con su nombre en el `title`, pero sin ficha
-    // todavía (la de POI llega en una UT posterior).
+    // Punto de POI: visible, con su nombre al tocarlo o pasar por encima
+    // (tooltip, no popup), pero sin ficha todavía —la de POI llega en una UT
+    // posterior—.
     L.marker([stop.latitude, stop.longitude], {
       icon: createPoiStopIcon(),
       title: stop.name,
       alt: stop.name,
       keyboard: false,
       interactive: false,
-    }).addTo(layer);
+    })
+      .bindTooltip(stop.name, { direction: 'top' })
+      .addTo(layer);
   }
 
   layer.addTo(map);

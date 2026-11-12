@@ -46,7 +46,9 @@ vi.mock('leaflet', () => ({
     tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
     layerGroup: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() })),
     polyline: vi.fn(() => ({ addTo: vi.fn(), getBounds: vi.fn(() => ({ pad: () => ({}) })) })),
-    marker: vi.fn(() => ({ addTo: vi.fn(), on: vi.fn() })),
+    marker: vi.fn(() => ({
+      addTo: vi.fn(), on: vi.fn(), bindTooltip: vi.fn(function (this: unknown) { return this; }),
+    })),
     divIcon: vi.fn(() => ({})),
     latLngBounds: vi.fn(() => ({ pad: () => ({}) })),
   },

@@ -38,13 +38,14 @@ const leaflet = vi.hoisted(() => {
   const marker = {
     addTo: vi.fn(function (this: unknown) { return this; }),
     on: vi.fn(),
+    bindTooltip: vi.fn(function (this: unknown) { return this; }),
     options: {} as Record<string, unknown>,
   };
   // Cada llamada crea su propio marcador: así se puede comprobar qué manejador
   // de clic lleva cada parada.
   const created: Array<{ on: ReturnType<typeof vi.fn> }> = [];
   const markerFactory = vi.fn(() => {
-    const instance = { ...marker, on: vi.fn() };
+    const instance = { ...marker, on: vi.fn(), bindTooltip: vi.fn(function (this: unknown) { return this; }) };
     created.push(instance);
     return instance;
   });
