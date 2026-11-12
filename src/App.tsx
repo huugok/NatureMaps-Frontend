@@ -220,7 +220,7 @@ export default function App() {
    * mapa sigue montado debajo, así que al volver conserva centro y zoom
    * (PA 691). Se pinta al instante con la lista del catálogo o, si aún no está
    * cargada, con el nombre del propio punto; el detalle la enriquece después. */
-  const handleOpenPlantFromMap = useCallback((plant: PlantPin) => {
+  const handleOpenPlantFromMap = useCallback((plant: PlantPin): boolean => {
     const items = fichaList.status === 'ready' ? fichaList.items : [];
     const matchedIndex =
       plant.speciesId == null
@@ -235,13 +235,12 @@ export default function App() {
     // El inventario no enlaza todas sus plantas con el catálogo: si el nombre
     // científico reportado coincide (incluido «x»/«×»), se abre esa ficha.
     const speciesId = item?.id ?? plant.speciesId ?? undefined;
+    if (speciesId === undefined) return false;
     setFicha({
       species: item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant),
       identification: null,
       origin: 'mapa',
     });
-    if (speciesId === undefined) return;
-
     getSpeciesDetail(speciesId, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
       .then((species) => {
@@ -254,6 +253,7 @@ export default function App() {
       .catch(() => {
         // La ficha instantánea ya identifica la planta; el detalle solo añade contenido.
       });
+    return true;
   }, [fichaList, lang]);
 
   /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
