@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProvider } from '../../context/AppContext'
 import { RouteDetail } from './RouteDetail'
@@ -102,6 +102,17 @@ const route: RouteDetailData = {
   ],
 }
 
+/** Destino de la navegación al mapa: muestra la ruta y sus parámetros. */
+function MapaDestino() {
+  const location = useLocation();
+  return (
+    <>
+      <p>Mapa principal</p>
+      <p>{`mapa${location.search}`}</p>
+    </>
+  );
+}
+
 function renderDetail(id = '7', onOpenStop?: (stop: RouteDetailData['stops'][number]) => void) {
   // useParams necesita la definición de ruta: el componente no se renderiza
   // colgado de App en el test, así que montamos /rutas/:id aquí.
@@ -110,7 +121,7 @@ function renderDetail(id = '7', onOpenStop?: (stop: RouteDetailData['stops'][num
       <AppProvider>
         <Routes>
           <Route path="/rutas/:id" element={<RouteDetail onOpenStop={onOpenStop} />} />
-          <Route path="/mapa" element={<p>Mapa principal</p>} />
+          <Route path="/mapa" element={<MapaDestino />} />
         </Routes>
       </AppProvider>
     </MemoryRouter>,
@@ -186,23 +197,23 @@ describe('RouteDetail', () => {
     expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta' }))
   })
 
-  it('«Ver en el mapa» lleva al mapa con la ruta pintada', async () => {
-    const user = userEvent.setup()
-    mockFetchRouteDetail.mockResolvedValue(route)
-    renderDetail()
-
-    await user.click(await screen.findByRole('button', { name: 'Ver en el mapa' }))
-    expect(screen.getByText('Mapa principal')).toBeInTheDocument()
-  })
-
-  it('incluye los botones «Iniciar ruta» y «Descargar ruta» como marcadores', async () => {
+  it('«Iniciar ruta» lleva al mapa con la ruta pintada', async () => {
     const user = userEvent.setup()
     mockFetchRouteDetail.mockResolvedValue(route)
     renderDetail()
 
     await user.click(await screen.findByRole('button', { name: 'Iniciar ruta' }))
+    expect(screen.getByText('Mapa principal')).toBeInTheDocument()
+    expect(screen.getByText('mapa?verRuta=7')).toBeInTheDocument()
+  })
+
+  it('incluye el botón «Descargar ruta» como marcador de posición', async () => {
+    const user = userEvent.setup()
+    mockFetchRouteDetail.mockResolvedValue(route)
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: 'Descargar ruta' }))
     expect(screen.getByRole('status')).toHaveTextContent('Disponible en próximas versiones.')
-    expect(screen.getByRole('button', { name: 'Descargar ruta' })).toBeInTheDocument()
   })
 
   it('un id no numérico muestra «no existe» sin llamar al servicio', () => {

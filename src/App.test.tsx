@@ -269,11 +269,10 @@ describe('catálogo de rutas (UT de rutas predefinidas)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
   })
 
-  it('la ficha ofrece «Ver en el mapa», «Iniciar ruta» y «Descargar ruta»', async () => {
+  it('la ficha ofrece «Iniciar ruta» y «Descargar ruta»', async () => {
     renderWithProviders(<App />, { route: '/rutas/7' })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ver en el mapa' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar ruta' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Descargar ruta' })).toBeInTheDocument()
   })

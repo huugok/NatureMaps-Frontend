@@ -287,7 +287,7 @@ Reglas:
   La ficha repite los datos principales del listado e incluye los botones
   «Iniciar ruta» y «Descargar ruta» como marcadores de posición (la UT del
   guía de recorrido y la descarga llegan más adelante).
-  El botón «Ver en el mapa» de la cabecera lleva a `/mapa?verRuta=<id>`: el
+  El botón «Iniciar ruta» de la ficha lleva a `/mapa?verRuta=<id>`: el
   mapa principal pinta la ruta (`src/pages/Map/routeOverlay.ts`, el mismo
   dibujado que la ficha) y muestra un botón de solo icono «Limpiar mapa»
   (`map.clearMap`) que quita la capa. El frontend nunca llama a Valhalla: la

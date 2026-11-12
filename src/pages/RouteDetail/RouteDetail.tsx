@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Footprints, Map as MapIcon, MapPin, Route as RouteIcon } from 'lucide-react';
+import { Download, Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
-import { IconButton } from '../../components/ui/IconButton';
 import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteDetail } from '../../services/routes';
-import type { RouteDetail as RouteDetailData, RouteShape, RouteStop, RouteTheme } from '../../services/routes';
+import type { RouteDetail as RouteDetailData, RouteStop } from '../../services/routes';
 import { RouteMap } from './RouteMap';
 
 /** Ficha de una ruta del catálogo (/rutas/:id): mapa del recorrido, datos
@@ -24,16 +23,6 @@ type DetailState =
 export interface RouteDetailProps {
   /** Responde al toque de una parada de la ruta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
-}
-
-function themeLabel(theme: RouteTheme, t: (key: 'routes.theme.botanica' | 'routes.theme.cultural' | 'routes.theme.mixta') => string) {
-  if (theme === 'botanica') return t('routes.theme.botanica');
-  if (theme === 'cultural') return t('routes.theme.cultural');
-  return t('routes.theme.mixta');
-}
-
-function shapeLabel(shape: RouteShape, t: (key: 'routes.shape.circular' | 'routes.shape.lineal') => string) {
-  return shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal');
 }
 
 export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
@@ -106,29 +95,27 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   }
 
   const route = state.route;
+  const theme = route.theme === 'botanica'
+    ? t('routes.theme.botanica')
+    : route.theme === 'cultural'
+      ? t('routes.theme.cultural')
+      : t('routes.theme.mixta');
+  const shape = route.shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal');
 
   return (
     <Page
       title={route.name}
-      subtitle={themeLabel(route.theme, t)}
+      subtitle={theme}
       back
       flush
-      actions={
-        <IconButton
-          icon={MapIcon}
-          label={t('routes.viewOnMap')}
-          title={t('routes.viewOnMap')}
-          onClick={() => navigate(`/mapa?verRuta=${route.id}`)}
-        />
-      }
     >
       <div className="h-64 shrink-0 border-y border-line">
         <RouteMap route={route} onOpenStop={onOpenStop} />
       </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">
-          <Badge>{themeLabel(route.theme, t)}</Badge>
-          <Badge>{shapeLabel(route.shape, t)}</Badge>
+          <Badge>{theme}</Badge>
+          <Badge>{shape}</Badge>
         </div>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted">
           <li className="flex items-center gap-1.5">
@@ -146,12 +133,12 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
         </ul>
         <p className="text-small text-pretty break-words">{route.description}</p>
 
-        {/* Acciones de la ruta: quedan como marcadores de posición, la UT del
-            guía de recorrido y la descarga llegan más adelante. */}
+        {/* Acciones de la ruta: «Iniciar ruta» la pinta en el mapa para
+            recorrerla a pie; la descarga queda como marcador de posición. */}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setNotice(t('routes.comingSoon'))}
+            onClick={() => navigate(`/mapa?verRuta=${route.id}`)}
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-small font-bold text-on-accent transition-[transform,background-color] active:scale-95"
           >
             <Footprints size={16} aria-hidden="true" />
