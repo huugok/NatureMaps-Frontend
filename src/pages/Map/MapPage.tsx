@@ -2,17 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LocateFixed, MapPinOff, Search, X } from 'lucide-react';
+import { LocateFixed, MapPinOff, Search, Trash2, X } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance } from '../../i18n/format';
 import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
+import { fetchRouteDetail } from '../../services/routes';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea } from '../../services/plantGroups';
 import type { PlantPin } from '../../types/plant';
 import { useSearchParams } from 'react-router-dom';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
+import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const LOCATION_COLOR = '#3b7ddd';
@@ -77,6 +79,10 @@ export interface MapPageProps {
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const { t, lang, mode } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
+  // La ruta pintada se deriva del parámetro `verRuta` (ver «Ver en el mapa» de
+  // la ficha): si está, el mapa muestra el botón «Limpiar mapa».
+  const verRutaRaw = searchParams.get('verRuta');
+  const routeVisible = verRutaRaw !== null && /^\d+$/.test(verRutaRaw);
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -84,12 +90,20 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const routeAbortRef = useRef<AbortController | null>(null);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
   const followUserRef = useRef(true);
   const keepBothVisibleRef = useRef(false);
+  // `onOpenPlant` llega por props y cambia de identidad: se lee por ref para no
+  // redibujar las capas (y la ruta) en cada render de App.
+  const onOpenPlantRef = useRef(onOpenPlant);
+  useEffect(() => {
+    onOpenPlantRef.current = onOpenPlant;
+  }, [onOpenPlant]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState('');
@@ -382,7 +396,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     };
     plantsLayerRef.current = addPlantMarkers(map, pins, popupFor, handlePlantClick);
   }, [plants, lang, hasPosition, clearGroupArea, drawArea, onOpenPlant, t]);
-
   // «Ver en el mapa» (ficha, RF3): centra el ejemplar más cercano de la especie
   // pedida por parámetro y pinta su área; si no hay ninguno dentro del radio
   // del modo, avisa. Un solo uso: el parámetro se limpia al atenderlo, y se
@@ -391,7 +404,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const verRaw = searchParams.get('verEspecie');
     if (verRaw === null || !/^\d+$/.test(verRaw)) return;
     if (!hasPosition || plants === null) return;
-    setSearchParams({}, { replace: true });
+    // Limpiar solo verEspecie: si venía con verRuta, la ruta sigue pintada.
+    const next = new URLSearchParams(searchParams);
+    next.delete('verEspecie');
+    setSearchParams(next, { replace: true });
     const candidates = plants.filter((pin) => pin.speciesId === Number(verRaw));
     if (candidates.length === 0) {
       setFocusFailed(true);
@@ -407,6 +423,54 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       area?.radius ?? FOCUS_RADIUS_METERS,
     );
   }, [searchParams, plants, hasPosition, setSearchParams, focusArea]);
+
+  // «Ver en el mapa» desde la ficha de ruta: pinta el recorrido y sus paradas
+  // mientras exista el parámetro `verRuta`. Las paradas de planta usan el pin
+  // del mapa y abren su ficha; las de POI son un marcador visual (su ficha
+  // llega en una UT posterior). «Limpiar mapa» quita el parámetro y la capa.
+  useEffect(() => {
+    routeAbortRef.current?.abort();
+    routeAbortRef.current = null;
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+    const raw = searchParams.get('verRuta');
+    const routeId = raw !== null && /^\d+$/.test(raw) ? Number(raw) : null;
+    if (routeId === null) return;
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
+    fetchRouteDetail(routeId, controller.signal)
+      .then((route) => {
+        if (controller.signal.aborted) return;
+        const map = mapRef.current;
+        if (!map) return;
+        // Mismo dibujado que la ficha de ruta: polilínea, inicio y paradas.
+        const layer = addRouteOverlay(map, route, {
+          onOpenStop: (stop) => {
+            if (stop.kind !== 'planta') return;
+            onOpenPlantRef.current?.(routeStopToPlantPin(stop));
+          },
+        });
+        fitRouteBounds(map, route);
+        routeLayerRef.current = layer;
+      })
+      .catch(() => {
+        // Si la ruta no se puede cargar, el botón «Limpiar mapa» sigue
+        // quitando el parámetro: no hay capa que quitar y no molesta.
+      });
+    return () => {
+      controller.abort();
+      if (routeLayerRef.current) {
+        routeLayerRef.current.remove();
+        routeLayerRef.current = null;
+      }
+    };
+  }, [searchParams]);
+
+  const clearRoute = () => {
+    setSearchParams({}, { replace: true });
+  };
 
   // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.
   useEffect(() => {
@@ -652,6 +716,18 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         </div>
       </div>
 
+      {routeVisible && (
+        <button
+          type="button"
+          onClick={clearRoute}
+          aria-label={t('map.clearMap')}
+          title={t('map.clearMap')}
+          className="absolute right-4 bottom-20 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <Trash2 size={21} aria-hidden="true" />
+        </button>
+      )}
+
       <button
         type="button"
         onClick={centerOnUser}
@@ -668,7 +744,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           onClick={retryLocation}
           aria-label={t('location.retryAria')}
           title={t('location.retryAria')}
-          className="absolute right-4 bottom-20 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className={`absolute right-4 ${routeVisible ? 'bottom-36' : 'bottom-20'} z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
         >
           <MapPinOff size={21} aria-hidden="true" />
         </button>

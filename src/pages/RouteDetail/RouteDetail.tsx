@@ -1,23 +1,30 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Download, Footprints, Map as MapIcon, MapPin, Route as RouteIcon } from 'lucide-react';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
+import { IconButton } from '../../components/ui/IconButton';
 import { useApp } from '../../context/useApp';
-import { formatDistance } from '../../i18n/format';
+import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteDetail } from '../../services/routes';
-import type { RouteDetail as RouteDetailData, RouteShape, RouteTheme } from '../../services/routes';
+import type { RouteDetail as RouteDetailData, RouteShape, RouteStop, RouteTheme } from '../../services/routes';
 import { RouteMap } from './RouteMap';
 
 /** Ficha de una ruta del catálogo (/rutas/:id): mapa del recorrido, datos
  * principales (tema, forma, longitud, duración, paradas), descripción y lista
- * de paradas en orden. Los datos vienen de BD: el mapa se pinta al instante. */
+ * de paradas en orden. Los datos vienen de BD: el mapa se pinta al instante.
+ * Al pulsar una parada de planta se abre su ficha (como en el mapa). */
 
 type DetailState =
   | { status: 'loading' }
   | { status: 'ready'; route: RouteDetailData }
   | { status: 'notFound' }
   | { status: 'error' };
+
+export interface RouteDetailProps {
+  /** Responde al toque de una parada de la ruta (abre su ficha). */
+  onOpenStop?: (stop: RouteStop) => void;
+}
 
 function themeLabel(theme: RouteTheme, t: (key: 'routes.theme.botanica' | 'routes.theme.cultural' | 'routes.theme.mixta') => string) {
   if (theme === 'botanica') return t('routes.theme.botanica');
@@ -29,11 +36,13 @@ function shapeLabel(shape: RouteShape, t: (key: 'routes.shape.circular' | 'route
   return shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal');
 }
 
-export function RouteDetail() {
+export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const { t, lang } = useApp();
+  const navigate = useNavigate();
   const { id } = useParams();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [notice, setNotice] = useState('');
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 
@@ -45,7 +54,9 @@ export function RouteDetail() {
         if (!cancelled) setState({ status: 'ready', route });
       })
       .catch((error: unknown) => {
-        if (!cancelled) setState({ status: error && typeof error === 'object' && (error as { status?: number }).status === 404 ? 'notFound' : 'error' });
+        if (!cancelled) {
+          setState({ status: error && typeof error === 'object' && (error as { status?: number }).status === 404 ? 'notFound' : 'error' });
+        }
       });
     return () => {
       cancelled = true;
@@ -95,12 +106,24 @@ export function RouteDetail() {
   }
 
   const route = state.route;
-  const minutes = Math.round(route.durationSeconds / 60);
 
   return (
-    <Page title={route.name} subtitle={themeLabel(route.theme, t)} back flush>
+    <Page
+      title={route.name}
+      subtitle={themeLabel(route.theme, t)}
+      back
+      flush
+      actions={
+        <IconButton
+          icon={MapIcon}
+          label={t('routes.viewOnMap')}
+          title={t('routes.viewOnMap')}
+          onClick={() => navigate(`/mapa?verRuta=${route.id}`)}
+        />
+      }
+    >
       <div className="h-64 shrink-0 border-y border-line">
-        <RouteMap route={route} />
+        <RouteMap route={route} onOpenStop={onOpenStop} />
       </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">
@@ -114,34 +137,82 @@ export function RouteDetail() {
           </li>
           <li className="flex items-center gap-1.5">
             <Footprints aria-hidden className="size-3.5" />
-            {t('routes.duration', { n: minutes })}
+            {formatDuration(route.durationSeconds, lang)}
           </li>
           <li className="flex items-center gap-1.5">
             <MapPin aria-hidden className="size-3.5" />
             {t('routes.stopsCount', { n: route.stopsCount })}
           </li>
         </ul>
-        <p className="text-small text-pretty">{route.description}</p>
+        <p className="text-small text-pretty break-words">{route.description}</p>
+
+        {/* Acciones de la ruta: quedan como marcadores de posición, la UT del
+            guía de recorrido y la descarga llegan más adelante. */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setNotice(t('routes.comingSoon'))}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-small font-bold text-on-accent transition-[transform,background-color] active:scale-95"
+          >
+            <Footprints size={16} aria-hidden="true" />
+            {t('routes.start')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setNotice(t('routes.comingSoon'))}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-small font-bold text-accent shadow-raised transition-[transform,background-color] active:scale-95"
+          >
+            <Download size={16} aria-hidden="true" />
+            {t('routes.download')}
+          </button>
+        </div>
+        {notice && (
+          <p role="status" className="text-caption text-muted">
+            {notice}
+          </p>
+        )}
+
         <section aria-label={t('routes.stopsList')}>
           <h2 className="font-display text-body font-bold">{t('routes.stopsList')}</h2>
-          <ol className="mt-2 flex flex-col gap-2">
-            {route.stops.map((stop, index) => (
-              <li key={`${stop.kind}-${stop.id}`} className="flex items-center gap-3 text-small">
-                <span
-                  className="grid size-6 shrink-0 place-items-center rounded-full text-caption font-bold text-on-accent"
-                  style={{ backgroundColor: stop.kind === 'planta' ? '#3a7d44' : '#c77d1f' }}
-                  aria-hidden
-                >
-                  {index + 1}
-                </span>
-                <span className="min-w-0 flex-1 text-balance">
-                  {stop.name}
-                  <span className="ml-2 text-caption text-muted">
-                    {stop.kind === 'planta' ? t('routes.stopPlant') : t('routes.stopPoi')}
+          <ol className="mt-2 flex flex-col gap-1">
+            {route.stops.map((stop, index) => {
+              const label = (
+                <>
+                  <span
+                    className="grid size-6 shrink-0 place-items-center rounded-full text-caption font-bold text-on-accent"
+                    style={{ backgroundColor: stop.kind === 'planta' ? 'var(--color-accent)' : 'var(--color-place)' }}
+                    aria-hidden
+                  >
+                    {index + 1}
                   </span>
-                </span>
-              </li>
-            ))}
+                  <span className="min-w-0 flex-1 text-balance break-words">
+                    {stop.name}
+                    <span className="ml-2 text-caption text-muted">
+                      {stop.kind === 'planta' ? t('routes.stopPlant') : t('routes.stopPoi')}
+                    </span>
+                  </span>
+                </>
+              );
+              // Solo las plantas tienen ficha: las de POI quedan como texto.
+              if (stop.kind === 'planta' && onOpenStop) {
+                return (
+                  <li key={`${stop.kind}-${stop.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenStop(stop)}
+                      className="flex w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      {label}
+                    </button>
+                  </li>
+                );
+              }
+              return (
+                <li key={`${stop.kind}-${stop.id}`} className="flex items-center gap-3 px-2 py-2 text-small">
+                  {label}
+                </li>
+              );
+            })}
           </ol>
         </section>
       </div>

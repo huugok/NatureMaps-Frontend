@@ -1,6 +1,7 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProvider } from '../../context/AppContext'
 import { RouteDetail } from './RouteDetail'
 import { fetchRouteDetail } from '../../services/routes'
@@ -36,15 +37,27 @@ const leaflet = vi.hoisted(() => {
   };
   const marker = {
     addTo: vi.fn(function (this: unknown) { return this; }),
+    on: vi.fn(),
+    options: {} as Record<string, unknown>,
   };
+  // Cada llamada crea su propio marcador: así se puede comprobar qué manejador
+  // de clic lleva cada parada.
+  const created: Array<{ on: ReturnType<typeof vi.fn> }> = [];
+  const markerFactory = vi.fn(() => {
+    const instance = { ...marker, on: vi.fn() };
+    created.push(instance);
+    return instance;
+  });
   return {
     map,
     mapFactory: vi.fn(() => map),
     tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
     polylineFactory: vi.fn(() => line),
     layerGroupFactory: vi.fn(() => layer),
-    markerFactory: vi.fn(() => marker),
+    markerFactory,
+    created,
     divIcon: vi.fn(() => ({})),
+    latLngBounds: vi.fn(() => ({ pad: () => ({}) })),
     line,
     layer,
     marker,
@@ -59,6 +72,7 @@ vi.mock('leaflet', () => ({
     layerGroup: leaflet.layerGroupFactory,
     marker: leaflet.markerFactory,
     divIcon: leaflet.divIcon,
+    latLngBounds: leaflet.latLngBounds,
   },
 }));
 
@@ -76,8 +90,8 @@ const route: RouteDetailData = {
   description: 'Plantas del inventario y patrimonio histórico alternados.',
   stopsCount: 2,
   stops: [
-    { kind: 'planta', id: 11, name: 'Naranjo de la plaza', latitude: 39.4705, longitude: -0.3755 },
-    { kind: 'poi', id: 22, name: 'Torres de Serranos', latitude: 39.4792, longitude: -0.3762 },
+    { kind: 'planta', id: 11, name: 'Naranjo de la plaza', latitude: 39.4705, longitude: -0.3755, speciesId: 3 },
+    { kind: 'poi', id: 22, name: 'Torres de Serranos', latitude: 39.4792, longitude: -0.3762, speciesId: null },
   ],
   path: [
     { latitude: 39.4699, longitude: -0.3763 },
@@ -87,14 +101,15 @@ const route: RouteDetailData = {
   ],
 }
 
-function renderDetail(id = '7') {
+function renderDetail(id = '7', onOpenStop?: (stop: RouteDetailData['stops'][number]) => void) {
   // useParams necesita la definición de ruta: el componente no se renderiza
   // colgado de App en el test, así que montamos /rutas/:id aquí.
   return render(
     <MemoryRouter initialEntries={[`/rutas/${id}`]}>
       <AppProvider>
         <Routes>
-          <Route path="/rutas/:id" element={<RouteDetail />} />
+          <Route path="/rutas/:id" element={<RouteDetail onOpenStop={onOpenStop} />} />
+          <Route path="/mapa" element={<p>Mapa principal</p>} />
         </Routes>
       </AppProvider>
     </MemoryRouter>,
@@ -125,20 +140,22 @@ describe('RouteDetail', () => {
     expect(screen.getByText('Plantas del inventario y patrimonio histórico alternados.')).toBeInTheDocument()
 
     // Mapa: polilínea con el path completo y un marcador por parada + inicio.
-    expect(leaflet.mapFactory).toHaveBeenCalledTimes(1)
+    // El mapa se monta en un efecto posterior al pintado de los datos.
+    await waitFor(() => expect(leaflet.mapFactory).toHaveBeenCalledTimes(1));
     expect(leaflet.polylineFactory).toHaveBeenCalledWith(
       route.path.map((point) => [point.latitude, point.longitude]),
       expect.anything(),
-    )
-    expect(leaflet.markerFactory).toHaveBeenCalledTimes(3)
-    expect(leaflet.map.fitBounds).toHaveBeenCalled()
+    );
+    expect(leaflet.markerFactory).toHaveBeenCalledTimes(3);
+    expect(leaflet.map.fitBounds).toHaveBeenCalled();
   })
 
-  it('lista las paradas en orden, con su tipo', async () => {
+  it('lista las paradas en orden, con su tipo, y abre la ficha de las de planta', async () => {
+    const user = userEvent.setup()
+    const onOpenStop = vi.fn()
     mockFetchRouteDetail.mockResolvedValue(route)
-    renderDetail()
+    renderDetail('7', onOpenStop)
 
-    // La sección lleva aria-label → role region; la lista va dentro.
     const stopsSection = await screen.findByRole('region', { name: 'Paradas del recorrido' })
     const stops = within(stopsSection).getAllByRole('listitem')
     expect(stops).toHaveLength(2)
@@ -146,6 +163,45 @@ describe('RouteDetail', () => {
     expect(stops[0]).toHaveTextContent('planta')
     expect(stops[1]).toHaveTextContent('Torres de Serranos')
     expect(stops[1]).toHaveTextContent('POI cultural')
+
+    // La parada de planta abre su ficha; la de POI no (su ficha llega luego).
+    await user.click(within(stops[0]).getByRole('button'))
+    expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta', name: 'Naranjo de la plaza' }))
+    expect(within(stops[1]).queryByRole('button')).toBeNull()
+  })
+
+  it('el toque de una parada en el mapa también abre su ficha', async () => {
+    const onOpenStop = vi.fn()
+    mockFetchRouteDetail.mockResolvedValue(route)
+    renderDetail('7', onOpenStop)
+
+    await screen.findByRole('heading', { name: 'Historia bajo los árboles' })
+    // Solo la parada de planta lleva manejador de clic (la de POI no).
+    const withClick = leaflet.created.filter((instance) => instance.on.mock.calls.length > 0)
+    expect(withClick).toHaveLength(1)
+    const clickHandler = withClick[0]?.on.mock.calls[0]?.[1] as (() => void) | undefined
+    expect(clickHandler).toBeTypeOf('function')
+    clickHandler?.()
+    expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta' }))
+  })
+
+  it('«Ver en el mapa» lleva al mapa con la ruta pintada', async () => {
+    const user = userEvent.setup()
+    mockFetchRouteDetail.mockResolvedValue(route)
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: 'Ver en el mapa' }))
+    expect(screen.getByText('Mapa principal')).toBeInTheDocument()
+  })
+
+  it('incluye los botones «Iniciar ruta» y «Descargar ruta» como marcadores', async () => {
+    const user = userEvent.setup()
+    mockFetchRouteDetail.mockResolvedValue(route)
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: 'Iniciar ruta' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Disponible en próximas versiones.')
+    expect(screen.getByRole('button', { name: 'Descargar ruta' })).toBeInTheDocument()
   })
 
   it('un id no numérico muestra «no existe» sin llamar al servicio', () => {

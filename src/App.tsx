@@ -22,6 +22,8 @@ import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
 import { RouteDetail } from './pages/RouteDetail';
+import { routeStopToPlantPin } from './pages/Map/routeOverlay';
+import type { RouteStop } from './services/routes';
 import { Search } from './pages/Search';
 import { LanguageSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
@@ -39,14 +41,15 @@ import type { PlantPin } from './types/plant';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
-/** Ficha abierta por encima del escaneo o del mapa: conserva foto, resultado y
- * especie marcada, y deja viva la pantalla que había debajo. */
+/** Ficha abierta por encima del escaneo, del mapa o de una ruta: conserva foto,
+ * resultado y especie marcada, y deja viva la pantalla que había debajo. */
 interface FichaAbierta {
   species: FichaEspecie;
   identification: IdentificacionFicha | null;
-  /** «mapa» cuando se abrió tocando un punto: ya se está en el mapa y no
-   * tiene sentido ofrecer «Ver en el mapa». */
-  origin?: 'mapa';
+  /** «mapa» cuando se abrió tocando un punto del mapa: ya se está en el mapa y
+   * no tiene sentido ofrecer «Ver en el mapa». «ruta» cuando se abrió desde una
+   * parada de una ruta: al volver se sigue en la ficha de la ruta. */
+  origin?: 'mapa' | 'ruta';
 }
 
 const MapPage = lazy(() =>
@@ -217,11 +220,12 @@ export default function App() {
       });
   };
 
-  /** Abre la ficha de la planta tocada en el mapa (F03.1) como overlay: el
-   * mapa sigue montado debajo, así que al volver conserva centro y zoom
-   * (PA 691). Se pinta al instante con la lista del catálogo o, si aún no está
-   * cargada, con el nombre del propio punto; el detalle la enriquece después. */
-  const handleOpenPlantFromMap = useCallback((plant: PlantPin) => {
+  /** Abre la ficha de una planta como overlay: la pantalla que hay debajo
+   * sigue montada, así que al volver se conserva (PA 691). Se pinta al instante
+   * con la lista del catálogo o, si aún no está cargada, con el nombre del
+   * propio punto; el detalle la enriquece después. `origin` distingue si veníamos
+   * del mapa (donde «Ver en el mapa» no aporta nada) o de una ruta. */
+  const handleOpenPlant = useCallback((plant: PlantPin, origin: 'mapa' | 'ruta') => {
     const items = fichaList.status === 'ready' ? fichaList.items : [];
     const matchedIndex =
       plant.speciesId == null
@@ -239,7 +243,7 @@ export default function App() {
     setFicha({
       species: item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant),
       identification: null,
-      origin: 'mapa',
+      origin,
     });
     if (speciesId === undefined) return;
 
@@ -256,6 +260,23 @@ export default function App() {
         // La ficha instantánea ya identifica la planta; el detalle solo añade contenido.
       });
   }, [fichaList, lang]);
+
+  /** Toca de una planta en el mapa (F03.1): abre su ficha como overlay. */
+  const handleOpenPlantFromMap = useCallback(
+    (plant: PlantPin) => handleOpenPlant(plant, 'mapa'),
+    [handleOpenPlant],
+  );
+
+  /** Toca de una parada de una ruta: las de planta abren su ficha (al volver
+   * se sigue en la ficha de la ruta). Las de POI todavía no tienen ficha —
+   * quedan para la UT de fichas de POI; mientras tanto no hacen nada. */
+  const handleOpenRouteStop = useCallback(
+    (stop: RouteStop) => {
+      if (stop.kind !== 'planta') return;
+      handleOpenPlant(routeStopToPlantPin(stop), 'ruta');
+    },
+    [handleOpenPlant],
+  );
 
   /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
    * mapa que centre su ejemplar más cercano (parámetro de un solo uso). */
@@ -296,7 +317,7 @@ export default function App() {
                 }
               />
               <Route path="/rutas" element={<RoutesList />} />
-              <Route path="/rutas/:id" element={<RouteDetail />} />
+              <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} />} />
               <Route path="/buscar" element={<Search />} />
             </Route>
 

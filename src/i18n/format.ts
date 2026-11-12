@@ -23,3 +23,18 @@ export function formatDistance(meters: number, lang: Language): string {
   }
   return `${new Intl.NumberFormat(LOCALES[lang], { maximumFractionDigits: 1 }).format(meters / 1000)} km`;
 }
+
+/**
+ * Duración de una ruta a pie: minutos por debajo de una hora y horas con los
+ * minutos de sobra a partir de ella («45 min», «1 h 15 min»). Los minutos
+ * redondeados a 5 evitan el «1 h 1 min» de las duraciones redondeadas.
+ */
+export function formatDuration(seconds: number, lang: Language): string {
+  const totalMinutes = Math.max(0, Math.round(seconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const format = (value: number) => new Intl.NumberFormat(LOCALES[lang], { maximumFractionDigits: 0 }).format(value);
+  if (hours === 0) return `${format(minutes)} min`;
+  if (minutes === 0) return `${format(hours)} h`;
+  return `${format(hours)} h ${format(minutes)} min`;
+}

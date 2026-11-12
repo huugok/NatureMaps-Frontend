@@ -234,6 +234,33 @@
   background: var(--color-place);
 }
 
+/* Puntos de las paradas de una ruta (ficha de ruta y mapa principal): los POIs
+   son un punto de la paleta y el inicio un círculo azul; las plantas usan el
+   icono de hoja del mapa. */
+.route-stop-icon,
+.route-start-icon {
+  background: transparent;
+  border: 0;
+}
+
+.route-stop-icon span,
+.route-start-icon span {
+  position: absolute;
+  border: 2px solid var(--color-surface);
+  border-radius: 9999px;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 35%);
+}
+
+.route-stop-icon span {
+  inset: 2px;
+  background: var(--color-place);
+}
+
+.route-start-icon span {
+  inset: 1px;
+  background: var(--color-location);
+}
+
 /* Plantas del mapa (F03.1): hoja + nombre, distintas de la ubicación y del lugar buscado. */
 .plant-icon {
   background: transparent;
