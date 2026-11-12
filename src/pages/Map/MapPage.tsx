@@ -309,6 +309,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     map.on('dragstart', () => {
       followUserRef.current = false;
       keepBothVisibleRef.current = false;
+      setExploreOpen(false);
+    });
+    map.on('click', () => {
+      setExploreOpen(false);
     });
 
     return () => {
@@ -454,6 +458,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     memberAreasRef.current = areaByMemberId;
     const handlePlantClick = (pin: PlantPin) => {
       clearGroupArea();
+      setExploreOpen(false);
       if (pin.count !== undefined && pin.count > 1) {
         const area = groupAreasRef.current.get(pin.id);
         if (area) drawArea(area.center, area.radius);
@@ -689,7 +694,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       className="relative h-full min-h-0 overflow-hidden bg-app"
       aria-label={t('map.title')}
     >
-      <div ref={mapElementRef} className="absolute inset-0 h-full w-full" />
+      <div
+        ref={mapElementRef}
+        onClick={() => setExploreOpen(false)}
+        className="absolute inset-0 h-full w-full"
+      />
 
       <button type="button" onClick={() => setExploreOpen((open) => !open)} aria-expanded={exploreOpen}
         className="absolute bottom-4 left-1/2 z-[1000] flex min-h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-5 text-body font-semibold text-ink shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
@@ -697,8 +706,15 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       </button>
 
       <aside className={`absolute inset-x-0 bottom-0 z-[1050] rounded-t-3xl bg-surface shadow-float transition-transform duration-300 ${exploreOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{height:'62%'}} aria-label="Exploración cercana">
-        <div className="flex h-full flex-col px-4 pt-3 pb-[env(safe-area-inset-bottom,0px)]">
-          <button type="button" onClick={() => setExploreOpen(false)} className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-line-strong" aria-label="Cerrar exploración" />
+        <div className="flex h-full flex-col px-4 pt-2 pb-[env(safe-area-inset-bottom,0px)]">
+          <button
+            type="button"
+            onClick={() => setExploreOpen(false)}
+            className="mx-auto -mt-1 mb-1 flex h-11 w-36 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Cerrar exploración"
+          >
+            <span className="h-1.5 w-12 rounded-full bg-line-strong" aria-hidden="true" />
+          </button>
           <div className="mb-3 flex gap-2">
             <button type="button" onClick={() => { setChosenArea(false); centerOnUser(); if (locatedPosition) loadArea(locatedPosition, radius); }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${!chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.nearMe')}</button>
             <button type="button" onClick={() => { const center = mapRef.current?.getCenter(); if (center) { setChosenArea(true); loadArea({latitude:center.lat,longitude:center.lng}); } }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.chooseArea')}</button>

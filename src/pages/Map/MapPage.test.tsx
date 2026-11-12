@@ -563,4 +563,22 @@ describe('MapPage', () => {
     );
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
+
+  it('al tocar el mapa se contrae la ventana de explorar', () => {
+    renderMap();
+    const exploreBtn = screen.getByRole('button', { name: /explorar/i });
+    expect(exploreBtn).toHaveAttribute('aria-expanded', 'false');
+
+    // Abre la ventana de explorar
+    fireEvent.click(exploreBtn);
+    expect(exploreBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Tocar el mapa contrae la ventana
+    const mapClickHandler = leaflet.map.on.mock.calls.find(([event]) => event === 'click')?.[1] as (() => void) | undefined;
+    expect(mapClickHandler).toBeDefined();
+    act(() => {
+      mapClickHandler?.();
+    });
+    expect(exploreBtn).toHaveAttribute('aria-expanded', 'false');
+  });
 });
