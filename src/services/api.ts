@@ -5,7 +5,13 @@ export const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? '
 
 export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { signal })
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
+  if (!res.ok) {
+    // El estado HTTP viaja con el error para que cada pantalla decida qué
+    // mostrar (p. ej. 404 → «no existe», otro → «reintenta»).
+    const error = new Error(`GET ${path} → ${res.status}`) as Error & { status?: number }
+    error.status = res.status
+    throw error
+  }
   return res.json() as Promise<T>
 }
 
