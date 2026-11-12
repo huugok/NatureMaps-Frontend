@@ -21,6 +21,7 @@ import { Home } from './pages/Home';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
+import { RouteDetail } from './pages/RouteDetail';
 import { Search } from './pages/Search';
 import { LanguageSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
@@ -295,6 +296,7 @@ export default function App() {
                 }
               />
               <Route path="/rutas" element={<RoutesList />} />
+              <Route path="/rutas/:id" element={<RouteDetail />} />
               <Route path="/buscar" element={<Search />} />
             </Route>
 
