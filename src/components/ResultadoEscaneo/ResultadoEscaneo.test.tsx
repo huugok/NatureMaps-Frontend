@@ -88,6 +88,34 @@ describe('ResultadoEscaneo — UT F05 (RF18 · PA 689)', () => {
     expect(screen.queryByRole('button', { name: 'Ver ficha' })).not.toBeInTheDocument();
   });
 
+  it('«Usar esta foto en la ficha» guarda la muestra en la especie más probable', async () => {
+    const onSavePhoto = vi.fn();
+    renderResultado({ onSavePhoto });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Usar esta foto en la ficha' }));
+
+    expect(onSavePhoto).toHaveBeenCalledTimes(1);
+    expect(onSavePhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ scientificName: 'Jacaranda mimosifolia' }),
+    );
+  });
+
+  it('no ofrece guardar la foto cuando el resultado no trae foto', () => {
+    renderResultado({ onSavePhoto: vi.fn(), photoUrl: null });
+
+    expect(
+      screen.queryByRole('button', { name: 'Usar esta foto en la ficha' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('no ofrece guardar la foto si quien pinta el resultado no lo permite', () => {
+    renderResultado();
+
+    expect(
+      screen.queryByRole('button', { name: 'Usar esta foto en la ficha' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('lista las alternativas sin repetir la especie principal', () => {
     renderResultado();
 

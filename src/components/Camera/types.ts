@@ -28,6 +28,8 @@ export interface CameraScreenProps {
   onIdentifyPhoto?: (photoDataUrl: string, mode: CameraMode) => void;
   /** Abre la ficha de la especie identificada o de una alternativa (PA 1250). */
   onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
+  /** Guarda la foto de la muestra en la ficha de la especie (PA 2941). */
+  onSavePhotoToFicha?: (match: PlantMatch, photo: string | null) => void;
   identificationStatus?: 'idle' | 'identifying' | 'completed' | 'error';
   identificationResults?: PlantIdentification | null;
   identificationError?: string | null;

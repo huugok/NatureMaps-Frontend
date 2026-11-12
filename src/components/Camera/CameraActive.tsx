@@ -18,6 +18,8 @@ export interface CameraActiveProps {
   onIdentifyPhoto?: (dataUrl: string, mode: CameraMode) => void;
   /** Abre la ficha de la especie indicada (PA 1250). */
   onOpenSpecies?: (match: PlantMatch, photo: string | null) => void;
+  /** Guarda la foto de la muestra en la ficha de la especie (PA 2941). */
+  onSavePhotoToFicha?: (match: PlantMatch, photo: string | null) => void;
   onSavePhoto: (photo: SavedPhoto) => boolean;
   identificationStatus: IdentificationStatus;
   identificationResults: PlantIdentification | null;
@@ -36,6 +38,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
   onPhotoCaptured,
   onIdentifyPhoto,
   onOpenSpecies,
+  onSavePhotoToFicha,
   onSavePhoto,
   identificationStatus,
   identificationResults,
@@ -215,6 +218,7 @@ export const CameraActive: React.FC<CameraActiveProps> = ({
     photo,
     onRetry: handleIdentify,
     onOpenSpecies: (match: PlantMatch) => onOpenSpecies?.(match, photo),
+    onSavePhoto: (match: PlantMatch) => onSavePhotoToFicha?.(match, photo),
     // Volver desde el resultado devuelve a la cámara con la foto descartada,
     // no cierra el escáner entero: el usuario sigue en el mismo flujo.
     onBack: handleDiscardPhoto,

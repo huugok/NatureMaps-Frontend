@@ -11,6 +11,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   onPhotoCaptured,
   onIdentifyPhoto,
   onOpenSpecies,
+  onSavePhotoToFicha,
   identificationStatus = 'idle',
   identificationResults = null,
   identificationError = null,
@@ -177,6 +178,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           onPhotoCaptured={onPhotoCaptured}
           onIdentifyPhoto={onIdentifyPhoto}
           onOpenSpecies={onOpenSpecies}
+          onSavePhotoToFicha={onSavePhotoToFicha}
           onSavePhoto={handleSavePhoto}
           identificationStatus={identificationStatus}
           identificationResults={identificationResults}

@@ -21,6 +21,8 @@ export interface CameraIdentificationResultProps {
   onRetry: () => void;
   /** Abre la ficha de la especie más probable. */
   onOpenSpecies?: (match: PlantMatch) => void;
+  /** Guarda la foto capturada como imagen de la ficha de la especie (PA 2941). */
+  onSavePhoto?: (match: PlantMatch) => void;
   /** Vuelve atrás desde el resultado. */
   onBack: () => void;
   /** Descarta la foto y vuelve a la cámara para repetirla. */
@@ -40,6 +42,7 @@ export function CameraIdentificationResult({
   photo,
   onRetry,
   onOpenSpecies,
+  onSavePhoto,
   onBack,
   onRepeatPhoto,
 }: CameraIdentificationResultProps) {
@@ -65,6 +68,7 @@ export function CameraIdentificationResult({
         selectedName={elegida}
         onSelectAlternative={(nombre) => setEleccion({ results, nombre })}
         onOpenPrimary={onOpenSpecies}
+        onSavePhoto={onSavePhoto}
         onBack={onBack}
         onRepeatPhoto={onRepeatPhoto}
       />
