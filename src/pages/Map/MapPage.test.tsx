@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.setConfig({ testTimeout: 15000 });
@@ -76,6 +77,10 @@ const leaflet = vi.hoisted(() => {
     remove: vi.fn(),
     getBounds: vi.fn(() => ({ pad: () => ({}) })),
   };
+  const line = {
+    addTo: vi.fn(function (this: unknown) { return this; }),
+    getBounds: vi.fn(() => ({ pad: () => ({}) })),
+  };
   return {
     map,
     marker,
@@ -86,8 +91,9 @@ const leaflet = vi.hoisted(() => {
     tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
     markerFactory: vi.fn(() => marker),
     circleFactory: vi.fn(() => circle),
+    polylineFactory: vi.fn(() => line),
     divIcon: vi.fn(() => ({})),
-    latLngBounds: vi.fn(() => ({})),
+    latLngBounds: vi.fn(() => ({ pad: () => ({}) })),
     latLng: vi.fn((point: [number, number]) => ({ lat: point[0], lng: point[1] })),
     point: vi.fn(() => ({})),
   };
@@ -100,6 +106,7 @@ vi.mock('leaflet', () => ({
     marker: leaflet.markerFactory,
     circle: leaflet.circleFactory,
     layerGroup: leaflet.layerGroupFactory,
+    polyline: leaflet.polylineFactory,
     divIcon: leaflet.divIcon,
     latLngBounds: leaflet.latLngBounds,
     latLng: leaflet.latLng,
@@ -563,5 +570,50 @@ describe('MapPage', () => {
       expect.objectContaining({ className: 'plant-group-area' }),
     );
     delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('«Ver en el mapa» desde una ruta: pinta el recorrido y «Limpiar mapa» lo quita', async () => {
+    const route = {
+      id: 7,
+      name: 'Historia bajo los árboles',
+      theme: 'mixta',
+      shape: 'circular',
+      lengthCategory: 'corta',
+      distanceMeters: 2280,
+      durationSeconds: 1980,
+      start: { latitude: 39.4699, longitude: -0.3763 },
+      description: 'Plantas y patrimonio alternados.',
+      stopsCount: 1,
+      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      path: [
+        { latitude: 39.4699, longitude: -0.3763 },
+        { latitude: 39.4705, longitude: -0.3755 },
+        { latitude: 39.4699, longitude: -0.3763 },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (
+      String(url).includes('/routes/7')
+        ? { ok: true, json: async () => route }
+        : { ok: true, json: async () => ({ nextOffset: null, trees: [] }) }
+    )) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verRuta=7');
+
+    // El recorrido se pinta como polilínea y el mapa se encuadra en él.
+    await waitFor(() => expect(leaflet.polylineFactory).toHaveBeenCalled());
+    expect(leaflet.polylineFactory).toHaveBeenCalledWith(
+      route.path.map((point) => [point.latitude, point.longitude]),
+      expect.anything(),
+    );
+    expect(leaflet.map.fitBounds).toHaveBeenCalled();
+
+    // «Limpiar mapa» aparece como botón de solo icono y quita la capa.
+    const clear = await screen.findByRole('button', { name: 'Limpiar mapa' });
+    expect(clear.querySelector('svg')).toBeInTheDocument();
+    expect(clear.textContent).toBe('');
+    await userEvent.click(clear);
+
+    await waitFor(() => expect(leaflet.layerGroup.remove).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Limpiar mapa' })).not.toBeInTheDocument();
   });
 });
