@@ -321,3 +321,18 @@
 .plants-labels-visible .plant-pin__label {
   display: block;
 }
+
+.poi-distance-label {
+  display: none;
+}
+
+.plants-labels-visible .poi-distance-label {
+  display: block;
+}
+
+.explore-target-highlight {
+  stroke: var(--color-warm-strong);
+  stroke-width: 3;
+  fill: var(--color-warm);
+  fill-opacity: 0.28;
+}

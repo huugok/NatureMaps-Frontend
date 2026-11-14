@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LocateFixed, MapPinOff, Search, X } from 'lucide-react';
+import { LocateFixed, MapPinOff, Search, X, ChevronUp, ChevronDown, Leaf, Landmark } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance } from '../../i18n/format';
-import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
+import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea } from '../../services/plantGroups';
@@ -58,6 +58,13 @@ const NEARBY_REFRESH_METERS = 200;
 // Círculo mínimo pintado al ir a un ejemplar suelto («Ver en el mapa»), para
 // que el punto sea localizable a simple vista.
 const FOCUS_RADIUS_METERS = 30;
+const POI_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const poiAreaCache = new Map<string, { savedAt: number; items: Array<{id: number; name: string; lat: number; lon: number; distance: number}> }>();
+
+function poiCacheKey(center: Coordinates, radius: number): string {
+  return `${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}:${radius}`;
+}
 
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -66,7 +73,7 @@ function escapeHtml(value: string): string {
 export interface MapPageProps {
   /** Abre la ficha de la planta tocada (F03.1). App la pinta como overlay para
    * que el mapa siga montado y conserve centro y zoom al volver (PA 691). */
-  onOpenPlant?: (plant: PlantPin) => void;
+  onOpenPlant?: (plant: PlantPin) => boolean;
 }
 
 /**
@@ -75,7 +82,7 @@ export interface MapPageProps {
  * (`MapView`) sigue disponible para incrustar capas de especies.
  */
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
-  const { t, lang, mode } = useApp();
+  const { t, lang } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -83,6 +90,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const searchAreaCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
+  const poisLayerRef = useRef<L.LayerGroup | null>(null);
+  const locatedItemRef = useRef<L.Circle | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
@@ -96,6 +105,14 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
   const [plantsFailed, setPlantsFailed] = useState(false);
   const [focusFailed, setFocusFailed] = useState(false);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const [chosenArea, setChosenArea] = useState(false);
+  const [pois, setPois] = useState<Array<{id: number; name: string; lat: number; lon: number; distance: number}>>([]);
+  const [areaLoading, setAreaLoading] = useState(false);
+  const [poiLoading, setPoiLoading] = useState(false);
+  const [areaFailed, setAreaFailed] = useState(false);
+  const [poiFicha, setPoiFicha] = useState<{name: string; distance: number} | null>(null);
+  const areaRequestRef = useRef<AbortController | null>(null);
   const lastNominatimSearchAt = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
 
@@ -119,11 +136,69 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     setPlantsState(pins);
   }, []);
 
+  const loadArea = useCallback((center: Coordinates, searchRadius = radius) => {
+    areaRequestRef.current?.abort();
+    const controller = new AbortController();
+    areaRequestRef.current = controller;
+    setAreaLoading(true);
+    setAreaFailed(false);
+    // Conserva la misma densidad que el mapa original: 100 ejemplares por km
+    // de radio, con el máximo del backend para radios mayores.
+    const limit = 1000;
+    fetchNearbyTrees({ latitude: center.latitude, longitude: center.longitude, radius: searchRadius, limit, lang }, controller.signal)
+      .then((response) => setPlants(response.trees.map((plant) => ({
+        id: plant.id, displayName: plant.displayName, scientificName: plant.scientificName ?? plant.reportedScientificName,
+        latitude: plant.latitude, longitude: plant.longitude, identified: plant.speciesId !== null,
+        speciesId: plant.speciesId, distance: plant.distance,
+      }))))
+      .catch(() => { if (!controller.signal.aborted) { setPlants([]); setAreaFailed(true); } })
+      .finally(() => { if (!controller.signal.aborted) setAreaLoading(false); });
+    const cachedPois = poiAreaCache.get(poiCacheKey(center, searchRadius));
+    if (cachedPois && Date.now() - cachedPois.savedAt < POI_CACHE_TTL_MS) {
+      setPois(cachedPois.items);
+      setPoiLoading(false);
+      return;
+    }
+    setPoiLoading(true);
+    const query = `[out:json];(nwr[\"tourism\"~\"museum|attraction|viewpoint\"](around:${searchRadius},${center.latitude},${center.longitude});nwr[\"historic\"](around:${searchRadius},${center.latitude},${center.longitude});nwr[\"amenity\"~\"place_of_worship|fountain\"](around:${searchRadius},${center.latitude},${center.longitude}););out center tags;`;
+    const overpassUrl = (endpoint: string) => `${endpoint}?data=${encodeURIComponent(query)}`;
+    const fetchOverpass = (endpoint: string) => fetch(overpassUrl(endpoint), { signal: controller.signal }).then((response) => {
+      if (!response.ok) throw new Error(`Overpass ${response.status}`);
+      return response.json();
+    });
+    fetchOverpass('https://overpass-api.de/api/interpreter')
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) throw error;
+        return fetchOverpass('https://overpass.kumi.systems/api/interpreter');
+      })
+      .then((data: {elements?: Array<{id:number; lat?:number; lon?:number; center?:{lat:number; lon:number}; tags?:{name?:string}}>} ) => {
+        const items = (data.elements ?? [])
+        .map((item) => ({ ...item, lat: item.lat ?? item.center?.lat, lon: item.lon ?? item.center?.lon }))
+        .filter((item) => item.tags?.name && Number.isFinite(item.lat) && Number.isFinite(item.lon))
+        .map((item) => ({
+          id: item.id,
+          name: item.tags!.name!,
+          lat: item.lat!,
+          lon: item.lon!,
+          distance: metersBetween(center, { latitude: item.lat!, longitude: item.lon! }),
+        }))
+        .filter((item) => Number.isFinite(item.distance) && item.distance <= searchRadius);
+        poiAreaCache.set(poiCacheKey(center, searchRadius), { savedAt: Date.now(), items });
+        setPois(items);
+        setPoiLoading(false);
+      })
+      .catch(() => { if (!controller.signal.aborted) { setPois([]); setPoiLoading(false); } });
+  }, [lang, radius, setPlants]);
+
+  useEffect(() => {
+    if (locatedPosition && !chosenArea) loadArea(locatedPosition, radius);
+  }, [locatedPosition, chosenArea, loadArea, radius]);
+
   // Radio efectivo de cercanas, vivo para updateUserLocation (memoizado sin
   // dependencias, como el cargador de abajo).
-  const effectiveRadiusRef = useRef(effectiveNearbyRadius(mode, radius));
+  const effectiveRadiusRef = useRef(radius);
   useEffect(() => {
-    effectiveRadiusRef.current = effectiveNearbyRadius(mode, radius);
+    effectiveRadiusRef.current = radius;
   });
 
   // Cargador cercanas reasignado tras cada render para que updateUserLocation
@@ -131,7 +206,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
     loadPlantsRef.current = (coords: Coordinates) => {
-      const modeRadius = effectiveNearbyRadius(mode, radius);
+      const modeRadius = radius;
       // Regla de tres: 100 plantas por cada 1000 m de radio.
       const modeLimit = Math.max(1, Math.round(modeRadius / 10));
       const last = lastFetchCenterRef.current;
@@ -234,6 +309,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     map.on('dragstart', () => {
       followUserRef.current = false;
       keepBothVisibleRef.current = false;
+      setExploreOpen(false);
+    });
+    map.on('click', () => {
+      setExploreOpen(false);
     });
 
     return () => {
@@ -349,7 +428,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       plantsLayerRef.current = null;
     }
     clearGroupArea();
-    if (!plants || plants.length === 0) {
+    const mapPlants = plants;
+    if (!mapPlants || mapPlants.length === 0) {
       groupAreasRef.current = new Map();
       memberAreasRef.current = new Map();
       return;
@@ -364,24 +444,48 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     if (!hasPosition) {
       groupAreasRef.current = new Map();
       memberAreasRef.current = new Map();
-      plantsLayerRef.current = addPlantMarkers(map, plants, popupFor);
+      plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
       return;
     }
-    const { pins, areasById, areaByMemberId } = groupNearbyPlants(plants);
+    if (!hasPosition) {
+      groupAreasRef.current = new Map();
+      memberAreasRef.current = new Map();
+      plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
+      return;
+    }
+    const { pins, areasById, areaByMemberId } = groupNearbyPlants(mapPlants);
     groupAreasRef.current = areasById;
     memberAreasRef.current = areaByMemberId;
     const handlePlantClick = (pin: PlantPin) => {
-      // Un grupo representa varios ejemplares: al tocarlo se pinta su área
-      // (sin mover la vista) y se abre la ficha de su especie. Tocar un
-      // ejemplar suelto abre directamente su ficha (F03.1, PA 690).
+      clearGroupArea();
+      setExploreOpen(false);
       if (pin.count !== undefined && pin.count > 1) {
         const area = groupAreasRef.current.get(pin.id);
         if (area) drawArea(area.center, area.radius);
       }
-      onOpenPlant?.(pin);
+      return onOpenPlant?.(pin) ?? false;
     };
     plantsLayerRef.current = addPlantMarkers(map, pins, popupFor, handlePlantClick);
   }, [plants, lang, hasPosition, clearGroupArea, drawArea, onOpenPlant, t]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    poisLayerRef.current?.remove();
+    const layer = L.layerGroup();
+    pois.forEach((poi) => {
+      const marker = L.circleMarker([poi.lat, poi.lon], { radius: 8, color: '#8b5e20', fillColor: '#c58a31', fillOpacity: 1, weight: 2 });
+      marker.bindTooltip(`${escapeHtml(poi.name)} · ${escapeHtml(formatDistance(poi.distance, lang))}`, {
+        permanent: true,
+        direction: 'top',
+        offset: L.point(0, -8),
+        className: 'poi-distance-label',
+      });
+      marker.addTo(layer);
+    });
+    poisLayerRef.current = layer.addTo(map);
+    return () => { layer.remove(); };
+  }, [pois, t, lang]);
 
   // «Ver en el mapa» (ficha, RF3): centra el ejemplar más cercano de la especie
   // pedida por parámetro y pinta su área; si no hay ninguno dentro del radio
@@ -408,10 +512,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     );
   }, [searchParams, plants, hasPosition, setSearchParams, focusArea]);
 
-  // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.
+  // El área de búsqueda sigue el radio configurado en Ajustes.
   useEffect(() => {
-    searchAreaCircleRef.current?.setRadius(effectiveNearbyRadius(mode, radius));
-  }, [mode, radius]);
+    searchAreaCircleRef.current?.setRadius(radius);
+  }, [radius]);
 
   const selectPlace = (place: PlaceResult) => {
     const target: Coordinates = {
@@ -566,12 +670,94 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     });
   };
 
+  const explorePlants = plants === null
+    ? []
+    : hasPosition
+      ? groupNearbyPlants(plants).pins
+      : plants;
+
+  const locateExploreItem = (point: Coordinates) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const position: L.LatLngExpression = [point.latitude, point.longitude];
+    map.flyTo(position, Math.max(map.getZoom(), 17));
+    locatedItemRef.current?.remove();
+    locatedItemRef.current = L.circle(position, {
+      radius: 18,
+      className: 'explore-target-highlight',
+      interactive: false,
+    }).addTo(map);
+  };
+
   return (
     <section
       className="relative h-full min-h-0 overflow-hidden bg-app"
       aria-label={t('map.title')}
     >
-      <div ref={mapElementRef} className="absolute inset-0 h-full w-full" />
+      <div
+        ref={mapElementRef}
+        onClick={() => setExploreOpen(false)}
+        className="absolute inset-0 h-full w-full"
+      />
+
+      <button type="button" onClick={() => setExploreOpen((open) => !open)} aria-expanded={exploreOpen}
+        className="absolute bottom-4 left-1/2 z-[1000] flex min-h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-5 text-body font-semibold text-ink shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        {exploreOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />} {t('map.explore')}
+      </button>
+
+      <aside className={`absolute inset-x-0 bottom-0 z-[1050] rounded-t-3xl bg-surface shadow-float transition-transform duration-300 ${exploreOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{height:'62%'}} aria-label="Exploración cercana">
+        <div className="flex h-full flex-col px-4 pt-2 pb-[env(safe-area-inset-bottom,0px)]">
+          <button
+            type="button"
+            onClick={() => setExploreOpen(false)}
+            className="mx-auto -mt-1 mb-1 flex h-11 w-36 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Cerrar exploración"
+          >
+            <span className="h-1.5 w-12 rounded-full bg-line-strong" aria-hidden="true" />
+          </button>
+          <div className="mb-3 flex gap-2">
+            <button type="button" onClick={() => { setChosenArea(false); centerOnUser(); if (locatedPosition) loadArea(locatedPosition, radius); }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${!chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.nearMe')}</button>
+            <button type="button" onClick={() => { const center = mapRef.current?.getCenter(); if (center) { setChosenArea(true); loadArea({latitude:center.lat,longitude:center.lng}); } }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.chooseArea')}</button>
+          </div>
+          <p className="mb-2 text-small font-semibold text-ink">{chosenArea ? t('map.selectedArea') : t('map.nearbyTitle')}</p>
+          {chosenArea && <button type="button" disabled={areaLoading} onClick={() => {const center=mapRef.current?.getCenter(); if(center) loadArea({latitude:center.lat,longitude:center.lng});}} className="mb-2 min-h-10 rounded-control bg-accent-soft px-3 text-small font-semibold text-ink disabled:opacity-60">{areaLoading ? t('map.loadingArea') : t('map.updateArea')}</button>}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
+              {explorePlants.slice().sort((a,b)=>(a.distance ?? 0)-(b.distance ?? 0)).map((plant) => <article key={`plant-${plant.id}`} className="border-b border-line py-2">
+                <div className="flex items-center gap-2 text-small text-ink"><Leaf size={17} className="shrink-0 text-accent"/><span className="flex-1">{plant.displayName}{plant.count && plant.count > 1 ? ` · ${plant.count}` : ''}</span><span className="tabular-nums text-muted">{formatDistance(plant.distance ?? 0,lang)}</span></div>
+                <div className="mt-1 flex justify-end gap-2">
+                  <button type="button" onClick={() => onOpenPlant?.(plant)} className="min-h-11 rounded-control px-3 text-caption text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('map.viewFicha')}</button>
+                  <button type="button" onClick={() => locateExploreItem({latitude:plant.latitude,longitude:plant.longitude})} className="flex min-h-11 items-center gap-1 rounded-control px-3 text-caption font-semibold text-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><LocateFixed size={14}/>{t('map.locate')}</button>
+                </div>
+              </article>)}
+              {pois.slice().sort((a, b) => a.distance - b.distance).map((poi)=><article key={`poi-${poi.id}`} className="border-b border-line py-2">
+                <div className="flex items-center gap-2 text-small text-ink"><Landmark size={17} className="shrink-0 text-warm-strong"/><span className="flex-1">{poi.name}</span><span className="tabular-nums text-muted">{formatDistance(poi.distance,lang)}</span></div>
+                <div className="mt-1 flex justify-end gap-2">
+                  <button type="button" onClick={() => setPoiFicha({name:poi.name,distance:poi.distance})} className="min-h-11 rounded-control px-3 text-caption text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('map.viewFicha')}</button>
+                  <button type="button" onClick={() => locateExploreItem({latitude:poi.lat,longitude:poi.lon})} className="flex min-h-11 items-center gap-1 rounded-control px-3 text-caption font-semibold text-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><LocateFixed size={14}/>{t('map.locate')}</button>
+                </div>
+              </article>)}
+              {poiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
+            </>}
+          </div>
+        </div>
+      </aside>
+
+      {poiFicha && (
+        <div className="absolute inset-0 z-[1150] grid place-items-center bg-ink/30 p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="poi-ficha-title" className="w-full max-w-sm rounded-card bg-surface p-5 shadow-float">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-caption uppercase tracking-wider text-muted">{t('map.poiDetails')}</p>
+                <h2 id="poi-ficha-title" className="mt-1 font-display text-heading font-semibold text-ink">{poiFicha.name}</h2>
+              </div>
+              <button type="button" onClick={() => setPoiFicha(null)} aria-label={t('map.close')} className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><X size={18}/></button>
+            </div>
+            <p className="mt-3 text-small text-muted">{t('map.poi')} · {formatDistance(poiFicha.distance, lang)}</p>
+            <p className="mt-2 text-caption text-muted">{t('map.poiSource')}</p>
+          </section>
+        </div>
+      )}
 
       <div className="absolute inset-x-0 top-0 z-[1000] px-4 pt-4">
         <div className="relative w-full">
@@ -646,7 +832,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">
               {plantsFailed
                 ? t('map.plantsError')
-                : t('map.noNearbySpecies', { radius: formatDistance(effectiveNearbyRadius(mode, radius), lang) })}
+                : t('map.noNearbySpecies', { radius: formatDistance(radius, lang) })}
             </p>
           )}
         </div>
@@ -684,7 +870,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         href="https://www.openstreetmap.org/copyright"
         target="_blank"
         rel="noreferrer"
-        className="absolute bottom-2 left-2 z-[1000] rounded bg-surface/90 px-1.5 py-1 text-caption text-muted shadow-raised"
+        className="absolute bottom-2 left-2 z-[900] rounded bg-surface/90 px-1.5 py-1 text-caption text-muted shadow-raised"
       >
         © OpenStreetMap contributors
       </a>
