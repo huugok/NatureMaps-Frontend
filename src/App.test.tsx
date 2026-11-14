@@ -2,6 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen } from '@testing-library/react'
 import App from './App'
 import { LANGUAGE_STORAGE_KEY } from './services/languagePreference'
+import { SPECIES_PHOTO_STORAGE_KEY } from './services/speciesPhoto'
 import { renderWithProviders } from './test/renderWithProviders'
 
 vi.mock('./pages/Map', () => ({
@@ -540,5 +541,172 @@ describe('PA 574 — ficha con datos parciales de catálogo', () => {
     expect(screen.getByText('La Gran Via')).toBeInTheDocument()
     expect(screen.getByText('36 ejemplares')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('PA 2941 — foto de la muestra en la ficha', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    withMode()
+    const mockTrack = { stop: vi.fn(), applyConstraints: vi.fn() }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [mockTrack],
+          getVideoTracks: () => [mockTrack],
+        }),
+      },
+      writable: true,
+      configurable: true,
+    })
+    const canvasCtx = { drawImage: vi.fn(), fillRect: vi.fn(), fillText: vi.fn() }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      canvasCtx as unknown as CanvasRenderingContext2D,
+    )
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/plants/identify')) {
+          return Promise.resolve(new Response(JSON.stringify({
+            bestMatch: 'Jacaranda mimosifolia',
+            remainingIdentificationRequests: 42,
+            results: [{
+              score: 0.91,
+              scientificName: 'Jacaranda mimosifolia',
+              author: null,
+              family: null,
+              genus: null,
+              commonNames: ['Jacaranda'],
+              gbifId: null,
+            }],
+          }), respuestaJson))
+        }
+        if (url.includes('/species/')) {
+          const id = Number(url.split('/species/')[1]?.split('?')[0] ?? '1')
+          return Promise.resolve(new Response(JSON.stringify(detalleEspecie(id)), respuestaJson))
+        }
+        return Promise.resolve(new Response(JSON.stringify(catalogo), respuestaJson))
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('sustituye la foto del catálogo por la captura y la conserva al reabrir la ficha', async () => {
+    const { unmount } = renderWithProviders(<App />, { route: '/inicio' })
+    fireEvent.click(screen.getByRole('tab', { name: /escanear e identificar/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^permitir cámara$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /hacer foto/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Identificar foto' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar esta foto en la ficha' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Fotografía de Jacaranda' })).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+    expect(localStorage.getItem(SPECIES_PHOTO_STORAGE_KEY)).toContain(
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+
+    unmount()
+
+    // La foto queda guardada: la ficha del catálogo la sigue mostrando.
+    renderWithProviders(<App />, { route: '/ficha' })
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Jacaranda mimosifolia' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Fotografía de Jacaranda' })).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+    expect(screen.queryByText('Sin foto disponible')).not.toBeInTheDocument()
+  })
+})
+
+describe('PA 2941 — foto no persistible', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    withMode()
+    const mockTrack = { stop: vi.fn(), applyConstraints: vi.fn() }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [mockTrack],
+          getVideoTracks: () => [mockTrack],
+        }),
+      },
+      writable: true,
+      configurable: true,
+    })
+    const canvasCtx = { drawImage: vi.fn(), fillRect: vi.fn(), fillText: vi.fn() }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      canvasCtx as unknown as CanvasRenderingContext2D,
+    )
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/plants/identify')) {
+          return Promise.resolve(new Response(JSON.stringify({
+            bestMatch: 'Jacaranda mimosifolia',
+            remainingIdentificationRequests: 42,
+            results: [{
+              score: 0.91,
+              scientificName: 'Jacaranda mimosifolia',
+              author: null,
+              family: null,
+              genus: null,
+              commonNames: ['Jacaranda'],
+              gbifId: null,
+            }],
+          }), respuestaJson))
+        }
+        if (url.includes('/species/')) {
+          const id = Number(url.split('/species/')[1]?.split('?')[0] ?? '1')
+          return Promise.resolve(new Response(JSON.stringify(detalleEspecie(id)), respuestaJson))
+        }
+        return Promise.resolve(new Response(JSON.stringify(catalogo), respuestaJson))
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('enseña la captura en la ficha aunque el almacenamiento la rechace', async () => {
+    renderWithProviders(<App />, { route: '/inicio' })
+    fireEvent.click(screen.getByRole('tab', { name: /escanear e identificar/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^permitir cámara$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /hacer foto/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Identificar foto' }))
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Cuota llena', 'QuotaExceededError')
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar esta foto en la ficha' }))
+
+    expect(await screen.findByRole('img', { name: 'Fotografía de Jacaranda' })).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,Zm90bw==',
+    )
+    expect(localStorage.getItem(SPECIES_PHOTO_STORAGE_KEY)).toBeNull()
   })
 })

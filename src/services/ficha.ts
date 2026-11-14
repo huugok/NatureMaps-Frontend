@@ -3,6 +3,7 @@ import { repairTextEncoding } from '../i18n/format';
 import type { Language } from '../types/language';
 import type { PlantPin } from '../types/plant';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
+import { normalizarNombreCientifico } from '../utils/speciesName';
 
 // Servicio de la ficha de planta (RF3, UT F06): conecta la pantalla con la API
 // del backend (NatureMaps-Backend) en lugar de leer datos de ejemplo de

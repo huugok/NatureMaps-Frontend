@@ -66,7 +66,7 @@ export function addPlantMarkers(
   map: L.Map,
   pins: PlantPin[],
   popupFor?: (pin: PlantPin) => string | undefined,
-  onOpenPlant?: (pin: PlantPin) => void,
+  onOpenPlant?: (pin: PlantPin) => boolean,
 ): L.LayerGroup {
   const layer = L.layerGroup();
   for (const pin of pins) {
@@ -76,8 +76,11 @@ export function addPlantMarkers(
       alt: pin.displayName,
     });
     const popup = popupFor?.(pin);
-    if (popup) marker.bindPopup(popup, { closeButton: false, autoPan: false });
-    if (onOpenPlant) marker.on('click', () => onOpenPlant(pin));
+    if (!onOpenPlant && popup) marker.bindPopup(popup, { closeButton: false, autoPan: false });
+    if (onOpenPlant) marker.on('click', () => {
+      const hasFicha = onOpenPlant(pin);
+      if (!hasFicha && popup) marker.bindPopup(popup, { closeButton: false, autoPan: false }).openPopup();
+    });
     marker.addTo(layer);
   }
   return layer.addTo(map);
