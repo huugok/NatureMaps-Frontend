@@ -22,7 +22,7 @@ import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
 import { Search } from './pages/Search';
-import { LanguageSettings, Settings } from './pages/Settings';
+import { LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
 import {
   findSpeciesIndexByScientificName,
@@ -354,6 +354,10 @@ export default function App() {
                     onSave={handleSaveLanguage}
                   />
                 }
+              />
+              <Route
+                path="/ajustes/permisos"
+                element={<PermissionsSettings onBack={() => navigate('/ajustes')} />}
               />
               <Route
                 path="/ficha"
