@@ -73,10 +73,10 @@ export async function fetchNearbyTrees(
     ...response,
     trees: response.trees.map((tree) => ({
       ...tree,
-      commonName: repairTextEncoding(tree.commonName),
+      commonName: tree.commonName ? repairTextEncoding(tree.commonName) : null,
       displayName: repairTextEncoding(tree.displayName),
       scientificName: tree.scientificName ? repairTextEncoding(tree.scientificName) : null,
-      reportedScientificName: tree.reportedScientificName ? repairTextEncoding(tree.reportedScientificName) : tree.reportedScientificName,
+      reportedScientificName: tree.reportedScientificName ? repairTextEncoding(tree.reportedScientificName) : null,
     })),
   };
 }

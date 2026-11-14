@@ -323,13 +323,6 @@ export async function fichaDesdeDetalleConFuentes(
   return ficha;
 }
 
-/** Pl@ntNet y el catálogo escriben los híbridos distinto ('Citrus × aurantium'
- * vs 'Citrus aurantium'): se compara sin la '×' ni mayúsculas. */
-function normalizarNombreCientifico(nombre: string): string {
-  // El inventario escribe los híbridos con «x» y el catálogo con «×».
-  return repairTextEncoding(nombre).toLowerCase().replaceAll('×', ' ').replace(/\sx\s/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
 /** Índice en la lista de la especie identificada por Pl@ntNet, o null si no hay ficha para ella. */
 export function findSpeciesIndexByScientificName(
   items: FichaListItem[],

@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { LocateFixed, MapPinOff, Search, X, ChevronUp, ChevronDown, Leaf, Landmark } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
-import { formatDistance } from '../../i18n/format';
+import { formatDistance, repairTextEncoding } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
@@ -58,7 +58,6 @@ function zoomToKeepUserAndPlaceVisible(map: L.Map, user: Coordinates, place: L.L
 const NEARBY_REFRESH_METERS = 200;
 // Círculo mínimo pintado al ir a un ejemplar suelto («Ver en el mapa»), para
 // que el punto sea localizable a simple vista.
-const FOCUS_RADIUS_METERS = 30;
 const POI_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const poiAreaCache = new Map<string, { savedAt: number; items: Array<{id: number; name: string; lat: number; lon: number; distance: number}> }>();
@@ -146,6 +145,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const searchAreaCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
+  const selectedSpeciesLayerRef = useRef<L.LayerGroup | null>(null);
   const poisLayerRef = useRef<L.LayerGroup | null>(null);
   const locatedItemRef = useRef<L.Circle | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
@@ -160,7 +160,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [searchError, setSearchError] = useState('');
   const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
   const [plantsFailed, setPlantsFailed] = useState(false);
-  const [focusFailed, setFocusFailed] = useState(false);
+  const [focusMessage, setFocusMessage] = useState('');
+  const [focusLoading, setFocusLoading] = useState(false);
+  const [selectedSpeciesName, setSelectedSpeciesName] = useState('');
+  const [selectedSpeciesLocationCount, setSelectedSpeciesLocationCount] = useState(0);
+  const [hiddenSpeciesId, setHiddenSpeciesId] = useState<number | null>(null);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [chosenArea, setChosenArea] = useState(false);
   const [pois, setPois] = useState<Array<{id: number; name: string; lat: number; lon: number; distance: number}>>([]);
@@ -496,12 +500,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
       return;
     }
-    if (!hasPosition) {
-      groupAreasRef.current = new Map();
-      memberAreasRef.current = new Map();
-      plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
-      return;
-    }
     const { pins, areasById, areaByMemberId } = groupNearbyPlants(mapPlants);
     groupAreasRef.current = areasById;
     memberAreasRef.current = areaByMemberId;
@@ -599,6 +597,17 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         }
       });
   }, [searchParams, setSearchParams, lang, onOpenPlant, t]);
+
+  const clearSpeciesSelection = () => {
+    speciesFocusRequestRef.current += 1;
+    selectedSpeciesLayerRef.current?.remove();
+    selectedSpeciesLayerRef.current = null;
+    setSelectedSpeciesName('');
+    setSelectedSpeciesLocationCount(0);
+    setHiddenSpeciesId(null);
+    setFocusLoading(false);
+    setFocusMessage('');
+  };
 
   // El área de búsqueda sigue el radio configurado en Ajustes.
   useEffect(() => {
@@ -920,7 +929,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">
               {plantsFailed
                 ? t('map.plantsError')
-                : t('map.noNearbySpecies', { radius: formatDistance(radius, lang) })}
+                : focusMessage}
             </p>
           )}
           {selectedSpeciesName && (
