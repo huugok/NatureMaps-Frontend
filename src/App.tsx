@@ -17,6 +17,8 @@ import type {
   FichaListState,
 } from './pages/FichaPlanta';
 import type { FichaEspecie, IdentificacionFicha } from './pages/FichaPlanta';
+import { ArticlePage, Discover } from './pages/Discover';
+import { GreenAreaPage } from './pages/GreenArea';
 import { Home } from './pages/Home';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
@@ -47,6 +49,10 @@ interface FichaAbierta {
   /** «mapa» cuando se abrió tocando un punto: ya se está en el mapa y no
    * tiene sentido ofrecer «Ver en el mapa». */
   origin?: 'mapa';
+  /** Clave de historial de la pantalla desde la que se salió a una zona verde
+   * o a un artículo (NM-08). Mientras se está fuera la ficha se oculta, y al
+   * volver atrás a esa misma entrada reaparece: no se pierde el origen. */
+  awayKey?: string;
 }
 
 const MapPage = lazy(() =>
@@ -304,10 +310,22 @@ export default function App() {
     navigate(`/mapa?${params.toString()}`);
   };
 
+  /** Enlaces de la ficha de planta al contenido de flora y zonas verdes
+   * (NM-08, PA 3013). Si la ficha es un overlay se aparta sin cerrarse. */
+  const leaveFichaTo = (path: string) => {
+    setFicha((actual) => (actual ? { ...actual, awayKey: location.key } : actual));
+    navigate(path);
+  };
+  const handleOpenGreenArea = (groupSlug: string) => leaveFichaTo(`/zona/${groupSlug}`);
+  const handleOpenFloraArticle = () => leaveFichaTo('/descubre?tema=flora');
+
+  // La ficha abierta se ve salvo que se haya salido de ella hacia otra pantalla.
+  const fichaVisible = ficha !== null && (ficha.awayKey === undefined || ficha.awayKey === location.key);
+
   return (
     <div className="app-shell">
       <div className="app-frame" style={{ zoom: frameScale }}>
-        <div className="flex h-full flex-col" inert={ficha !== null}>
+        <div className="flex h-full flex-col" inert={fichaVisible}>
           <Routes>
             <Route path="/" element={<Navigate to={mode ? '/inicio' : '/modo'} replace />} />
 
@@ -381,9 +399,14 @@ export default function App() {
                     onNext={index < fichaItems.length - 1 ? () => cambiarFicha(index + 1) : undefined}
                     onViewOnMap={handleViewOnMap}
                     onViewNeighborhoodOnMap={handleViewOnMap}
+                    onOpenGreenArea={handleOpenGreenArea}
+                    onOpenFloraArticle={handleOpenFloraArticle}
                   />
                 }
               />
+              <Route path="/descubre" element={<Discover />} />
+              <Route path="/descubre/:slug" element={<ArticlePage />} />
+              <Route path="/zona/:grupo" element={<GreenAreaPage />} />
               <Route path="/componentes" element={<Components />} />
               <Route
                 path="/tipografia"
@@ -408,7 +431,7 @@ export default function App() {
 
         {/* Por encima de los panes de Leaflet (marcadores 600, popups 700,
             controles 1000): con un z-index menor el mapa tapa la ficha. */}
-        {ficha !== null && (
+        {ficha !== null && fichaVisible && (
           <div className="absolute inset-0 z-[1200] overflow-y-auto overscroll-contain bg-surface-2">
             <FichaPlantaPage
               species={ficha.species}
@@ -416,6 +439,8 @@ export default function App() {
               onBack={() => setFicha(null)}
               onViewOnMap={ficha.origin === 'mapa' ? undefined : handleViewOnMap}
               onViewNeighborhoodOnMap={handleViewOnMap}
+              onOpenGreenArea={handleOpenGreenArea}
+              onOpenFloraArticle={handleOpenFloraArticle}
             />
           </div>
         )}

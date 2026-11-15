@@ -156,8 +156,8 @@ describe('fichaDesdeDetalle — mapeo de la API al modelo de vista', () => {
     expect(especie.photoCredit).toBe('Kahuroa · Wikimedia Commons · dominio público');
     expect(especie.sources).toHaveLength(1);
     expect(especie.locations).toEqual([
-      { name: 'Vara de Quart', district: 'Patraix' },
-      { name: 'Campanar', district: 'Campanar' },
+      { name: 'Vara de Quart', district: 'Patraix', latitude: 39.47, longitude: -0.37 },
+      { name: 'Campanar', district: 'Campanar', latitude: 39.48, longitude: -0.38 },
     ]);
     expect(especie.locationTotal).toBe(2);
   });

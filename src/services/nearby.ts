@@ -17,6 +17,8 @@ export interface NearbyPlant {
   longitude: number;
   /** Distancia en línea recta al punto consultado, en metros. */
   distance: number;
+  /** Zona verde que contiene el ejemplar (NM-08); null en arbolado viario. */
+  greenAreaId?: number | null;
 }
 
 export interface NearbyResponse {

@@ -20,6 +20,7 @@ interface TreesResponse {
     reportedScientificName: string | null;
     latitude: number;
     longitude: number;
+    greenAreaId?: number | null;
   }>;
 }
 
@@ -44,6 +45,7 @@ export async function fetchPlantPins(lang: Language, signal?: AbortSignal): Prom
         longitude: tree.longitude,
         identified: tree.speciesId !== null,
         speciesId: tree.speciesId,
+        greenAreaId: tree.greenAreaId ?? null,
       });
     }
     offset = page.nextOffset;
