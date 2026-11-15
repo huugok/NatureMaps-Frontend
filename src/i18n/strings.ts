@@ -299,7 +299,7 @@ const es = {
   'map.exploreClose': 'Cerrar exploración',
   'map.greenAreasShow': 'Mostrar zonas verdes',
   'map.greenAreasHide': 'Ocultar zonas verdes',
-  
+
   'map.greenAreasError': 'No se pudieron cargar las zonas verdes.',
   'map.parkPlants': '{name}: {count} ejemplares',
   'map.parkOpen': '{name}: ver la zona verde',
@@ -611,7 +611,7 @@ const va: Dict = {
   'map.exploreClose': 'Tancar l’exploració',
   'map.greenAreasShow': 'Mostrar zones verdes',
   'map.greenAreasHide': 'Amagar zones verdes',
-  
+
   'map.greenAreasError': 'No s’han pogut carregar les zones verdes.',
   'map.parkPlants': '{name}: {count} exemplars',
   'map.parkOpen': '{name}: veure la zona verda',
@@ -920,7 +920,7 @@ const en: Dict = {
   'map.exploreClose': 'Close exploration',
   'map.greenAreasShow': 'Show green spaces',
   'map.greenAreasHide': 'Hide green spaces',
-  
+
   'map.greenAreasError': 'The green spaces could not be loaded.',
   'map.parkPlants': '{name}: {count} specimens',
   'map.parkOpen': '{name}: view the green space',
