@@ -17,6 +17,8 @@ import type {
   FichaListState,
 } from './pages/FichaPlanta';
 import type { FichaEspecie, IdentificacionFicha } from './pages/FichaPlanta';
+import { ArticlePage, Discover } from './pages/Discover';
+import { GreenAreaPage } from './pages/GreenArea';
 import { Home } from './pages/Home';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
@@ -38,6 +40,7 @@ import {
 import type { Language } from './types/language';
 import type { PlantIdentification, PlantMatch } from './types/identify';
 import type { PlantPin } from './types/plant';
+import { getSpeciesPhoto, saveSpeciesPhoto } from './services/speciesPhoto';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
@@ -50,6 +53,9 @@ interface FichaAbierta {
    * no tiene sentido ofrecer «Ver en el mapa». «ruta» cuando se abrió desde una
    * parada de una ruta: al volver se sigue en la ficha de la ruta. */
   origin?: 'mapa' | 'ruta';
+  /** Clave de historial de la pantalla desde la que se salió a una zona verde
+   * o a un artículo (NM-08): al volver a esa entrada la ficha reaparece. */
+  awayKey?: string;
 }
 
 const MapPage = lazy(() =>
@@ -95,6 +101,16 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mimeType });
 }
 
+/**
+ * PA 2941: la foto que el usuario guardó para la especie manda sobre la del
+ * catálogo (y sobre sus créditos), para que la ficha muestre la muestra que
+ * se observó. Sin foto propia, la ficha se queda como viene del backend.
+ */
+function conFotoPropia(especie: FichaEspecie): FichaEspecie {
+  const foto = getSpeciesPhoto(especie);
+  return foto === null ? especie : { ...especie, photoUrl: foto, photoCredit: undefined };
+}
+
 export default function App() {
   const { mode, lang, setLang, t } = useApp();
   const frameScale = useAppFrameScale();
@@ -137,7 +153,7 @@ export default function App() {
     getSpeciesDetail(fichaItem.id, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
       .then((especie) => {
-        if (!cancelled) setFichaDetail({ status: 'ready', especie });
+        if (!cancelled) setFichaDetail({ status: 'ready', especie: conFotoPropia(especie) });
       })
       .catch(() => {
         if (!cancelled) setFichaDetail({ status: 'error' });
@@ -191,27 +207,37 @@ export default function App() {
     }
   };
 
-  /** Abre la ficha real si la especie está en el catálogo; si no, la de Pl@ntNet. */
-  const handleOpenSpecies = (match: PlantMatch, photo: string | null) => {
+  /** Abre la ficha real si la especie está en el catálogo; si no, la de Pl@ntNet.
+   * `fotoEnCabecera` fuerza la captura en la cabecera aunque el dispositivo no
+   * haya podido guardarla (PA 2941). */
+  const handleOpenSpecies = (
+    match: PlantMatch,
+    photo: string | null,
+    fotoEnCabecera: string | null = null,
+  ) => {
     const identificacion = { score: match.score };
+    const conFoto = (especie: FichaEspecie): FichaEspecie =>
+      fotoEnCabecera === null
+        ? conFotoPropia(especie)
+        : { ...especie, photoUrl: fotoEnCabecera, photoCredit: undefined };
     const items = fichaList.status === 'ready' ? fichaList.items : null;
     const identifiedIndex = items
       ? findSpeciesIndexByScientificName(items, match.scientificName)
       : null;
 
     if (items === null || identifiedIndex === null) {
-      setFicha({ species: fichaDesdeIdentificacion(match, photo, lang), identification: identificacion });
+      setFicha({ species: conFoto(fichaDesdeIdentificacion(match, photo, lang)), identification: identificacion });
       return;
     }
 
     const item = items[identifiedIndex];
-    setFicha({ species: fichaDesdeItemLista(item, lang), identification: identificacion });
+    setFicha({ species: conFoto(fichaDesdeItemLista(item, lang)), identification: identificacion });
     getSpeciesDetail(item.id, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
       .then((species) => {
         setFicha((actual) =>
           actual?.species.scientificName === species.scientificName
-            ? { species, identification: actual.identification }
+            ? { species: conFoto(species), identification: actual.identification }
             : actual,
         );
       })
@@ -220,12 +246,24 @@ export default function App() {
       });
   };
 
-  /** Abre la ficha de una planta como overlay: la pantalla que hay debajo
-   * sigue montada, así que al volver se conserva (PA 691). Se pinta al instante
-   * con la lista del catálogo o, si aún no está cargada, con el nombre del
-   * propio punto; el detalle la enriquece después. `origin` distingue si veníamos
+  /**
+   * PA 2941: guarda la foto de la muestra en la ficha de la especie
+   * identificada y la abre, para que el usuario vea la cabecera con su foto.
+   * La foto se queda en este dispositivo (el backend no acepta fotos de
+   * usuario): al volver a abrir la ficha, manda sobre la del catálogo.
+   */
+  const handleSavePhotoToFicha = (match: PlantMatch, photo: string | null) => {
+    if (photo === null) return;
+    const guardada = saveSpeciesPhoto(match, photo);
+    // Con la foto ya persistida, la ficha la aplica sola; si el almacenamiento
+    // la rechaza, se fuerza en esta apertura para no prometer de más.
+    handleOpenSpecies(match, photo, guardada ? null : photo);
+  };
+
+  /** Abre la ficha de una planta como overlay: la pantalla de debajo sigue
+   * montada y al volver se conserva (PA 691). `origin` distingue si veníamos
    * del mapa (donde «Ver en el mapa» no aporta nada) o de una ruta. */
-  const handleOpenPlant = useCallback((plant: PlantPin, origin: 'mapa' | 'ruta') => {
+  const handleOpenPlant = useCallback((plant: PlantPin, origin: 'mapa' | 'ruta'): boolean => {
     const items = fichaList.status === 'ready' ? fichaList.items : [];
     const matchedIndex =
       plant.speciesId == null
@@ -240,30 +278,30 @@ export default function App() {
     // El inventario no enlaza todas sus plantas con el catálogo: si el nombre
     // científico reportado coincide (incluido «x»/«×»), se abre esa ficha.
     const speciesId = item?.id ?? plant.speciesId ?? undefined;
+    if (speciesId === undefined) return false;
     setFicha({
-      species: item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant),
+      species: conFotoPropia(item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant)),
       identification: null,
       origin,
     });
-    if (speciesId === undefined) return;
-
     getSpeciesDetail(speciesId, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
       .then((species) => {
         setFicha((actual) =>
           actual !== null && actual.species.id === speciesId
-            ? { species, identification: actual.identification, origin: actual.origin }
+            ? { species: conFotoPropia(species), identification: actual.identification, origin: actual.origin }
             : actual,
         );
       })
       .catch(() => {
         // La ficha instantánea ya identifica la planta; el detalle solo añade contenido.
       });
+    return true;
   }, [fichaList, lang]);
 
   /** Toca de una planta en el mapa (F03.1): abre su ficha como overlay. */
   const handleOpenPlantFromMap = useCallback(
-    (plant: PlantPin) => handleOpenPlant(plant, 'mapa'),
+    (plant: PlantPin): boolean => handleOpenPlant(plant, 'mapa'),
     [handleOpenPlant],
   );
 
@@ -285,10 +323,22 @@ export default function App() {
     navigate(speciesId === undefined ? '/mapa' : `/mapa?verEspecie=${speciesId}`);
   };
 
+  /** Enlaces de la ficha de planta al contenido de flora y zonas verdes
+   * (NM-08, PA 3013). Si la ficha es un overlay se aparta sin cerrarse. */
+  const leaveFichaTo = (path: string) => {
+    setFicha((actual) => (actual ? { ...actual, awayKey: location.key } : actual));
+    navigate(path);
+  };
+  const handleOpenGreenArea = (groupSlug: string) => leaveFichaTo(`/zona/${groupSlug}`);
+  const handleOpenFloraArticle = () => leaveFichaTo('/descubre?tema=flora');
+
+  // La ficha abierta se ve salvo que se haya salido de ella hacia otra pantalla.
+  const fichaVisible = ficha !== null && (ficha.awayKey === undefined || ficha.awayKey === location.key);
+
   return (
     <div className="app-shell">
       <div className="app-frame" style={{ zoom: frameScale }}>
-        <div className="flex h-full flex-col" inert={ficha !== null}>
+        <div className="flex h-full flex-col" inert={fichaVisible}>
           <Routes>
             <Route path="/" element={<Navigate to={mode ? '/inicio' : '/modo'} replace />} />
 
@@ -302,6 +352,7 @@ export default function App() {
                     onPhotoCaptured={handlePhotoCaptured}
                     onIdentifyPhoto={handleIdentifyPhoto}
                     onOpenSpecies={handleOpenSpecies}
+                    onSavePhotoToFicha={handleSavePhotoToFicha}
                     identificationStatus={identificationStatus}
                     identificationResults={identificationResults}
                     identificationError={identificationError}
@@ -355,9 +406,14 @@ export default function App() {
                     onPrevious={index > 0 ? () => cambiarFicha(index - 1) : undefined}
                     onNext={index < fichaItems.length - 1 ? () => cambiarFicha(index + 1) : undefined}
                     onViewOnMap={handleViewOnMap}
+                    onOpenGreenArea={handleOpenGreenArea}
+                    onOpenFloraArticle={handleOpenFloraArticle}
                   />
                 }
               />
+              <Route path="/descubre" element={<Discover />} />
+              <Route path="/descubre/:slug" element={<ArticlePage />} />
+              <Route path="/zona/:grupo" element={<GreenAreaPage />} />
               <Route path="/componentes" element={<Components />} />
               <Route
                 path="/tipografia"
@@ -382,13 +438,15 @@ export default function App() {
 
         {/* Por encima de los panes de Leaflet (marcadores 600, popups 700,
             controles 1000): con un z-index menor el mapa tapa la ficha. */}
-        {ficha !== null && (
+        {ficha !== null && fichaVisible && (
           <div className="absolute inset-0 z-[1200] overflow-y-auto overscroll-contain bg-surface-2">
             <FichaPlantaPage
               species={ficha.species}
               identification={ficha.identification}
               onBack={() => setFicha(null)}
               onViewOnMap={ficha.origin === 'mapa' ? undefined : handleViewOnMap}
+              onOpenGreenArea={handleOpenGreenArea}
+              onOpenFloraArticle={handleOpenFloraArticle}
             />
           </div>
         )}

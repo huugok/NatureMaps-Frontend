@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ArrowLeft,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -48,6 +49,11 @@ export interface FichaPlantaPageProps {
   onPrevious?: () => void;
   /** Callback al pulsar "Siguiente": ausente cuando no hay especie siguiente. */
   onNext?: () => void;
+  /** Abre la ficha de una zona verde donde está la especie (NM-08, PA 3013).
+   * Sin él no se pinta la sección «Zonas verdes donde encontrarla». */
+  onOpenGreenArea?: (groupSlug: string) => void;
+  /** Abre la sección editorial de flora (NM-08). Sin él no se pinta el acceso. */
+  onOpenFloraArticle?: () => void;
 }
 
 interface SourceCardProps {
@@ -115,12 +121,15 @@ export function FichaPlantaPage({
   onToggleFavorite,
   onPrevious,
   onNext,
+  onOpenGreenArea,
+  onOpenFloraArticle,
 }: FichaPlantaPageProps) {
   const { t } = useApp();
   const [isFavorite, setIsFavorite] = useState(false);
 
   const primaryLocation = species.locations?.[0];
   const sources = species.sources ?? [];
+  const greenAreas = species.greenAreas ?? [];
 
   const handleToggleFavorite = () => {
     setIsFavorite((current) => !current);
@@ -289,6 +298,49 @@ export function FichaPlantaPage({
             </a>
           </p>
         </div>
+
+        {/* Enlace cruzado con el contenido de flora y zonas verdes (NM-08,
+            PA 3013): los parques donde está la especie y el artículo de flora.
+            Solo con callback: quien pinta la ficha decide cómo se navega. */}
+        {onOpenGreenArea !== undefined && greenAreas.length > 0 && (
+          <section aria-labelledby="ficha-green-areas" className="mt-6">
+            <h2 id="ficha-green-areas" className="font-display text-heading text-ink">{t('ficha.greenAreas')}</h2>
+            <ul className="mt-3 space-y-2">
+              {greenAreas.map((area) => (
+                <li key={area.groupSlug}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenGreenArea(area.groupSlug)}
+                    className="flex min-h-12 w-full items-center gap-3 rounded-card bg-surface-2 p-3 text-left transition-colors hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <Trees size={20} className="shrink-0 text-accent" aria-hidden="true" />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-body font-semibold text-ink">{area.name}</span>
+                      <span className="text-small text-muted">
+                        {t(area.plants === 1 ? 'ficha.greenAreaPlant' : 'ficha.greenAreaPlants', { count: area.plants })}
+                      </span>
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-muted-2" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {onOpenFloraArticle !== undefined && species.id !== undefined && (
+          <button
+            type="button"
+            onClick={onOpenFloraArticle}
+            className="mt-3 flex min-h-12 w-full items-center gap-3 rounded-card border border-line bg-surface p-3 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <BookOpen size={20} className="shrink-0 text-accent" aria-hidden="true" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-body font-semibold text-ink">{t('ficha.floraArticle')}</span>
+              <span className="text-small text-muted">{t('ficha.floraArticleDesc')}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-muted-2" aria-hidden="true" />
+          </button>
+        )}
 
         <div className="mt-6 flex items-center gap-2">
           <h2 className="font-display text-heading text-ink">{t('ficha.sources')}</h2>

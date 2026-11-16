@@ -19,4 +19,7 @@ export interface PlantPin {
   distance?: number;
   /** Plantas del mismo tipo agrupadas tras este marcador (>1: grupo, RF2). */
   count?: number;
+  /** Zona verde que contiene el ejemplar (NM-08); null en arbolado viario.
+   * Permite agrupar por parque los pines del mapa a poco zoom. */
+  greenAreaId?: number | null;
 }

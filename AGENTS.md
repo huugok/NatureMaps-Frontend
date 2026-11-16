@@ -6,6 +6,7 @@ cambien los comandos, la estructura o las convenciones.
 > Última verificación: 2026-11-12 · rama `feat/rutas-catalogo` (desde `main` @ `0f8b6ef`).
 > Pestaña `/rutas` conectada al catálogo de rutas del backend y ficha `/rutas/:id` con el
 > recorrido en Leaflet (UT de rutas predefinidas).
+> `main` trae además flora y zonas verdes (NM-08): capa de parques, fichas de zona y artículos.
 
 ## Qué es este proyecto
 
@@ -74,11 +75,55 @@ mayúsculas y a la notación de híbrido `×`): si hay ficha, «Ver ficha» abre
 no, se construye una ficha honesta con `fichaDesdeIdentificacion`. Tocar una alternativa abre
 su ficha y la deja marcada.
 
+El resultado de la identificación ofrece también «Usar esta foto en la ficha» (PA 2941):
+guarda la captura como imagen de la especie con `src/services/speciesPhoto.ts` (único escritor
+de `naturemaps.speciesPhotos`) y abre su ficha con esa cabecera. La foto se queda en el
+dispositivo —el backend todavía no acepta fotos de usuario— y App la aplica al construir
+cualquier ficha (escaneo, mapa o `/ficha`), por encima de la imagen del catálogo y de sus
+créditos. Se conservan las 6 capturas más recientes; si localStorage la rechaza (modo privado,
+cuota llena), la ficha se abre igualmente con la foto, pero no persiste.
+
 Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la preferencia en
 `localStorage` con `languagePreference`; la UI está traducida con `t()` y los diccionarios de
 `src/i18n/strings.ts`. El frontend consume el backend para la identificación por foto
 (`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
 (`src/services/ficha.ts` → `GET /species` y `GET /species/:id`).
+
+## Flora y zonas verdes (NM-08)
+
+Rama `feat/contenido-flora-zonas-verdes` (PA 3011, 3012 y 3013). Necesita el backend de la
+misma rama (migración `0004`, `npm run import:zonas-verdes` y `npm run db:seed:editorial`).
+
+- **Capa de zonas verdes del mapa** (`src/pages/Map/greenAreasLayer.ts`): apagada por defecto,
+  se enciende con el botón del árbol o con `/mapa?zona=<grupo>`, que además resalta ese parque
+  y encuadra el mapa. Solo contorno, sin relleno opaco, en un pane propio por debajo de los
+  marcadores. Por zoom: punto (< 14), contorno (≥ 14), contorno y nombre (≥ 16). Los estilos
+  están en `src/index.css` (`.green-area-*`). La capa se pide una vez por sesión
+  (`fetchGreenAreas`, `GET /green-areas`).
+- **Agrupación por parque** (`src/pages/Map/parkClusters.ts`): por debajo del zoom 17, las
+  plantas que caen dentro de una zona verde se sustituyen por un marcador del parque con su
+  nombre y el total de ejemplares del inventario (en Viveros o el Turia son cientos y tapaban
+  el mapa). Al tocarlo se abre `/zona/:grupo`. Las de calle y las de una zona que no está en la
+  capa se siguen pintando una a una. El umbral es 17 y no 16 porque el mapa centra al usuario
+  con zoom 16. Para esto, `GET /trees` y `/trees/nearby` traen `greenAreaId` y la capa
+  `plants`; las zonas se piden al abrir el mapa aunque la capa esté apagada.
+- **`/zona/:grupo`** (`src/pages/GreenArea/`): ficha de zona con superficie, flora más
+  frecuente, POIs de dentro, artículos y fuente con licencia.
+- **`/descubre`** y **`/descubre/:slug`** (`src/pages/Discover/`): contenido editorial por
+  secciones (flora, parques, jardines, paisajismo). `?tema=` abre una sección y `?zona=` deja
+  los artículos de una zona. Se entra desde Inicio.
+- **Ficha de planta**: sección «Zonas verdes donde encontrarla» (`greenAreas` de
+  `GET /species/:id`) y acceso al artículo de flora. Si la ficha es un overlay, App la aparta
+  (`awayKey`) en lugar de cerrarla: al volver atrás reaparece.
+- **`GreenAreaContext`** (`src/components/GreenAreaContext/`): bloque «Entorno verde» para
+  cualquier ficha con coordenadas; resuelve la zona con `GET /green-areas/at`. **Pendiente de
+  colocar en la ficha de POI** cuando la UT de NM-06 traiga esa ficha a `main`
+  (`<GreenAreaContext latitude={poi.latitude} longitude={poi.longitude} />`).
+- Los artículos están redactados en castellano, valenciano e inglés. Si algún día falta una
+  traducción, la pantalla sirve el español y lo avisa (`isFallbackLanguage`). Los nombres comunes
+  de las especies vienen del inventario municipal, que solo los publica en castellano y valenciano.
+- `useRemote` (`src/hooks/`) y `RemoteLoading`/`RemoteError` (`src/components/RemoteStatus.tsx`)
+  dan los estados cargando/error/reintentar de estas pantallas.
 
 ## Stack
 
@@ -112,8 +157,10 @@ src/index.css         @import "tailwindcss"
 src/components/       Componentes (una carpeta por componente)
 src/pages/            Vistas por ruta (Home, Map, RoutesList, Search, FichaPlanta,
                       Camera dentro de components/, Settings, ModeSelect, Components)
-src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de idioma)
+src/services/         Cliente HTTP / integración con el backend (identificación, preferencia de
+                      idioma, foto propia de la especie en localStorage)
 src/types/            Tipos compartidos (navigation.ts, language.ts)
+src/utils/            Utilidades sin estado (cn.ts, speciesName.ts)
 public/               Assets estáticos (favicon, icons.svg)
 docs/agents/          Convenciones para agentes (issue tracker, domain docs)
 ```
@@ -259,9 +306,11 @@ Reglas:
   base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
 - La ficha (`src/services/ficha.ts`) consume `GET /species` y `GET /species/:id` con la misma
   base URL. El contenido editorial (descripciones, curiosidades, fuentes) lo sirve el backend.
+- La foto que guarda el usuario en una ficha (PA 2941) **no** se envía al backend: vive en
+  `localStorage` (`naturemaps.speciesPhotos`) mediante `src/services/speciesPhoto.ts`, que es su
+  único escritor. No leer esa clave desde componentes.
 - El mapa (`src/pages/Map/MapPage.tsx`) llama a servicios externos (teselas de OpenStreetMap y
-  búsqueda en Nominatim) y al backend: `src/services/nearby.ts` consume `GET /trees/nearby`
-  (plantas cercanas, distancia en metros) para los marcadores del mapa y «Cerca de ti» en
+  búsqueda en Nominatim) y al backend: `src/services/nearby.ts` consume `GET /trees/nearby`  (plantas cercanas, distancia en metros) para los marcadores del mapa y «Cerca de ti» en
   Buscar. El permiso de ubicación sigue el patrón de la cámara
   (`src/components/Location/`, aviso propio antes del nativo, con reintento si se deniega);
   el radio (100–10000 m) se guarda en `naturemaps:radius` y se configura en Ajustes

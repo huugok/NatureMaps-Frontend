@@ -32,10 +32,13 @@ describe('fetchPlantPins', () => {
       {
         id: 1, displayName: 'Planta 1', scientificName: 'Species 1',
         latitude: 39.47, longitude: -0.37, identified: true, speciesId: 7,
+        // El backend antiguo no envía la zona verde: el pin la deja en null.
+        greenAreaId: null,
       },
       {
         id: 2, displayName: 'Planta 2', scientificName: 'Species 2',
         latitude: 39.47, longitude: -0.37, identified: false, speciesId: null,
+        greenAreaId: null,
       },
     ]);
   });

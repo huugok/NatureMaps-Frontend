@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDistance, formatDuration } from './format'
+import { formatArea, formatCount, formatDistance, formatDuration } from './format'
 
 describe('formatDistance', () => {
   it('muestra metros por debajo del kilómetro', () => {
@@ -37,5 +37,24 @@ describe('formatDuration', () => {
   it('formatea los números según el idioma activo', () => {
     expect(formatDuration(4500, 'en')).toBe('1 h 15 min')
     expect(formatDuration(4500, 'va')).toBe('1 h 15 min')
+  })
+})
+
+describe('formatArea', () => {
+  it('muestra metros cuadrados por debajo de la hectárea y hectáreas a partir de ella', () => {
+    // En español los números de cuatro cifras no llevan separador de miles.
+    expect(formatArea(4341.6, 'es')).toBe('4342 m²')
+    expect(formatArea(4341.6, 'en')).toBe('4,342 m²')
+    expect(formatArea(10000, 'es')).toBe('1 ha')
+    expect(formatArea(172833.7, 'es')).toBe('17,3 ha')
+    expect(formatArea(172833.7, 'en')).toBe('17.3 ha')
+  })
+})
+
+describe('formatCount', () => {
+  it('usa el separador de miles del idioma', () => {
+    expect(formatCount(12661, 'es')).toBe('12.661')
+    expect(formatCount(12661, 'en')).toBe('12,661')
+    expect(formatCount(7, 'va')).toBe('7')
   })
 })

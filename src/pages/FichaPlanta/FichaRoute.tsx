@@ -24,6 +24,8 @@ export interface FichaRouteProps {
   onPrevious?: (() => void) | undefined;
   onNext?: (() => void) | undefined;
   onViewOnMap: (speciesId?: number) => void;
+  onOpenGreenArea?: ((groupSlug: string) => void) | undefined;
+  onOpenFloraArticle?: (() => void) | undefined;
 }
 
 function FichaEstado({ mensaje }: { mensaje: string }) {
@@ -82,6 +84,8 @@ export function FichaRoute({
   onPrevious,
   onNext,
   onViewOnMap,
+  onOpenGreenArea,
+  onOpenFloraArticle,
 }: FichaRouteProps) {
   const { t } = useApp();
 
@@ -115,6 +119,8 @@ export function FichaRoute({
         onViewOnMap={onViewOnMap}
         {...(onPrevious !== undefined ? { onPrevious } : {})}
         {...(onNext !== undefined ? { onNext } : {})}
+        {...(onOpenGreenArea !== undefined ? { onOpenGreenArea } : {})}
+        {...(onOpenFloraArticle !== undefined ? { onOpenFloraArticle } : {})}
       />
     </div>
   );
