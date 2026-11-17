@@ -14,6 +14,12 @@ const renderArea = () =>
   );
 
 describe('ficha de zona verde (NM-08)', () => {
+  it('ofrece usar la zona sin conexión (en jsdom no hay IndexedDB y lo dice)', async () => {
+    stubApi({ '/green-areas/group/': hesperidesDetail }, vi);
+    renderArea();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Usar sin conexión' })).toBeInTheDocument();
+  });
+
   it('muestra nombre, superficie y recuentos, y lleva al mapa con la zona resaltada', async () => {
     const fetchMock = stubApi({ '/green-areas/group/': hesperidesDetail }, vi);
     renderArea();
@@ -33,7 +39,7 @@ describe('ficha de zona verde (NM-08)', () => {
     expect(within(articles).getByRole('link', { name: /Jardín de las Hespérides/ })).toHaveAttribute(
       'href', '/descubre/jardin-de-las-hesperides');
     const flora = screen.getByRole('region', { name: 'Flora más frecuente' });
-    expect(within(flora).getByRole('link', { name: /Naranjo amargo/ })).toHaveAttribute('href', '/mapa?verEspecie=7');
+    expect(within(flora).getByRole('link', { name: /Naranjo amargo/ })).toHaveAttribute('href', '/mapa?zona=jardin-de-las-hesperides&verEspecie=7');
     expect(within(flora).getByText('1200 ejemplares')).toBeInTheDocument();
     // Sin nombre común se muestra el científico.
     expect(within(flora).getByRole('link', { name: /Jacaranda mimosifolia/ })).toBeInTheDocument();
@@ -62,5 +68,14 @@ describe('ficha de zona verde (NM-08)', () => {
     stubApi({}, vi);
     renderArea();
     expect(await screen.findByRole('alert')).toHaveTextContent('No se ha podido cargar la zona verde.');
+  });
+
+  it('sin conexión y sin descarga, avisa de que la zona no está disponible sin conexión', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    renderArea();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Esta zona no está disponible sin conexión.');
+    expect(alert).toHaveTextContent('Descárgala cuando tengas conexión');
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
 });

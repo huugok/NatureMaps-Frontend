@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isUnreachable } from '../services/offlineError';
 
 export type RemoteState<T> =
   | { status: 'loading' }
-  | { status: 'error' }
+  // `unreachable`: el fallo es de red (sin conexión o servidor caído), no una respuesta del backend.
+  | { status: 'error'; unreachable: boolean }
   | { status: 'ready'; data: T };
 
 /**
@@ -29,8 +31,10 @@ export function useRemote<T>(key: string | null, load: (signal: AbortSignal) => 
       .then((data) => {
         if (!controller.signal.aborted) setResult({ request, state: { status: 'ready', data } });
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setResult({ request, state: { status: 'error' } });
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setResult({ request, state: { status: 'error', unreachable: isUnreachable(error) } });
+        }
       });
     return () => controller.abort();
   }, [request]);

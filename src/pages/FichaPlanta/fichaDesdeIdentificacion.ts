@@ -1,4 +1,5 @@
 import { dictionaries } from '../../i18n/strings';
+import { repairTextEncoding } from '../../i18n/format';
 import type { Language } from '../../types/language';
 import type { PlantMatch } from '../../types/identify';
 import type { FichaEspecie } from './types';
@@ -29,12 +30,12 @@ export function fichaDesdeIdentificacion(
   fotoCapturada: string | null = null,
   language: Language = 'es',
 ): FichaEspecie {
-  const nombreComun = match.commonNames[0] ?? match.scientificName;
+  const nombreComun = repairTextEncoding(match.commonNames[0] ?? match.scientificName);
 
   return {
     commonName: nombreComun,
-    scientificName: match.scientificName,
-    family: match.family ?? undefined,
+    scientificName: repairTextEncoding(match.scientificName),
+    family: match.family ? repairTextEncoding(match.family) : undefined,
     photoUrl: fotoCapturada ?? undefined,
     photoAlt: fotoCapturada !== null
       ? dictionaries[language]['ficha.photoAlt'].replace('{name}', nombreComun)

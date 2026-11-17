@@ -13,13 +13,14 @@ export function RemoteLoading({ message }: { message: string }) {
 }
 
 /** Estado de error con reintento: sin datos de reserva, el fallo se dice. */
-export function RemoteError({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function RemoteError({ message, description, onRetry }: { message: string; description?: string; onRetry: () => void }) {
   const { t } = useApp();
   return (
     <div role="alert">
       <EmptyState
         icon={CloudOff}
         title={message}
+        {...(description !== undefined ? { description } : {})}
         action={<Button variant="secondary" size="sm" onClick={onRetry}>{t('common.retry')}</Button>}
       />
     </div>

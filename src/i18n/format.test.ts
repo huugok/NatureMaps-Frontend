@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatArea, formatCount, formatDistance, formatDuration } from './format'
+import { formatArea, formatBytes, formatCount, formatDate, formatDistance, formatDuration, formatPercent } from './format'
 
 describe('formatDistance', () => {
   it('muestra metros por debajo del kilómetro', () => {
@@ -56,5 +56,28 @@ describe('formatCount', () => {
     expect(formatCount(12661, 'es')).toBe('12.661')
     expect(formatCount(12661, 'en')).toBe('12,661')
     expect(formatCount(7, 'va')).toBe('7')
+  })
+})
+
+describe('formatBytes', () => {
+  it('usa kilobytes por debajo de 1 MB y megabytes a partir de él', () => {
+    expect(formatBytes(400, 'es')).toBe('1 KB')
+    expect(formatBytes(250_000, 'es')).toBe('250 KB')
+    expect(formatBytes(1_500_000, 'es')).toBe('1,5 MB')
+    expect(formatBytes(1_500_000, 'en')).toBe('1.5 MB')
+  })
+})
+
+describe('formatPercent', () => {
+  it('redondea a enteros', () => {
+    expect(formatPercent(0.424, 'en')).toBe('42%')
+    expect(formatPercent(1, 'en')).toBe('100%')
+  })
+})
+
+describe('formatDate', () => {
+  it('escribe la fecha en el idioma activo', () => {
+    expect(formatDate('2026-11-15T10:00:00Z', 'en')).toBe('15 Nov 2026')
+    expect(formatDate('2026-11-15T10:00:00Z', 'es')).toContain('2026')
   })
 })

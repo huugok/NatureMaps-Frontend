@@ -1,5 +1,6 @@
 import { BookOpen, Landmark, Leaf, MapPin, Sprout, Trees } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import { OfflineZoneCard } from '../../components/OfflineZone';
 import { Page } from '../../components/Page';
 import { RemoteError, RemoteLoading } from '../../components/RemoteStatus';
 import { Button } from '../../components/ui/Button';
@@ -30,7 +31,9 @@ export function GreenAreaPage() {
       <Page title={t('discover.topic.parques')} back>
         {state.status === 'loading'
           ? <RemoteLoading message={t('area.loading')} />
-          : <RemoteError message={t('area.error')} onRetry={retry} />}
+          : state.unreachable
+            ? <RemoteError message={t('area.offline')} description={t('area.offlineHint')} onRetry={retry} />
+            : <RemoteError message={t('area.error')} onRetry={retry} />}
       </Page>
     );
   }
@@ -64,6 +67,8 @@ export function GreenAreaPage() {
         {t('area.viewOnMap')}
       </Button>
 
+      <OfflineZoneCard groupSlug={area.groupSlug} bbox={area.bbox} plantCount={area.plants.total} />
+
       {area.articles.length > 0 && (
         <section aria-labelledby="area-articles">
           <h2 id="area-articles" className="font-display mt-3 text-heading text-ink">{t('area.articles')}</h2>
@@ -93,7 +98,7 @@ export function GreenAreaPage() {
                 icon={Leaf}
                 title={species.commonName ?? species.scientificName}
                 subtitle={species.commonName ? species.scientificName : undefined}
-                to={`/mapa?verEspecie=${species.speciesId}`}
+                to={`/mapa?zona=${area.groupSlug}&verEspecie=${species.speciesId}`}
                 trailing={(
                   <span className="text-caption tabular-nums text-muted">
                     {t('area.specimens', { count: formatCount(species.plants, lang) })}

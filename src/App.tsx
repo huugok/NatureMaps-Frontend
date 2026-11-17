@@ -318,9 +318,15 @@ export default function App() {
 
   /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
    * mapa que centre su ejemplar más cercano (parámetro de un solo uso). */
-  const handleViewOnMap = (speciesId?: number) => {
+  const handleViewOnMap = (speciesId?: number, neighborhood?: string) => {
     setFicha(null);
-    navigate(speciesId === undefined ? '/mapa' : `/mapa?verEspecie=${speciesId}`);
+    if (speciesId === undefined) {
+      navigate('/mapa');
+      return;
+    }
+    const params = new URLSearchParams({ verEspecie: String(speciesId) });
+    if (neighborhood) params.set('barrio', neighborhood);
+    navigate(`/mapa?${params.toString()}`);
   };
 
   /** Enlaces de la ficha de planta al contenido de flora y zonas verdes
@@ -369,7 +375,13 @@ export default function App() {
               />
               <Route path="/rutas" element={<RoutesList />} />
               <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} />} />
-              <Route path="/buscar" element={<Search />} />
+              <Route path="/buscar" element={<Search onSelectSpecies={(item) => {
+                setFicha({ species: fichaDesdeItemLista(item, lang), identification: null });
+                getSpeciesDetail(item.id, lang)
+                  .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+                  .then((species) => setFicha((actual) => actual?.species.id === item.id ? { ...actual, species } : actual))
+                  .catch(() => undefined);
+              }} />} />
             </Route>
 
             <Route element={<FullLayout />}>
@@ -406,6 +418,7 @@ export default function App() {
                     onPrevious={index > 0 ? () => cambiarFicha(index - 1) : undefined}
                     onNext={index < fichaItems.length - 1 ? () => cambiarFicha(index + 1) : undefined}
                     onViewOnMap={handleViewOnMap}
+                    onViewNeighborhoodOnMap={handleViewOnMap}
                     onOpenGreenArea={handleOpenGreenArea}
                     onOpenFloraArticle={handleOpenFloraArticle}
                   />
@@ -445,6 +458,7 @@ export default function App() {
               identification={ficha.identification}
               onBack={() => setFicha(null)}
               onViewOnMap={ficha.origin === 'mapa' ? undefined : handleViewOnMap}
+              onViewNeighborhoodOnMap={handleViewOnMap}
               onOpenGreenArea={handleOpenGreenArea}
               onOpenFloraArticle={handleOpenFloraArticle}
             />
