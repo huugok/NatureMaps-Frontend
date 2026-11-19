@@ -520,6 +520,58 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('el círculo de carga va por el perímetro, está bajo el buscador y se retira al terminar', async () => {
+    let releaseSecond: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSecond = resolve; });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        const offset = Number(requestUrl.searchParams.get('offset') ?? 0);
+        if (offset === 1) await gate;
+        return {
+          ok: true,
+          json: async () => ({
+            center: { latitude: 39.48, longitude: -0.38 }, radius: 1000,
+            returned: offset < 2 ? 1 : 0, total: 2, limit: 5000, language: 'es',
+            trees: offset < 2 ? [{
+              id: offset + 1, speciesId: 3, displayName: 'Almez', latitude: 39.4795,
+              longitude: -0.3795, distance: offset * 10,
+            }] : [],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
+    }) as unknown as typeof fetch);
+
+    const { unmount } = renderMap();
+    const circle = await screen.findByRole('button', { name: /Cargando plantas/ });
+    // Bajo la barra de búsqueda (top-20), no encima (top-4).
+    expect(circle.parentElement).toHaveClass('top-20');
+    // El perímetro se dibuja con strokeDashoffset sobre un circle.
+    const ring = circle.querySelector('circle[stroke="var(--color-accent)"]');
+    expect(ring?.getAttribute('stroke-dashoffset')).not.toBe(ring?.getAttribute('stroke-dasharray'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); // no bloquea
+
+    // La tarjeta se retira a los 3 s y se reabre al clicar el círculo.
+    await waitFor(() => expect(screen.queryByText(/Cargando plantas/)).not.toBeInTheDocument(), { timeout: 5000 });
+    expect(circle).toBeInTheDocument();
+    fireEvent.click(circle);
+    expect(screen.getByText(/Cargando plantas/)).toHaveClass('plant-progress-card--entering');
+
+    // Al terminar la carga desaparecen círculo y tarjeta.
+    releaseSecond?.();
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
+    unmount();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
   it('«Ver en el mapa»: pinta los ejemplares de la especie y encuadra el mapa', async () => {
     // El effects actual pide la ficha y las ubicaciones al backend (no usa las
     // plantas cercanas), así que se simulan esas dos respuestas.

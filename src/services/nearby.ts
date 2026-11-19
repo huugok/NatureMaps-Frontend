@@ -27,6 +27,8 @@ export interface NearbyResponse {
   center: { latitude: number; longitude: number };
   radius: number;
   returned: number;
+  /** Total de plantas del radio, para el indicador de progreso. */
+  total: number;
   limit: number | null;
   language: string;
   trees: NearbyPlant[];
@@ -62,7 +64,7 @@ export function saveNearbyRadius(meters: number): void {
 }
 
 export async function fetchNearbyTrees(
-  params: { latitude: number; longitude: number; radius: number; limit?: number; lang: string },
+  params: { latitude: number; longitude: number; radius: number; limit?: number; offset?: number; lang: string },
   signal?: AbortSignal,
 ): Promise<NearbyResponse> {
   const query = new URLSearchParams({
@@ -73,6 +75,7 @@ export async function fetchNearbyTrees(
   });
   // Sin límite explícito el backend devuelve todas las plantas del radio.
   if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
   // Mismo arreglo de codificación para lo que llega de la red y para la copia descargada.
   const repair = (response: NearbyResponse): NearbyResponse => ({
     ...response,

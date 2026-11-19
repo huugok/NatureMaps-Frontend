@@ -25,6 +25,7 @@ import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
+const NEARBY_PAGE_SIZE = 5000;
 // Muestreo del mapa: se cargan todas las plantas del radio, pero solo se pintan
 // las visibles y se agrupan hasta no pasar de este número de marcadores.
 const MAX_PLANT_MARKERS = 400;
@@ -270,6 +271,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // en cuanto hay posición, las cercanas al usuario con parámetros por modo.
   const [radius] = useState(readNearbyRadius);
   const [plants, setPlantsState] = useState<PlantPin[] | null>(null);
+  const [plantProgress, setPlantProgress] = useState<{ loaded: number, total: number } | null>(null);
+  const [showPlantToast, setShowPlantToast] = useState(false);
+  const [toastExiting, setToastExiting] = useState(false);
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plantsRef = useRef<PlantPin[] | null>(null);
   // Resultado de «Explorar cerca», separado de los pines del mapa: un área sin
   // ejemplares deja la lista vacía, pero el mapa conserva lo que ya mostraba.
@@ -361,6 +368,20 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
   // Cargador cercanas reasignado tras cada render para que updateUserLocation
   // (memoizado) use siempre el radio, idioma y modo vigentes.
+  /** Abre (o reabre al tocar el círculo) la tarjeta de carga durante 3 s. */
+  const openPlantToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    if (toastHideRef.current) clearTimeout(toastHideRef.current);
+    setToastExiting(false);
+    setShowPlantToast(true);
+    setToastKey((key) => key + 1); // remonta el nodo para repetir la animación
+    toastTimerRef.current = setTimeout(() => setToastExiting(true), 3000);
+    toastHideRef.current = setTimeout(() => {
+      setShowPlantToast(false);
+      setToastExiting(false);
+    }, 3500);
+  }, []);
+
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
     loadPlantsRef.current = (coords: Coordinates) => {
@@ -376,13 +397,20 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       const controller = new AbortController();
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
-      fetchNearbyTrees(
-        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, lang },
-        controller.signal,
-      )
-        .then((response) => {
+      const loadPages = async () => {
+        let offset = 0;
+        let total = 0;
+        let more = true;
+        const found: PlantPin[] = [];
+        do {
+          const response = await fetchNearbyTrees(
+            { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius,
+              limit: NEARBY_PAGE_SIZE, offset, lang },
+            controller.signal,
+          );
           if (controller.signal.aborted) return;
-          const found = response.trees.map((plant) => ({
+          total = response.total;
+          found.push(...response.trees.map((plant) => ({
             id: plant.id,
             displayName: plant.displayName,
             scientificName: plant.scientificName ?? plant.reportedScientificName,
@@ -392,21 +420,27 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             speciesId: plant.speciesId,
             distance: plant.distance,
             greenAreaId: plant.greenAreaId ?? null,
-          }));
-          // Sin ejemplares cerca se deja el mapa como está: el inventario
-          // municipal solo cubre València, y vaciarlo apagaría el mapa entero
-          // para quien consulta desde fuera de la ciudad.
-          if (found.length > 0) {
-            setPlants(found);
-            // Ya hay cobertura alrededor: se vuelve a la vista de cercanas.
-            setNeedsGlobalPlants(false);
-          } else if (plantsRef.current === null || plantsRef.current.length === 0) {
-            setNeedsGlobalPlants(true);
-          }
-        })
-        .catch(() => {
-          // Fallo de red silencioso: el mapa sigue con lo último mostrado.
-        });
+          })));
+          offset += response.trees.length;
+          more = response.trees.length > 0 && offset < total && total > 0;
+          setPlantProgress({ loaded: found.length, total });
+          openPlantToast();
+          if (found.length > 0) setPlants([...found]);
+        } while (more);
+        if (found.length > 0) setNeedsGlobalPlants(false);
+        else if (plantsRef.current === null || plantsRef.current.length === 0) setNeedsGlobalPlants(true);
+      };
+      loadPages().catch(() => {
+        // Fallo de red silencioso: el mapa sigue con lo último mostrado.
+      }).finally(() => {
+        if (!controller.signal.aborted) {
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          if (toastHideRef.current) clearTimeout(toastHideRef.current);
+          setPlantProgress(null);
+          setShowPlantToast(false);
+          setToastExiting(false);
+        }
+      });
     };
   });
 
@@ -1182,6 +1216,32 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         onClick={() => setExploreOpen(false)}
         className="absolute inset-0 h-full w-full"
       />
+
+      {/* Indicador de carga: círculo verde arriba a la derecha que se va
+          completando, con una tarjeta a su izquierda que se retira en 3 s.
+          No bloquea el mapa: se puede arrastrar mientras carga. */}
+      {plantProgress && (
+        <div className="absolute right-4 top-20 z-[1060] flex items-center gap-2">
+          {showPlantToast && (
+            <span key={toastKey} role="status"
+              className={`rounded-full border border-line bg-surface px-3 py-2 text-caption font-semibold text-ink shadow-raised ${toastExiting ? 'plant-progress-card--leaving' : 'plant-progress-card--entering'}`}>
+              {t('map.loadingPlants')}
+            </span>
+          )}
+          <button type="button" onClick={openPlantToast}
+            aria-label={t('map.loadingPlants')}
+            className="plant-progress-ring"
+            title={t('map.loadingPlants')}>
+            <svg viewBox="0 0 36 36" className="h-7 w-7 -rotate-90" aria-hidden="true">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--color-surface)" strokeWidth="4" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--color-accent)" strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 15}
+                strokeDashoffset={2 * Math.PI * 15 * (1 - Math.min(1, plantProgress.loaded / Math.max(plantProgress.total, 1)))} />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <button type="button" onClick={() => setExploreOpen((open) => !open)} aria-expanded={exploreOpen}
         className="absolute bottom-4 left-1/2 z-[1000] flex min-h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-5 text-body font-semibold text-ink shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
