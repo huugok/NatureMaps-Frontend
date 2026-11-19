@@ -67,7 +67,7 @@ export function groupBySpecies<T extends { displayName: string }>(
  * proximidad. Las sueltas pasan tal cual; cada grupo se representa con un pin
  * en el centro de la masa, con `count` y la `distance` del miembro más cercano
  * (si la hay), y su área en `areasById`. No depende del orden de entrada. */
-export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
+export function groupNearbyPlants(pins: PlantPin[], linkMeters = GROUP_LINK_METERS): GroupedPlants {
   const byType = new Map<string, PlantPin[]>();
   for (const pin of pins) {
     const bucket = byType.get(pin.displayName);
@@ -83,13 +83,13 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
       markers.push(members[0]);
       continue;
     }
-    // Grupos por encadenado dentro del tipo: vecinos a <= GROUP_LINK_METERS.
+    // Grupos por encadenado dentro del tipo: vecinos a <= linkMeters.
     // Rejilla de celdas del tamaño del enlace: con todas las plantas del radio
     // no se puede comparar cada una con todas las de su tipo.
     const cellOf = (p: PlantPin) => {
       const x = p.longitude * 111_320 * Math.max(Math.cos((p.latitude * Math.PI) / 180), 0.01);
       const y = p.latitude * 111_320;
-      return { cx: Math.floor(x / GROUP_LINK_METERS), cy: Math.floor(y / GROUP_LINK_METERS) };
+      return { cx: Math.floor(x / linkMeters), cy: Math.floor(y / linkMeters) };
     };
     const grid = new Map<string, number[]>();
     members.forEach((member, index) => {
@@ -112,7 +112,7 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
         for (let dx = -1; dx <= 1; dx++) {
           for (let dy = -1; dy <= 1; dy++) {
             for (const j of grid.get(`${cx + dx}:${cy + dy}`) ?? []) {
-              if (!visited[j] && metersBetween(current, members[j]) <= GROUP_LINK_METERS) {
+              if (!visited[j] && metersBetween(current, members[j]) <= linkMeters) {
                 visited[j] = true;
                 pending.push(members[j]);
               }

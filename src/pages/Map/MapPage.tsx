@@ -25,6 +25,10 @@ import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
+// Muestreo del mapa: se cargan todas las plantas del radio, pero solo se pintan
+// las visibles y se agrupan hasta no pasar de este número de marcadores.
+const MAX_PLANT_MARKERS = 400;
+const MAX_GROUP_LINK_METERS = 3200;
 // Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
 // localStorage: al recargar la página se pierde, igual que el resto de la vista.
 let paintedRouteId: number | null = null;
@@ -201,6 +205,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // Por debajo del zoom de parque, las plantas de una zona verde se agrupan en
   // un solo marcador: en Viveros o el Turia son cientos y tapan el mapa.
   const [clusterByPark, setClusterByPark] = useState(true);
+  const [viewVersion, setViewVersion] = useState(0);
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -669,6 +674,16 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }).addTo(map);
   }, [clearGroupArea]);
 
+  // Al mover o hacer zoom se repinta la capa: el muestreo depende de lo que se
+  // ve en ese momento, no de todo el radio cargado.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const repaint = () => setViewVersion((version) => version + 1);
+    map.on('moveend', repaint);
+    return () => { map.off('moveend', repaint); };
+  }, []);
+
   // Capa de marcadores de plantas (render de la UT 908): se reconstruye cuando
   // llegan datos nuevos, cambia el idioma o se pasa de globales a cercanas.
   // Con distancia conocida (vía cercanas), cada marcador lleva su popup con
@@ -702,8 +717,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         { label: (cluster) => t('map.parkPlants', { name: cluster.name, count: cluster.total ?? cluster.shown }) },
       );
     }
-    const mapPlants = grouped ? grouped.loose : sourcePlants;
-    if (!mapPlants || mapPlants.length === 0) {
+    const allPlants = grouped ? grouped.loose : sourcePlants;
+    if (!allPlants || allPlants.length === 0) {
       groupAreasRef.current = new Map();
       memberAreasRef.current = new Map();
       return;
@@ -715,7 +730,19 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         : '';
       return `<strong>${escapeHtml(pin.displayName)}</strong><br>${detail}${escapeHtml(formatDistance(pin.distance, lang))}`;
     };
-    const { pins, areasById, areaByMemberId } = groupNearbyPlants(mapPlants);
+    // Solo lo que se ve: con 10 km de radio hay decenas de miles de plantas
+    // fuera de la pantalla que no pintan nada.
+    const bounds = map.getBounds();
+    const visible = allPlants.filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
+    // Encuadre cerrado -> detalle (100 m); alejado -> grupos más grandes hasta
+    // que el número de marcadores sea legible.
+    let link = 100;
+    let sampled = groupNearbyPlants(visible, link);
+    while (sampled.pins.length > MAX_PLANT_MARKERS && link < MAX_GROUP_LINK_METERS) {
+      link = Math.min(MAX_GROUP_LINK_METERS, Math.round(link * 1.6));
+      sampled = groupNearbyPlants(visible, link);
+    }
+    const { pins, areasById, areaByMemberId } = sampled;
     groupAreasRef.current = areasById;
     memberAreasRef.current = areaByMemberId;
     const handlePlantClick = (pin: PlantPin) => {
@@ -733,7 +760,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       popupFor,
       handlePlantClick,
     );
-  }, [plants, zoneSpecies, zoneSpeciesId, lang, hasPosition, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, clusterByPark, greenAreas, navigate]);
+  }, [plants, zoneSpecies, zoneSpeciesId, lang, hasPosition, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, clusterByPark, greenAreas, navigate, viewVersion]);
 
   useEffect(() => {
     const map = mapRef.current;
