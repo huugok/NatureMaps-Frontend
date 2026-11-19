@@ -28,7 +28,6 @@ const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 // Muestreo del mapa: se cargan todas las plantas del radio, pero solo se pintan
 // las visibles y se agrupan hasta no pasar de este número de marcadores.
 const MAX_PLANT_MARKERS = 400;
-const MAX_GROUP_LINK_METERS = 3200;
 // Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
 // localStorage: al recargar la página se pierde, igual que el resto de la vista.
 let paintedRouteId: number | null = null;
@@ -684,11 +683,24 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return () => { map.off('moveend', repaint); };
   }, []);
 
-  // Capa de marcadores de plantas (render de la UT 908): se reconstruye cuando
-  // llegan datos nuevos, cambia el idioma o se pasa de globales a cercanas.
-  // Con distancia conocida (vía cercanas), cada marcador lleva su popup con
-  // nombre y distancia; las plantas del mismo tipo encadenadas se agrupan en
-  // un marcador con recuento y, al pulsarlo, pintan el área del grupo.
+  // Agrupación fina: se calcula UNA VEZ cuando cambian las plantas (o la capa
+  // de parques), no en cada zoom. Con 67k plantas cuesta ~0,4 s; repetirlo en
+  // cada moveend era lo que congelaba el mapa.
+  const plantGroups = useMemo(() => {
+    const source = zoneSpeciesId !== null ? (zoneSpecies?.pins ?? []) : plants;
+    if (!source) return null;
+    const parks = clusterByPark && zoneSpeciesId === null && greenAreas !== null
+      ? clusterPlantsByPark(source, greenAreas)
+      : null;
+    return {
+      parks: parks?.clusters ?? [],
+      loose: parks ? parks.loose : source,
+      groups: groupNearbyPlants(parks ? parks.loose : source),
+    };
+  }, [plants, zoneSpecies, zoneSpeciesId, clusterByPark, greenAreas]);
+
+  // Capa de marcadores de plantas: en cada movimiento solo se filtran al viewport
+  // los grupos ya calculados y se cogen los más numerosos (muestreo barato).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -699,17 +711,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     parksLayerRef.current?.remove();
     parksLayerRef.current = null;
     clearGroupArea();
-    // Hasta el zoom de parque, las plantas que caen dentro de una zona verde
-    // se sustituyen por un marcador del parque con su recuento; las de calle
-    // se siguen pintando una a una.
-    const sourcePlants = zoneSpeciesId !== null ? (zoneSpecies?.pins ?? []) : plants;
-    const grouped = clusterByPark && zoneSpeciesId === null && greenAreas !== null && sourcePlants !== null
-      ? clusterPlantsByPark(sourcePlants, greenAreas)
-      : null;
-    if (grouped && grouped.clusters.length > 0) {
+    if (plantGroups?.parks.length) {
+      const bounds = map.getBounds();
       parksLayerRef.current = addParkMarkers(
         map,
-        grouped.clusters,
+        plantGroups.parks.filter((cluster) => bounds.contains([cluster.latitude, cluster.longitude])),
         (groupSlug) => {
           setExploreOpen(false);
           navigate(`/zona/${groupSlug}`);
@@ -717,8 +723,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         { label: (cluster) => t('map.parkPlants', { name: cluster.name, count: cluster.total ?? cluster.shown }) },
       );
     }
-    const allPlants = grouped ? grouped.loose : sourcePlants;
-    if (!allPlants || allPlants.length === 0) {
+    if (!plantGroups || plantGroups.loose.length === 0) {
       groupAreasRef.current = new Map();
       memberAreasRef.current = new Map();
       return;
@@ -730,19 +735,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         : '';
       return `<strong>${escapeHtml(pin.displayName)}</strong><br>${detail}${escapeHtml(formatDistance(pin.distance, lang))}`;
     };
-    // Solo lo que se ve: con 10 km de radio hay decenas de miles de plantas
-    // fuera de la pantalla que no pintan nada.
     const bounds = map.getBounds();
-    const visible = allPlants.filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
-    // Encuadre cerrado -> detalle (100 m); alejado -> grupos más grandes hasta
-    // que el número de marcadores sea legible.
-    let link = 100;
-    let sampled = groupNearbyPlants(visible, link);
-    while (sampled.pins.length > MAX_PLANT_MARKERS && link < MAX_GROUP_LINK_METERS) {
-      link = Math.min(MAX_GROUP_LINK_METERS, Math.round(link * 1.6));
-      sampled = groupNearbyPlants(visible, link);
-    }
-    const { pins, areasById, areaByMemberId } = sampled;
+    const visible = plantGroups.groups.pins.filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
+    const pins = visible.length > MAX_PLANT_MARKERS
+      ? [...visible].sort((a, b) => (b.count ?? 1) - (a.count ?? 1)).slice(0, MAX_PLANT_MARKERS)
+      : visible;
+    const { areasById, areaByMemberId } = plantGroups.groups;
     groupAreasRef.current = areasById;
     memberAreasRef.current = areaByMemberId;
     const handlePlantClick = (pin: PlantPin) => {
@@ -760,7 +758,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       popupFor,
       handlePlantClick,
     );
-  }, [plants, zoneSpecies, zoneSpeciesId, lang, hasPosition, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, clusterByPark, greenAreas, navigate, viewVersion]);
+  }, [plantGroups, lang, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, navigate, viewVersion]);
 
   useEffect(() => {
     const map = mapRef.current;
