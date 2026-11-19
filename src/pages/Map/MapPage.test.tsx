@@ -539,7 +539,7 @@ describe('MapPage', () => {
           ok: true,
           json: async () => ({
             center: { latitude: 39.48, longitude: -0.38 }, radius: 1000,
-            returned: offset < 2 ? 1 : 0, total: 2, limit: 5000, language: 'es',
+            returned: offset < 2 ? 1 : 0, total: 2, limit: 20000, language: 'es',
             trees: offset < 2 ? [{
               id: offset + 1, speciesId: 3, displayName: 'Almez', latitude: 39.4795,
               longitude: -0.3795, distance: offset * 10,
@@ -570,7 +570,7 @@ describe('MapPage', () => {
     releaseSecond?.();
     await waitFor(() => expect(vi.mocked(fetch).mock.calls
       .map((call) => new URL(String(call[0])))
-      .filter((url) => url.searchParams.get('limit') === '5000')).toHaveLength(2));
+      .filter((url) => url.searchParams.get('limit') === '20000')).toHaveLength(2));
     await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
     unmount();
     delete (navigator as unknown as { permissions?: unknown }).permissions;

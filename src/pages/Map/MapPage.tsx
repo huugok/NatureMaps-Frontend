@@ -25,7 +25,9 @@ import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
-const NEARBY_PAGE_SIZE = 5000;
+// Páginas grandes: con 67k plantas, 5k por página son 14 viajes y ~10 s;
+// 20k son 4 viajes y ~5 s, con 4 pasos reales para el anillo.
+const NEARBY_PAGE_SIZE = 20000;
 // Muestreo del mapa: se cargan todas las plantas del radio, pero solo se pintan
 // las visibles y se agrupan hasta no pasar de este número de marcadores.
 const MAX_PLANT_MARKERS = 400;
