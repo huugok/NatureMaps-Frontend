@@ -204,7 +204,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // Por debajo del zoom de parque, las plantas de una zona verde se agrupan en
   // un solo marcador: en Viveros o el Turia son cientos y tapan el mapa.
   const [clusterByPark, setClusterByPark] = useState(true);
-  const [viewVersion, setViewVersion] = useState(0);
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -217,6 +216,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const groupAreaRef = useRef<L.Circle | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const routeAbortRef = useRef<AbortController | null>(null);
+  // Repintado de la capa de plantas: lo llama Leaflet en `moveend` sin pasar
+  // por React (un setState aquí rerenderiza el panel y vuelve a agrupar 67k
+  // plantas en cada movimiento).
+  const repaintPlantsRef = useRef<() => void>(() => undefined);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
@@ -678,7 +681,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const repaint = () => setViewVersion((version) => version + 1);
+    const repaint = () => repaintPlantsRef.current();
     map.on('moveend', repaint);
     return () => { map.off('moveend', repaint); };
   }, []);
@@ -704,6 +707,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    const paint = () => {
     if (plantsLayerRef.current) {
       plantsLayerRef.current.remove();
       plantsLayerRef.current = null;
@@ -737,9 +741,26 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     };
     const bounds = map.getBounds();
     const visible = plantGroups.groups.pins.filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
-    const pins = visible.length > MAX_PLANT_MARKERS
-      ? [...visible].sort((a, b) => (b.count ?? 1) - (a.count ?? 1)).slice(0, MAX_PLANT_MARKERS)
-      : visible;
+    let pins = visible;
+    if (visible.length > MAX_PLANT_MARKERS) {
+      // 16x16 celdas del viewport: el grupo más numeroso de cada celda. Así la
+      // muestra se reparte por el mapa en vez de amontonarse donde hay más.
+      const cols = 16;
+      const rows = 16;
+      const west = bounds.getWest();
+      const south = bounds.getSouth();
+      const cellWidth = (bounds.getEast() - west) / cols;
+      const cellHeight = (bounds.getNorth() - south) / rows;
+      const best = new Map<string, PlantPin>();
+      for (const pin of visible) {
+        const cx = Math.min(cols - 1, Math.max(0, Math.floor((pin.longitude - west) / cellWidth)));
+        const cy = Math.min(rows - 1, Math.max(0, Math.floor((pin.latitude - south) / cellHeight)));
+        const key = `${cx}:${cy}`;
+        const current = best.get(key);
+        if (!current || (pin.count ?? 1) > (current.count ?? 1)) best.set(key, pin);
+      }
+      pins = [...best.values()];
+    }
     const { areasById, areaByMemberId } = plantGroups.groups;
     groupAreasRef.current = areasById;
     memberAreasRef.current = areaByMemberId;
@@ -758,7 +779,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       popupFor,
       handlePlantClick,
     );
-  }, [plantGroups, lang, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, navigate, viewVersion]);
+    };
+    repaintPlantsRef.current = paint;
+    paint();
+    return () => { repaintPlantsRef.current = () => undefined; };
+  }, [plantGroups, lang, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, navigate]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1117,12 +1142,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
   // «Explorar cerca» lista el resultado del área consultada; si aún no se ha
   // consultado ninguna, los pines que haya en el mapa.
-  const exploreSource = areaPlants ?? plants;
-  const explorePlants = exploreSource === null
-    ? []
-    : locatedPosition !== null
-      ? groupNearbyPlants(exploreSource).pins
-      : exploreSource;
+  const explorePlants = useMemo(() => {
+    const source = areaPlants ?? plants;
+    if (source === null) return [];
+    return locatedPosition !== null ? groupNearbyPlants(source).pins : source;
+  }, [areaPlants, plants, locatedPosition]);
 
   const locateExploreItem = (point: Coordinates) => {
     const map = mapRef.current;
