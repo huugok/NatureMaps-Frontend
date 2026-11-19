@@ -5,7 +5,8 @@ import type { PlantPin } from '../types/plant';
  * planta filas alineadas (p. ej. plátanos de sombra híbridos cada pocos
  * metros) y pintar cada ejemplar satura el mapa. De cada masa del mismo tipo
  * se pinta UN marcador con el recuento y, al seleccionarlo, el área que
- * ocupan sus miembros.
+ * ocupan sus miembros. El criterio es solo espacial: ejemplares juntos en el
+ * mapa, venga la lista ordenada por distancia (cercanas) o por fuente (global).
  */
 
 // Dos plantas del mismo tipo pertenecen al mismo grupo si se puede ir de una
@@ -62,11 +63,10 @@ export function groupBySpecies<T extends { displayName: string }>(
   return Array.from(byName, ([name, specimens]) => ({ name, specimens }));
 }
 
-/** Agrupa las plantas cercanas por tipo (su nombre mostrado) y proximidad.
- * Las plantas sueltas pasan tal cual; cada grupo se representa con un único
- * pin (el del miembro más próximo al origen de la búsqueda) con `count` y
- * `distance` del más cercano, y su área en `areasById`. El coste cuadrático
- * por tipo es asumible: el backend devuelve como máximo 1000 plantas. */
+/** Agrupa las plantas juntas en el mapa por tipo (su nombre mostrado) y
+ * proximidad. Las sueltas pasan tal cual; cada grupo se representa con un pin
+ * en el centro de la masa, con `count` y la `distance` del miembro más cercano
+ * (si la hay), y su área en `areasById`. No depende del orden de entrada. */
 export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
   const byType = new Map<string, PlantPin[]>();
   for (const pin of pins) {
@@ -84,6 +84,21 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
       continue;
     }
     // Grupos por encadenado dentro del tipo: vecinos a <= GROUP_LINK_METERS.
+    // Rejilla de celdas del tamaño del enlace: con todas las plantas del radio
+    // no se puede comparar cada una con todas las de su tipo.
+    const cellOf = (p: PlantPin) => {
+      const x = p.longitude * 111_320 * Math.max(Math.cos((p.latitude * Math.PI) / 180), 0.01);
+      const y = p.latitude * 111_320;
+      return { cx: Math.floor(x / GROUP_LINK_METERS), cy: Math.floor(y / GROUP_LINK_METERS) };
+    };
+    const grid = new Map<string, number[]>();
+    members.forEach((member, index) => {
+      const { cx, cy } = cellOf(member);
+      const key = `${cx}:${cy}`;
+      const bucket = grid.get(key);
+      if (bucket) bucket.push(index);
+      else grid.set(key, [index]);
+    });
     const visited = new Array<boolean>(members.length).fill(false);
     for (let i = 0; i < members.length; i++) {
       if (visited[i]) continue;
@@ -93,10 +108,15 @@ export function groupNearbyPlants(pins: PlantPin[]): GroupedPlants {
       while (pending.length > 0) {
         const current = pending.pop()!;
         cluster.push(current);
-        for (let j = 0; j < members.length; j++) {
-          if (!visited[j] && metersBetween(current, members[j]) <= GROUP_LINK_METERS) {
-            visited[j] = true;
-            pending.push(members[j]);
+        const { cx, cy } = cellOf(current);
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (const j of grid.get(`${cx + dx}:${cy + dy}`) ?? []) {
+              if (!visited[j] && metersBetween(current, members[j]) <= GROUP_LINK_METERS) {
+                visited[j] = true;
+                pending.push(members[j]);
+              }
+            }
           }
         }
       }

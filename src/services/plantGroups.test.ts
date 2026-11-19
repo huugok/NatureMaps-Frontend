@@ -75,6 +75,17 @@ describe('groupNearbyPlants', () => {
     expect(areasById.size).toBe(0);
   });
 
+  it('el agrupamiento es espacial y no depende del orden de llegada', () => {
+    const all = [
+      pin(1, 39.47, -0.37), pin(2, 39.4705, -0.37), pin(3, 39.471, -0.37),
+      pin(4, 39.50, -0.37), // masa separada, a más de 100 m de la anterior
+    ];
+    const ordered = groupNearbyPlants(all).pins.map((p) => p.count ?? 1).sort();
+    const reversed = groupNearbyPlants([...all].reverse()).pins.map((p) => p.count ?? 1).sort();
+    expect(ordered).toEqual([1, 3]);
+    expect(reversed).toEqual(ordered);
+  });
+
   it('el radio del área respeta un mínimo para que los grupos apretados se vean', () => {
     const { pins, areasById } = groupNearbyPlants([pin(1, 39.47, -0.37), pin(2, 39.470001, -0.37)]);
 
