@@ -19,7 +19,7 @@ import { addGreenAreasLayer } from './greenAreasLayer';
 import { addOfflineTileLayer } from './offlineTileLayer';
 import { OfflineSavedToast, OfflineZoneCard } from '../../components/OfflineZone';
 import type { GreenAreasLayer } from './greenAreasLayer';
-import { addParkMarkers, clusterPlantsByPark, PARK_CLUSTER_MAX_ZOOM } from './parkClusters';
+import { addParkMarkers, clusterPlantsByPark } from './parkClusters';
 import type { GreenArea } from '../../types/greenArea';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
@@ -203,7 +203,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const parksLayerRef = useRef<L.LayerGroup | null>(null);
   // Por debajo del zoom de parque, las plantas de una zona verde se agrupan en
   // un solo marcador: en Viveros o el Turia son cientos y tapan el mapa.
-  const [clusterByPark, setClusterByPark] = useState(true);
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -576,18 +575,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     };
   }, []);
 
-  // El agrupado depende del zoom, igual que las etiquetas de las plantas.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const sync = () => setClusterByPark(map.getZoom() < PARK_CLUSTER_MAX_ZOOM);
-    sync();
-    map.on('zoomend', sync);
-    return () => {
-      map.off('zoomend', sync);
-    };
-  }, []);
-
   // Capa de zonas verdes: se descarga la primera vez que se enciende (queda
   // en caché para la sesión) y se retira entera al apagarla.
   const openZoneLabel = t('map.greenAreaOpen');
@@ -683,7 +670,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     if (!map) return;
     const repaint = () => repaintPlantsRef.current();
     map.on('moveend', repaint);
-    return () => { map.off('moveend', repaint); };
+    map.on('zoomend', repaint);
+    return () => { map.off('moveend', repaint); map.off('zoomend', repaint); };
   }, []);
 
   // Agrupación fina: se calcula UNA VEZ cuando cambian las plantas (o la capa
@@ -692,15 +680,22 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const plantGroups = useMemo(() => {
     const source = zoneSpeciesId !== null ? (zoneSpecies?.pins ?? []) : plants;
     if (!source) return null;
-    const parks = clusterByPark && zoneSpeciesId === null && greenAreas !== null
+    const parks = zoneSpeciesId === null && greenAreas !== null
       ? clusterPlantsByPark(source, greenAreas)
       : null;
+    // Grupos finos de cada zona para poder soltarlos poco a poco al acercarse.
+    const parkGroups = new Map<string, PlantPin[]>();
+    for (const [slug, members] of parks?.membersByGroup ?? []) {
+      parkGroups.set(slug, groupNearbyPlants(members).pins);
+    }
     return {
       parks: parks?.clusters ?? [],
+      membersByGroup: parks?.membersByGroup ?? new Map<string, PlantPin[]>(),
+      parkGroups,
       loose: parks ? parks.loose : source,
       groups: groupNearbyPlants(parks ? parks.loose : source),
     };
-  }, [plants, zoneSpecies, zoneSpeciesId, clusterByPark, greenAreas]);
+  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas]);
 
   // Capa de marcadores de plantas: en cada movimiento solo se filtran al viewport
   // los grupos ya calculados y se cogen los más numerosos (muestreo barato).
@@ -715,11 +710,26 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     parksLayerRef.current?.remove();
     parksLayerRef.current = null;
     clearGroupArea();
-    if (plantGroups?.parks.length) {
-      const bounds = map.getBounds();
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+    // Cuanto más lejos, más ejemplares absorbe la zona: contador grande y
+    // menos iconos. Al acercarse se van soltando grupos de la zona al mapa.
+    const absorbedFraction = zoom <= 15 ? 1 : zoom === 16 ? 0.5 : zoom === 17 ? 0.25 : 0;
+    const parkMarkers = [];
+    const releasedFromParks: PlantPin[] = [];
+    for (const cluster of plantGroups?.parks ?? []) {
+      if (!bounds.contains([cluster.latitude, cluster.longitude])) continue;
+      const groups = [...(plantGroups?.parkGroups.get(cluster.groupSlug) ?? [])]
+        .sort((a, b) => (b.count ?? 1) - (a.count ?? 1));
+      const absorbed = groups.slice(0, Math.round(groups.length * absorbedFraction));
+      releasedFromParks.push(...groups.slice(absorbed.length));
+      const shown = absorbed.reduce((sum, group) => sum + (group.count ?? 1), 0);
+      if (shown > 0) parkMarkers.push({ ...cluster, shown });
+    }
+    if (parkMarkers.length > 0) {
       parksLayerRef.current = addParkMarkers(
         map,
-        plantGroups.parks.filter((cluster) => bounds.contains([cluster.latitude, cluster.longitude])),
+        parkMarkers,
         (groupSlug) => {
           setExploreOpen(false);
           navigate(`/zona/${groupSlug}`);
@@ -727,7 +737,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         { label: (cluster) => t('map.parkPlants', { name: cluster.name, count: cluster.total ?? cluster.shown }) },
       );
     }
-    if (!plantGroups || plantGroups.loose.length === 0) {
+    if (!plantGroups || (plantGroups.loose.length === 0 && releasedFromParks.length === 0)) {
       groupAreasRef.current = new Map();
       memberAreasRef.current = new Map();
       return;
@@ -739,8 +749,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         : '';
       return `<strong>${escapeHtml(pin.displayName)}</strong><br>${detail}${escapeHtml(formatDistance(pin.distance, lang))}`;
     };
-    const bounds = map.getBounds();
-    const visible = plantGroups.groups.pins.filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
+    const visible = [...plantGroups.groups.pins, ...releasedFromParks]
+      .filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
     let pins = visible;
     if (visible.length > MAX_PLANT_MARKERS) {
       // 16x16 celdas del viewport: el grupo más numeroso de cada celda. Así la
@@ -761,9 +771,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       }
       pins = [...best.values()];
     }
-    const { areasById, areaByMemberId } = plantGroups.groups;
-    groupAreasRef.current = areasById;
-    memberAreasRef.current = areaByMemberId;
+    groupAreasRef.current = new Map(
+      [...(plantGroups?.groups.areasById ?? [])].filter(([id]) => pins.some((pin) => pin.id === id)),
+    );
+    memberAreasRef.current = plantGroups?.groups.areaByMemberId ?? new Map();
     const handlePlantClick = (pin: PlantPin) => {
       clearGroupArea();
       setExploreOpen(false);
