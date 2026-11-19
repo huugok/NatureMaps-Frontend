@@ -27,7 +27,7 @@ export interface NearbyResponse {
   center: { latitude: number; longitude: number };
   radius: number;
   returned: number;
-  limit: number;
+  limit: number | null;
   language: string;
   trees: NearbyPlant[];
 }
@@ -69,9 +69,10 @@ export async function fetchNearbyTrees(
     lat: String(params.latitude),
     lon: String(params.longitude),
     radius: String(params.radius),
-    limit: String(params.limit ?? 100),
     lang: params.lang,
   });
+  // Sin límite explícito el backend devuelve todas las plantas del radio.
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
   // Mismo arreglo de codificación para lo que llega de la red y para la copia descargada.
   const repair = (response: NearbyResponse): NearbyResponse => ({
     ...response,

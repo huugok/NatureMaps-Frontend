@@ -290,10 +290,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     areaRequestRef.current = controller;
     setAreaLoading(true);
     setAreaFailed(false);
-    // Conserva la misma densidad que el mapa original: 100 ejemplares por km
-    // de radio, con el máximo del backend para radios mayores.
-    const limit = 1000;
-    fetchNearbyTrees({ latitude: center.latitude, longitude: center.longitude, radius: searchRadius, limit, lang }, controller.signal)
+    fetchNearbyTrees({ latitude: center.latitude, longitude: center.longitude, radius: searchRadius, lang }, controller.signal)
       .then((response) => {
         const found = response.trees.map((plant) => ({
           id: plant.id, displayName: plant.displayName, scientificName: plant.scientificName ?? plant.reportedScientificName,
@@ -363,8 +360,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     loadPlantsRef.current = (coords: Coordinates) => {
       const modeRadius = radius;
       // Sin regla de 100 plantas por km: las plantas cercanas se agrupan por
-      // especie, así que se piden todas las que entren en el radio (tope API).
-      const limit = 1000;
+      // especie, así que se piden todas las que entren en el radio.
       const last = lastFetchCenterRef.current;
       // Con la lista ya poblada basta con no repetir la consulta en cada paso;
       // si está vacía (fuera de cobertura) se vuelve a intentar al moverse.
@@ -375,7 +371,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
       fetchNearbyTrees(
-        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, limit, lang },
+        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, lang },
         controller.signal,
       )
         .then((response) => {
