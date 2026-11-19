@@ -605,8 +605,11 @@ describe('MapPage', () => {
       durationSeconds: 1980,
       start: { latitude: 39.4699, longitude: -0.3763 },
       description: 'Plantas y patrimonio alternados.',
-      stopsCount: 1,
-      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      stopsCount: 2,
+      stops: [
+        { kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 },
+        { kind: 'poi', id: 22, name: 'Torre', latitude: 39.4706, longitude: -0.3754, speciesId: null },
+      ],
       path: [
         { latitude: 39.4699, longitude: -0.3763 },
         { latitude: 39.4705, longitude: -0.3755 },
@@ -628,6 +631,8 @@ describe('MapPage', () => {
       expect.anything(),
     );
     expect(leaflet.map.fitBounds).toHaveBeenCalled();
+    // Solo el inicio y la parada de planta: el POI lo pinta la capa del mapa.
+    expect(leaflet.markerFactory).toHaveBeenCalledTimes(2);
 
     // Un dato de GPS posterior no debe arrancar el mapa hacia el usuario.
     leaflet.map.setView.mockClear();

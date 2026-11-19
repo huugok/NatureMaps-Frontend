@@ -362,8 +362,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   useEffect(() => {
     loadPlantsRef.current = (coords: Coordinates) => {
       const modeRadius = radius;
-      // Regla de tres: 100 plantas por cada 1000 m de radio.
-      const modeLimit = Math.max(1, Math.round(modeRadius / 10));
+      // Sin regla de 100 plantas por km: las plantas cercanas se agrupan por
+      // especie, así que se piden todas las que entren en el radio (tope API).
+      const limit = 1000;
       const last = lastFetchCenterRef.current;
       // Con la lista ya poblada basta con no repetir la consulta en cada paso;
       // si está vacía (fuera de cobertura) se vuelve a intentar al moverse.
@@ -374,7 +375,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
       fetchNearbyTrees(
-        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, limit: modeLimit, lang },
+        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, limit, lang },
         controller.signal,
       )
         .then((response) => {
@@ -913,6 +914,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         if (!map) return;
         // Mismo dibujado que la ficha de ruta: polilínea, inicio y paradas.
         const layer = addRouteOverlay(map, route, {
+          showPois: false, // la capa de POIs del mapa ya los pinta
           onOpenStop: (stop) => {
             if (stop.kind !== 'planta') return;
             onOpenPlantRef.current?.(routeStopToPlantPin(stop));

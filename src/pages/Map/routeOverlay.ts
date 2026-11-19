@@ -50,6 +50,9 @@ export function routeStopToPlantPin(stop: RouteStop): PlantPin {
 export interface RouteOverlayOptions {
   /** Responde al toque de una parada de planta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
+  /** En el mapa principal los POIs ya los pinta su propia capa; en la ficha
+   * de ruta no, así que ahí sí se dibujan. */
+  showPois?: boolean;
 }
 
 /**
@@ -90,6 +93,7 @@ export function addRouteOverlay(
       marker.addTo(layer);
       continue;
     }
+    if (options.showPois === false) continue;
     // Punto de POI: visible, con su nombre al tocarlo o pasar por encima
     // (tooltip, no popup), pero sin ficha todavía —la de POI llega en una UT
     // posterior—.
