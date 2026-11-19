@@ -715,12 +715,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         : '';
       return `<strong>${escapeHtml(pin.displayName)}</strong><br>${detail}${escapeHtml(formatDistance(pin.distance, lang))}`;
     };
-    if (!hasPosition && zoneSpeciesId === null) {
-      groupAreasRef.current = new Map();
-      memberAreasRef.current = new Map();
-      plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
-      return;
-    }
     const { pins, areasById, areaByMemberId } = groupNearbyPlants(mapPlants);
     groupAreasRef.current = areasById;
     memberAreasRef.current = areaByMemberId;
@@ -910,7 +904,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         if (!map) return;
         // Mismo dibujado que la ficha de ruta: polilínea, inicio y paradas.
         const layer = addRouteOverlay(map, route, {
-          showPois: false, // la capa de POIs del mapa ya los pinta
           onOpenStop: (stop) => {
             if (stop.kind !== 'planta') return;
             onOpenPlantRef.current?.(routeStopToPlantPin(stop));

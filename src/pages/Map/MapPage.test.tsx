@@ -631,8 +631,8 @@ describe('MapPage', () => {
       expect.anything(),
     );
     expect(leaflet.map.fitBounds).toHaveBeenCalled();
-    // Solo el inicio y la parada de planta: el POI lo pinta la capa del mapa.
-    expect(leaflet.markerFactory).toHaveBeenCalledTimes(2);
+    // Inicio, parada de planta y parada de POI de la ruta.
+    expect(leaflet.markerFactory).toHaveBeenCalledTimes(3);
 
     // Un dato de GPS posterior no debe arrancar el mapa hacia el usuario.
     leaflet.map.setView.mockClear();
