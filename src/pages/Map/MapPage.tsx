@@ -893,6 +893,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const raw = searchParams.get('verRuta');
     const routeId = raw !== null && /^\d+$/.test(raw) ? Number(raw) : null;
     if (routeId === null) return;
+    // La ruta manda sobre la vista: que el GPS no recentre el mapa en el
+    // usuario al pintarla (el usuario sí puede arrastrar el mapa después).
+    followUserRef.current = false;
+    keepBothVisibleRef.current = false;
     const controller = new AbortController();
     routeAbortRef.current = controller;
     fetchRouteDetail(routeId, controller.signal)

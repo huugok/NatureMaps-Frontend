@@ -628,6 +628,12 @@ describe('MapPage', () => {
     );
     expect(leaflet.map.fitBounds).toHaveBeenCalled();
 
+    // Un dato de GPS posterior no debe arrancar el mapa hacia el usuario.
+    leaflet.map.setView.mockClear();
+    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+
     // «Limpiar mapa» aparece como botón de solo icono y quita la capa.
     const clear = await screen.findByRole('button', { name: 'Limpiar mapa' });
     expect(clear.querySelector('svg')).toBeInTheDocument();
