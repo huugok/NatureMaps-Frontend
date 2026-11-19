@@ -25,6 +25,10 @@ import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
+// Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
+// localStorage: al recargar la página se pierde, igual que el resto de la vista.
+let paintedRouteId: number | null = null;
+export function clearPaintedRoute() { paintedRouteId = null; }
 const LOCATION_COLOR = '#3b7ddd';
 
 interface Coordinates {
@@ -148,10 +152,14 @@ export interface MapPageProps {
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const { t, lang } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
-  // La ruta pintada se deriva del parámetro `verRuta` (ver «Ver en el mapa» de
-  // la ficha): si está, el mapa muestra el botón «Limpiar mapa».
+  // Ruta pintada: el parámetro `verRuta` manda al iniciarla; si ya no está
+  // (el usuario cambió de pestaña), se recupera la última pintada. Solo se
+  // borra con «Limpiar mapa» o al iniciar otra.
   const verRutaRaw = searchParams.get('verRuta');
-  const routeVisible = verRutaRaw !== null && /^\d+$/.test(verRutaRaw);
+  const paramRouteId = verRutaRaw !== null && /^\d+$/.test(verRutaRaw) ? Number(verRutaRaw) : null;
+  const [savedRouteId, setSavedRouteId] = useState<number | null>(paintedRouteId);
+  const routeId = paramRouteId ?? savedRouteId;
+  const routeVisible = routeId !== null;
   const navigate = useNavigate();
   // Zonas verdes (NM-08, PA 3011): capa apagada por defecto para no cargar el
   // mapa; `?zona=<grupo>` la enciende, resalta ese parque y lo encuadra.
@@ -890,13 +898,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       routeLayerRef.current.remove();
       routeLayerRef.current = null;
     }
-    const raw = searchParams.get('verRuta');
-    const routeId = raw !== null && /^\d+$/.test(raw) ? Number(raw) : null;
     if (routeId === null) return;
     // La ruta manda sobre la vista: que el GPS no recentre el mapa en el
     // usuario al pintarla (el usuario sí puede arrastrar el mapa después).
     followUserRef.current = false;
     keepBothVisibleRef.current = false;
+    paintedRouteId = routeId;
     const controller = new AbortController();
     routeAbortRef.current = controller;
     fetchRouteDetail(routeId, controller.signal)
@@ -925,10 +932,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         routeLayerRef.current = null;
       }
     };
-  }, [searchParams]);
+  }, [routeId]);
 
   const clearRoute = () => {
-    setSearchParams({}, { replace: true });
+    clearPaintedRoute();
+    setSavedRouteId(null);
+    if (paramRouteId !== null) setSearchParams({}, { replace: true });
   };
 
   // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.

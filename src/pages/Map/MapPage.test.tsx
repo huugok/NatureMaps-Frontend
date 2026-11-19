@@ -9,7 +9,7 @@ import { AppContext } from '../../context/state';
 import type { AppState } from '../../context/state';
 import { dictionaries } from '../../i18n/strings';
 import type { Mode } from '../../types';
-import { MapPage } from './MapPage';
+import { clearPaintedRoute, MapPage } from './MapPage';
 
 /** MapPage usa useSearchParams («Ver en el mapa»): todo render lleva router. */
 function renderMap(ui: React.ReactNode = <MapPage />, route = '/mapa') {
@@ -163,6 +163,7 @@ const geo = {
 
 describe('MapPage', () => {
   beforeEach(() => {
+    clearPaintedRoute();
     vi.clearAllMocks();
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: geo });
     geo.watchPosition.mockReturnValue(7);
@@ -642,6 +643,39 @@ describe('MapPage', () => {
 
     await waitFor(() => expect(leaflet.layerGroup.remove).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Limpiar mapa' })).not.toBeInTheDocument();
+  });
+
+  it('la ruta sigue pintada al salir del mapa y volver a entrar', async () => {
+    const route = {
+      id: 9, name: 'Ruta persistente', theme: 'mixta', shape: 'circular', lengthCategory: 'corta',
+      distanceMeters: 2100, durationSeconds: 1700,
+      start: { latitude: 39.4699, longitude: -0.3763 },
+      description: 'Para comprobar que no se pierde al cambiar de pestaña.',
+      stopsCount: 1,
+      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      path: [
+        { latitude: 39.4699, longitude: -0.3763 },
+        { latitude: 39.4705, longitude: -0.3755 },
+        { latitude: 39.4699, longitude: -0.3763 },
+      ],
+    };
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/routes/9')
+        ? route
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [] }
+          : [],
+    })) as unknown as typeof fetch);
+
+    const first = renderMap(<MapPage />, '/mapa?verRuta=9');
+    expect(await screen.findByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument();
+    first.unmount();
+
+    // Sin el parámetro, al volver al mapa se recupera la última ruta pintada.
+    renderMap(<MapPage />, '/mapa');
+    expect(await screen.findByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument();
+    expect(leaflet.polylineFactory).toHaveBeenCalled();
   });
 
   it('al tocar el mapa se contrae la ventana de explorar', () => {
