@@ -397,6 +397,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       const controller = new AbortController();
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
+      // La rueda aparece ya en el primer render útil, con el anillo vacío.
+      setPlantProgress({ loaded: 0, total: 0 });
+      openPlantToast();
       const loadPages = async () => {
         let offset = 0;
         let total = 0;
@@ -424,7 +427,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           offset += response.trees.length;
           more = response.trees.length > 0 && offset < total && total > 0;
           setPlantProgress({ loaded: found.length, total });
-          openPlantToast();
           if (found.length > 0) setPlants([...found]);
         } while (more);
         if (found.length > 0) setNeedsGlobalPlants(false);

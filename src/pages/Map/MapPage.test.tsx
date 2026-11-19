@@ -559,14 +559,18 @@ describe('MapPage', () => {
     expect(ring?.getAttribute('stroke-dashoffset')).not.toBe(ring?.getAttribute('stroke-dasharray'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); // no bloquea
 
-    // La tarjeta se retira a los 3 s y se reabre al clicar el círculo.
+    // La tarjeta se retira a los 3 s mientras la segunda página sigue pendiente.
     await waitFor(() => expect(screen.queryByText(/Cargando plantas/)).not.toBeInTheDocument(), { timeout: 5000 });
     expect(circle).toBeInTheDocument();
+    // Solo un clic del usuario la reabre (la espera de la 2ª página no la toca).
     fireEvent.click(circle);
     expect(screen.getByText(/Cargando plantas/)).toHaveClass('plant-progress-card--entering');
 
     // Al terminar la carga desaparecen círculo y tarjeta.
     releaseSecond?.();
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls
+      .map((call) => new URL(String(call[0])))
+      .filter((url) => url.searchParams.get('limit') === '5000')).toHaveLength(2));
     await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
     unmount();
     delete (navigator as unknown as { permissions?: unknown }).permissions;
