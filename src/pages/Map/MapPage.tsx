@@ -285,6 +285,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [areaPlants, setAreaPlants] = useState<PlantPin[] | null>(null);
   const plantsAbortRef = useRef<AbortController | null>(null);
   const plantsLoadingRef = useRef(false);
+  const lastRequestedCenterRef = useRef<Coordinates | null>(null);
   const speciesFocusRequestRef = useRef(0);
   const lastFetchCenterRef = useRef<Coordinates | null>(null);
   const {
@@ -395,8 +396,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       // Con la lista ya poblada basta con no repetir la consulta en cada paso;
       // si está vacía (fuera de cobertura) se vuelve a intentar al moverse.
       const loaded = plantsRef.current !== null && plantsRef.current.length > 0;
+      lastRequestedCenterRef.current = coords;
       if (last && (loaded || plantsLoadingRef.current) && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
-      plantsAbortRef.current?.abort();
+      // Si ya se está cargando, NO la abortamos: 67k plantas se pidieron para
+      // una posición y deben terminar. La siguiente posición se atenderá al
+      // terminar, en lugar de reiniciar la descarga una y otra vez.
+      if (plantsLoadingRef.current) return;
       plantsLoadingRef.current = true;
       const controller = new AbortController();
       plantsAbortRef.current = controller;
@@ -443,15 +448,27 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       loadPages().catch(() => {
         // Fallo de red silencioso: el mapa sigue con lo último mostrado.
       }).finally(() => {
-        // Solo la carga vigente puede liberar el guard: una carga abortada que
-        // termina después de iniciar otra no debe desproteger a la nueva.
+        // Solo la carga vigente decide: una abortada que termina tarde no toca
+        // el estado de la que tomó el relevo.
         if (plantsAbortRef.current !== controller) return;
         plantsLoadingRef.current = false;
+        if (controller.signal.aborted) {
+          // Nos abortaron para cargar otra zona: esa nueva carga ya está en
+          // marcha y maneja su propia rueda. No apagar el progreso aquí.
+          return;
+        }
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         if (toastHideRef.current) clearTimeout(toastHideRef.current);
         setPlantProgress(null);
         setShowPlantToast(false);
         setToastExiting(false);
+        // El GPS pidió otra zona mientras cargábamos: se atiende ahora, sin
+        // haber abortado la descarga que ya estaba en marcha.
+        const pending = lastRequestedCenterRef.current;
+        if (pending && metersBetween(pending, coords) >= NEARBY_REFRESH_METERS) {
+          lastFetchCenterRef.current = null;
+          loadPlantsRef.current(pending);
+        }
       });
     };
   });
@@ -562,18 +579,17 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }
     const map = mapRef.current;
     if (!map) return;
-    const controller = new AbortController();
-    fetchPlantPins(lang, controller.signal)
+    // Si ya hay plantas o una carga en curso, no lanzar otra: antes los dos
+    // cargadores (global y cercanas) se pisaban y abortaban entre sí.
+    if (plantsRef.current !== null || plantsLoadingRef.current) return;
+    plantsLoadingRef.current = true;
+    fetchPlantPins(lang)
       .then((pins) => {
-        if (!controller.signal.aborted) {
-          setPlants(pins);
-          setPlantsFailed(false);
-        }
+        setPlants(pins);
+        setPlantsFailed(false);
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setPlantsFailed(true);
-      });
-    return () => controller.abort();
+      .catch(() => setPlantsFailed(true))
+      .finally(() => { plantsLoadingRef.current = false; });
   }, [hasPosition, locatedPosition, lang, setPlants]);
 
   // Etiquetas de plantas junto al icono solo a partir del zoom de la UT 908.
@@ -603,7 +619,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [updateUserLocation, locationPermission]);
 
-  useEffect(() => () => plantsAbortRef.current?.abort(), []);
 
   // Zonas verdes: se piden una vez por sesión (quedan en caché) aunque la capa
   // esté apagada, porque el mapa las necesita para agrupar las plantas por

@@ -520,6 +520,48 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('una nueva posición a mitad de carga no corta la descarga en curso', async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    let pages = 0;
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        pages++;
+        if (pages === 2) await gate; // segunda página a medias
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000, returned: 1,
+          total: 3, limit: 20000, language: 'es',
+          trees: [{ id: pages, speciesId: 3, displayName: `Planta ${pages}`, latitude: 39.4795, longitude: -0.3795, distance: 10 }],
+        }) };
+      }
+      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    await waitFor(() => expect(pages).toBeGreaterThanOrEqual(2));
+    // Nueva posición lejana con la 2ª página pendiente: no debe abortar.
+    const beforeMove = vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes('limit=20000')).length;
+    act(() => onPosition?.({ coords: { latitude: 39.6, longitude: -0.5, accuracy: 25 } }));
+    expect(vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes('limit=20000')).length).toBe(beforeMove);
+    release?.();
+    // La descarga continúa hasta el final (3 páginas) y publica plantas.
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls
+      .filter((c) => String(c[0]).includes('limit=20000')).length).toBeGreaterThanOrEqual(3), { timeout: 5000 });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
   it('una carga abortada que termina tarde no desprotege a la carga nueva', async () => {
     let releaseFirst: ((v?: unknown) => void) | undefined;
     const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
