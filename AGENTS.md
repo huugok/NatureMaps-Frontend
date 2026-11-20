@@ -426,6 +426,10 @@ no garantiza que los assets actuales estén disponibles sin conexión. Se conser
 también el shell anterior para las pestañas abiertas durante la actualización.
 La prueba de navegador incluye la actualización desde un worker antiguo antes
 de comprobar la recarga completa sin red.
+Usa Vite preview real (incluido `Vary: Origin`) y comprueba el marco de escritorio
+antes y después de recargar sin red. Para los archivos estáticos del build, el
+worker busca con `ignoreVary: true`: los módulos envían Origin, pero el precache
+no, aunque la URL y el contenido sean idénticos. No aplicar esta excepción a API.
 El contrato actual es `schemaVersion: 2`, con `map` (URL, SHA-256, cobertura y
 tamaño). La descarga verifica el archivo antes del commit. IndexedDB v2 añade
 el store `maps`: una copia por hash, compartida entre rutas y retirada al borrar
