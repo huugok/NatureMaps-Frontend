@@ -15,8 +15,19 @@ const { chromium } = await import(process.env.NATUREMAPS_PLAYWRIGHT_URL ?? 'play
 const root = fileURLToPath(new URL('../dist/', import.meta.url))
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aY9sAAAAASUVORK5CYII=', 'base64')
 let imageDelay = 0
+let legacyWorker = true
+const legacyHtml = '<!doctype html><title>Nature MAPS anterior</title><p>Versión anterior sin mapa</p>'
+const legacyScript = `
+self.addEventListener('install', event => event.waitUntil(caches.open('naturemaps-shell-legacy').then(cache => cache.put(new URL('index.html', self.registration.scope), new Response(${JSON.stringify(legacyHtml)}, { headers: { 'content-type': 'text/html' } })))));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') event.respondWith(fetch(event.request).catch(() => caches.match(new URL('index.html', self.registration.scope))));
+});`
 const server = createServer(async (req, res) => {
   try {
+    if (legacyWorker && req.url.startsWith('/sw.js')) {
+      res.writeHead(200, { 'content-type': 'text/javascript' }); res.end(legacyScript); return
+    }
     if (req.url === '/_storage') { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<!doctype html><title>Storage fixture</title>'); return }
     if (req.url.startsWith('/photo.png')) {
       if (imageDelay) await new Promise((done) => setTimeout(done, imageDelay))
@@ -89,6 +100,12 @@ try {
   await page.route('https://tile.openstreetmap.org/**', (request) => request.abort())
   // Simula una descarga creada por la versión anterior, antes de añadir mapas.
   await page.goto(`${origin}/_storage`)
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+    if (!navigator.serviceWorker.controller) await new Promise((done) => navigator.serviceWorker.addEventListener('controllerchange', done, { once: true }))
+  })
+  legacyWorker = false
   await page.evaluate(async (route) => {
     const database = await new Promise((done) => {
       const request = indexedDB.open('naturemaps-offline-routes', 1)
@@ -118,6 +135,13 @@ try {
   await page.getByRole('button', { name: 'Volver a descargar', exact: true }).click()
   await page.getByText(/Disponible sin conexión/).waitFor()
   await page.evaluate(() => navigator.serviceWorker.ready)
+  const workerState = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration()
+    return { controller: navigator.serviceWorker.controller?.scriptURL,
+      active: registration?.active?.scriptURL, waiting: registration?.waiting?.scriptURL }
+  })
+  console.log(JSON.stringify({ workerState }))
+  assert.match(workerState.controller ?? '', /sw\.js\?version=/, 'la descarga espera al worker del build actual, aunque hubiera otra versión instalada')
   await page.goto(`${origin}/rutas/8`)
   await page.getByRole('button', { name: 'Descargar ruta', exact: true }).click()
   await page.getByText(/Disponible sin conexión/).waitFor()
