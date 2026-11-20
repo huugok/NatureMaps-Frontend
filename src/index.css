@@ -566,3 +566,15 @@
 @media (prefers-reduced-motion: reduce) {
   .plant-progress-card--entering, .plant-progress-card--leaving { animation: none; }
 }
+
+/* Vista alejada: iconos compactos y, a mucha distancia, diminutos. */
+.plants-compact .plant-pin,
+.plants-compact .park-pin {
+  transform: scale(0.75);
+  transform-origin: center;
+}
+
+.plants-tiny .plant-pin,
+.plants-tiny .park-pin {
+  transform: scale(0.55);
+}

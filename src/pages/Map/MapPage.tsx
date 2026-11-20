@@ -29,7 +29,7 @@ const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const NEARBY_PAGE_SIZE = 20000;
 // Muestreo del mapa: se cargan todas las plantas del radio, pero solo se pintan
 // las visibles y se agrupan hasta no pasar de este número de marcadores.
-const MAX_PLANT_MARKERS = 400;
+const MAX_PLANT_MARKERS = 150;
 // Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
 // localStorage: al recargar la página se pierde, igual que el resto de la vista.
 let paintedRouteId: number | null = null;
@@ -591,8 +591,13 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const map = mapRef.current;
     const container = mapElementRef.current;
     if (!map || !container) return;
-    const syncLabels = () =>
-      container.classList.toggle('plants-labels-visible', map.getZoom() >= 16);
+    const syncLabels = () => {
+      const zoom = map.getZoom();
+      container.classList.toggle('plants-labels-visible', zoom >= 16);
+      // Cuanto más lejos, más pequeños: parques y plantas dejan de solaparse.
+      container.classList.toggle('plants-compact', zoom < 16);
+      container.classList.toggle('plants-tiny', zoom <= 13);
+    };
     syncLabels();
     map.on('zoomend', syncLabels);
     return () => {
@@ -759,6 +764,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     if (locatedPosition !== null && zoneSpeciesId === null) {
       source = source.filter((pin) => metersBetween(locatedPosition, pin) <= radius);
     }
+    // Con la capa de zonas encendida, el parque absorbe a sus plantas: se
+    // ocultan del mapa y solo se ve su marcador con el recuento.
+    if (greenAreasOn && zoneSpeciesId === null) {
+      const zoneIds = new Set((greenAreas ?? []).map((area) => area.id));
+      source = source.filter((pin) => pin.greenAreaId == null || !zoneIds.has(pin.greenAreaId));
+    }
     const parks = zoneSpeciesId === null && greenAreas !== null
       ? clusterPlantsByPark(source, greenAreas)
       : null;
@@ -775,7 +786,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       loose: parks ? parks.loose : source,
       groups: groupNearbyPlants(parks ? parks.loose : source),
     };
-  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas, locatedPosition, radius]);
+  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas, greenAreasOn, locatedPosition, radius]);
 
   // Capa de marcadores de plantas: en cada movimiento solo se filtran al viewport
   // los grupos ya calculados y se cogen los más numerosos (muestreo barato).

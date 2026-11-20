@@ -659,6 +659,31 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('oculta las plantas de las zonas cuando la capa está activa', async () => {
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.4699, longitude: -0.3763 }, radius: 10000, returned: 2, total: 2, limit: 20000, language: 'es',
+          trees: [
+            { id: 1, speciesId: 5, displayName: 'Dentro de zona', latitude: 39.46, longitude: -0.37, greenAreaId: 1, distance: 100 },
+            { id: 2, speciesId: 5, displayName: 'Calle', latitude: 39.47, longitude: -0.38, distance: 200 },
+          ],
+        }) };
+      }
+      if (requestUrl.pathname.includes('/green-areas')) {
+        return { ok: true, json: async () => ({ groups: [], areas: [] }) };
+      }
+      return { ok: true, json: async () => [] };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.47, -0.38], expect.objectContaining({ title: 'Calle' })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      [39.46, -0.37], expect.anything());
+  });
+
   it('«Ver en el mapa»: pinta los ejemplares de la especie y encuadra el mapa', async () => {
     // El effects actual pide la ficha y las ubicaciones al backend (no usa las
     // plantas cercanas), así que se simulan esas dos respuestas.
