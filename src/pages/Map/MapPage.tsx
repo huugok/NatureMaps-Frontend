@@ -725,15 +725,15 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }).addTo(map);
   }, [clearGroupArea]);
 
-  // Al mover o hacer zoom se repinta la capa: el muestreo depende de lo que se
-  // ve en ese momento, no de todo el radio cargado.
+  // Solo se repinta al hacer zoom (cambia el muestreo). Los marcadores se
+  // mueven con Leaflet al arrastrar: recrear cientos de iconos en cada
+  // `moveend` era lo que congelaba el mapa al desplazarlo.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     const repaint = () => repaintPlantsRef.current();
-    map.on('moveend', repaint);
     map.on('zoomend', repaint);
-    return () => { map.off('moveend', repaint); map.off('zoomend', repaint); };
+    return () => { map.off('zoomend', repaint); };
   }, []);
 
   // Agrupación fina: se calcula UNA VEZ cuando cambian las plantas (o la capa
@@ -748,7 +748,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     // Grupos finos de cada zona para poder soltarlos poco a poco al acercarse.
     const parkGroups = new Map<string, PlantPin[]>();
     for (const [slug, members] of parks?.membersByGroup ?? []) {
-      parkGroups.set(slug, groupNearbyPlants(members).pins);
+      parkGroups.set(slug, groupNearbyPlants(members).pins
+        .sort((a, b) => (b.count ?? 1) - (a.count ?? 1)));
     }
     return {
       parks: parks?.clusters ?? [],
@@ -781,8 +782,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const releasedFromParks: PlantPin[] = [];
     for (const cluster of plantGroups?.parks ?? []) {
       if (!bounds.contains([cluster.latitude, cluster.longitude])) continue;
-      const groups = [...(plantGroups?.parkGroups.get(cluster.groupSlug) ?? [])]
-        .sort((a, b) => (b.count ?? 1) - (a.count ?? 1));
+      const groups = plantGroups?.parkGroups.get(cluster.groupSlug) ?? [];
       const absorbed = groups.slice(0, Math.round(groups.length * absorbedFraction));
       releasedFromParks.push(...groups.slice(absorbed.length));
       const shown = absorbed.reduce((sum, group) => sum + (group.count ?? 1), 0);
@@ -833,8 +833,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       }
       pins = [...best.values()];
     }
+    // Índice por id: antes se comparaban 7500 áreas con 400 pines (3M
+    // comparaciones) en cada repintado.
+    const pinIds = new Set(pins.map((pin) => pin.id));
     groupAreasRef.current = new Map(
-      [...(plantGroups?.groups.areasById ?? [])].filter(([id]) => pins.some((pin) => pin.id === id)),
+      [...(plantGroups?.groups.areasById ?? [])].filter(([id]) => pinIds.has(id)),
     );
     memberAreasRef.current = plantGroups?.groups.areaByMemberId ?? new Map();
     const handlePlantClick = (pin: PlantPin) => {
@@ -865,8 +868,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const layer = L.layerGroup();
     pois.forEach((poi) => {
       const marker = L.circleMarker([poi.lat, poi.lon], { radius: 8, color: '#8b5e20', fillColor: '#c58a31', fillOpacity: 1, weight: 2 });
+      // Tooltip al pasar por encima, no permanente: con cientos de POIs, un
+      // nodo DOM visible por punto hunde el render del mapa.
       marker.bindTooltip(`${escapeHtml(poi.name)} · ${escapeHtml(formatDistance(poi.distance, lang))}`, {
-        permanent: true,
         direction: 'top',
         offset: L.point(0, -8),
         className: 'poi-distance-label',
@@ -1213,13 +1217,19 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     });
   };
 
-  // «Explorar cerca» lista el resultado del área consultada; si aún no se ha
-  // consultado ninguna, los pines que haya en el mapa.
+  // «Explorar cerca»: reutiliza los grupos ya calculados para el mapa (agrupar
+  // 67k plantas de nuevo en cada render era lo que congelaba la interfaz) y
+  // muestra solo los primeros 100; el mapa es la vista completa.
   const explorePlants = useMemo(() => {
-    const source = areaPlants ?? plants;
-    if (source === null) return [];
-    return locatedPosition !== null ? groupNearbyPlants(source).pins : source;
-  }, [areaPlants, plants, locatedPosition]);
+    if (areaPlants !== null) {
+      return locatedPosition !== null ? groupNearbyPlants(areaPlants).pins : areaPlants;
+    }
+    const groups = plantGroups?.groups.pins;
+    if (!groups) return [];
+    return [...groups]
+      .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+      .slice(0, 100);
+  }, [areaPlants, plantGroups, locatedPosition]);
 
   const locateExploreItem = (point: Coordinates) => {
     const map = mapRef.current;
