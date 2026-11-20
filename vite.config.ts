@@ -36,15 +36,17 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).catch(async () => {
-      const cached = await (await caches.open(CACHE)).match(new URL('index.html', self.registration.scope).href);
+      const cached = await (await caches.open(CACHE)).match(new URL('index.html', self.registration.scope).href, { ignoreVary: true });
       return cached || new Response('La aplicación no está disponible sin conexión. Ábrela con conexión y vuelve a descargar la ruta.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }));
   } else if (urls.includes(event.request.url) || event.request.url.startsWith(new URL('assets/', self.registration.scope).href)) {
-    event.respondWith(caches.open(CACHE).then(cache => cache.match(event.request)).then(async cached => {
+    // Estos archivos pertenecen al build y tienen el mismo contenido para todos
+    // los orígenes. Vary: Origin no debe ocultarlos a los módulos del navegador.
+    event.respondWith(caches.open(CACHE).then(cache => cache.match(event.request, { ignoreVary: true })).then(async cached => {
       if (cached) return cached;
       const keys = (await caches.keys()).filter(key => key.startsWith('naturemaps-shell-') && key !== CACHE);
       for (const key of keys.reverse()) {
-        const previous = await (await caches.open(key)).match(event.request);
+        const previous = await (await caches.open(key)).match(event.request, { ignoreVary: true });
         if (previous) return previous;
       }
       return fetch(event.request);

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
-import { extname, resolve, sep } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stripTypeScriptTypes } from 'node:module'
 import { createHash } from 'node:crypto'
+import { preview } from 'vite'
 
 const fixture = stripTypeScriptTypes(await readFile(new URL('../src/test/routeOfflineFixtures.ts', import.meta.url), 'utf8'))
 const { routePacket } = await import(`data:text/javascript;base64,${Buffer.from(fixture).toString('base64')}`)
@@ -23,27 +23,28 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') event.respondWith(fetch(event.request).catch(() => caches.match(new URL('index.html', self.registration.scope))));
 });`
-const server = createServer(async (req, res) => {
-  try {
-    if (legacyWorker && req.url.startsWith('/sw.js')) {
-      res.writeHead(200, { 'content-type': 'text/javascript' }); res.end(legacyScript); return
-    }
-    if (req.url === '/_storage') { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<!doctype html><title>Storage fixture</title>'); return }
-    if (req.url.startsWith('/photo.png')) {
-      if (imageDelay) await new Promise((done) => setTimeout(done, imageDelay))
-      res.writeHead(200, { 'content-type': 'image/png' }); res.end(png); return
-    }
-    const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname)
-    const file = resolve(root, `.${pathname}`)
-    if (!file.startsWith(root.endsWith(sep) ? root : `${root}${sep}`)) { res.writeHead(403); res.end(); return }
-    let body
-    let extension = extname(file)
-    try { body = await readFile(file) } catch { body = await readFile(resolve(root, 'index.html')); extension = '.html' }
-    const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff': 'font/woff', '.woff2': 'font/woff2' }
-    res.writeHead(200, { 'content-type': types[extension] ?? 'application/octet-stream' }); res.end(body)
-  } catch { res.writeHead(500); res.end() }
+// Usar el mismo servidor que npm run preview: sus respuestas incluyen Vary:
+// Origin, que distingue el precache de las peticiones de módulos del navegador.
+const previewServer = await preview({
+  root: fileURLToPath(new URL('../', import.meta.url)),
+  preview: { host: '127.0.0.1', port: 0, strictPort: true },
+  plugins: [{ name: 'offline-browser-fixtures', configurePreviewServer(server) {
+    server.middlewares.use(async (req, res, next) => {
+      try {
+        if (legacyWorker && req.url.startsWith('/sw.js')) {
+          res.writeHead(200, { 'content-type': 'text/javascript' }); res.end(legacyScript); return
+        }
+        if (req.url === '/_storage') { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<!doctype html><title>Storage fixture</title>'); return }
+        if (req.url.startsWith('/photo.png')) {
+          if (imageDelay) await new Promise((done) => setTimeout(done, imageDelay))
+          res.writeHead(200, { 'content-type': 'image/png' }); res.end(png); return
+        }
+        next()
+      } catch { res.writeHead(500); res.end() }
+    })
+  } }],
 })
-await new Promise((done) => server.listen(0, '127.0.0.1', done))
+const server = previewServer.httpServer
 const origin = `http://127.0.0.1:${server.address().port}`
 const packet = structuredClone(routePacket)
 const mapFile = process.env.NATUREMAPS_TEST_MAP
@@ -121,6 +122,9 @@ try {
     database.close()
   }, packet)
   await page.goto(`${origin}/rutas/7`)
+  const scriptUrl = await page.locator('script[type=module]').getAttribute('src')
+  const scriptResponse = await context.request.get(new URL(scriptUrl, origin).href)
+  assert.match(scriptResponse.headers().vary ?? '', /Origin/i, 'se comprueba el Vary real de Vite preview')
   await page.getByText('Descarga anterior sin mapa. Vuelve a descargar para incluirlo.').waitFor()
   imageDelay = 1800
   await page.getByRole('button', { name: 'Volver a descargar', exact: true }).click()
@@ -134,6 +138,9 @@ try {
   imageDelay = 0
   await page.getByRole('button', { name: 'Volver a descargar', exact: true }).click()
   await page.getByText(/Disponible sin conexión/).waitFor()
+  // En escritorio el marco se dibuja también con los estilos de producción.
+  await page.setViewportSize({ width: 1280, height: 960 })
+  assert.equal(await page.locator('.app-frame').evaluate(frame => getComputedStyle(frame).borderTopWidth), '8px')
   await page.evaluate(() => navigator.serviceWorker.ready)
   const workerState = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration()
@@ -152,6 +159,10 @@ try {
   await page.reload()
   await page.getByRole('heading', { name: packet.route.name, exact: true }).waitFor()
   await page.getByText(/Disponible sin conexión/).waitFor()
+  assert.equal(await page.locator('.app-frame').evaluate(frame => getComputedStyle(frame).borderTopWidth), '8px', 'el marco sigue visible tras recargar sin red')
+  await page.screenshot({ path: resolve(root, 'offline-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 402, height: 874 })
+  assert.equal(await page.locator('.app-frame').evaluate(frame => getComputedStyle(frame).borderTopWidth), '0px', 'en móvil se aprovecha toda la pantalla')
   assert.ok(await page.locator('.leaflet-overlay-pane svg path').count() > 0, 'la geometría sigue dibujada sin red')
   await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-tile-pane canvas')].some((canvas) => {
     const ctx = canvas.getContext('2d'); if (!ctx) return false
