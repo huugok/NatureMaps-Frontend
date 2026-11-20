@@ -265,7 +265,7 @@ describe('MapPage', () => {
     vi.mocked(fetch).mockRejectedValue(new Error('network'));
     renderMap();
 
-    expect(await screen.findByRole('status')).toHaveTextContent('No se pudieron cargar las plantas del mapa.');
+    expect(await screen.findByText('No se pudieron cargar las plantas del mapa.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
   });
 
@@ -319,7 +319,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 1,
-            limit: 100,
+            total: 1,
+            limit: 20000,
             language: 'es',
             trees: [{
               id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
@@ -367,7 +368,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 2,
-            limit: 100,
+            total: 2,
+            limit: 20000,
             language: 'es',
             trees: [
               {
@@ -435,7 +437,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 1,
-            limit: 100,
+            total: 1,
+            limit: 20000,
             language: 'es',
             trees: [{
               id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
@@ -701,7 +704,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 1,
-            limit: 100,
+            total: 1,
+            limit: 20000,
             language: 'es',
             trees: [{
               id: 9, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
@@ -837,7 +841,7 @@ describe('MapPage', () => {
     expect(exploreBtn).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('fuera de València, sin ejemplares cerca, el mapa conserva las plantas del inventario', async () => {
+  it('fuera de València, sin ejemplares cerca, el mapa no pinta plantas lejanas', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
@@ -864,43 +868,44 @@ describe('MapPage', () => {
       });
     });
 
-    // Los pines del inventario siguen pintándose pese a la respuesta vacía.
-    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
-      [39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo' })));
+    // Con GPS, solo se pintan las plantas dentro del círculo azul.
+    await waitFor(() => expect(leaflet.circleFactory).toHaveBeenCalledWith(
+      [39.4372, -0.4653], expect.objectContaining({ radius: 1000 })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      [39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo' }));
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('al moverse a una zona con ejemplares se vuelve a las plantas cercanas', async () => {
+  it('al entrar la ubicación se pintan solo las plantas del círculo azul', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
     });
     geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
-      success({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } });
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
     });
-    let nearbyTrees: unknown[] = [];
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees/nearby')
-        ? { center: { latitude: 39.47, longitude: -0.37 }, radius: 1000, returned: nearbyTrees.length, limit: 100, language: 'es', trees: nearbyTrees }
-        : String(url).includes('/trees')
-          ? { nextOffset: null, trees: [] }
-          : [],
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 }, radius: 10000, returned: 2,
+            total: 2, limit: 20000, language: 'es',
+            trees: [
+              { id: 9, speciesId: 3, displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 120 },
+              { id: 10, speciesId: 4, displayName: 'Lejana', latitude: 39.6, longitude: -0.5, distance: 15000 },
+            ],
+          }
+        : [],
     })) as unknown as typeof fetch);
 
     renderMap();
-    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
-    const onPosition = geo.watchPosition.mock.calls[0][0] as (position: unknown) => void;
-    act(() => onPosition({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } }));
-
-    // Entra en cobertura: una respuesta vacía previa no bloquea la siguiente.
-    nearbyTrees = [{
-      id: 9, speciesId: 3, scientificName: 'Celtis australis', displayName: 'Almez',
-      latitude: 39.4795, longitude: -0.3795, distance: 120,
-    }];
-    act(() => onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
     await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
       [39.4795, -0.3795], expect.objectContaining({ title: 'Almez' })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      [39.6, -0.5], expect.anything());
+    // El círculo azul solo aparece con GPS.
+    expect(leaflet.circleFactory).toHaveBeenCalledWith(
+      [39.48, -0.38], expect.objectContaining({ radius: 1000 }));
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 

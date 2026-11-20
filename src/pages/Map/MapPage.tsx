@@ -7,7 +7,6 @@ import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance, repairTextEncoding } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
-import { fetchPlantPins } from '../../services/plants';
 import { fetchRouteDetail } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
@@ -246,9 +245,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [selectedSpeciesName, setSelectedSpeciesName] = useState('');
   const [selectedSpeciesLocationCount, setSelectedSpeciesLocationCount] = useState(0);
   const [hiddenSpeciesId, setHiddenSpeciesId] = useState<number | null>(null);
-  // true cuando la consulta de cercanas no devuelve nada y el mapa sigue sin
-  // plantas: se recurre al inventario global (UT 908) en lugar de dejarlo vacío.
-  const [needsGlobalPlants, setNeedsGlobalPlants] = useState(false);
   // «Ver en el mapa» desde la ficha de un parque (`?zona=&verEspecie=`): el mapa
   // enseña solo los ejemplares de esa especie dentro del parque, sin las plantas
   // cercanas al usuario, para que quede limpio aunque el usuario esté lejos.
@@ -317,10 +313,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           speciesId: plant.speciesId, distance: plant.distance,
           greenAreaId: plant.greenAreaId ?? null,
         }));
+        // El panel de «Explorar cerca» tiene su propio estado: no debe
+        // sustituir a las plantas del mapa.
         setAreaPlants(found);
-        // Un área sin ejemplares (fuera de València, o un radio pequeño) no
-        // debe vaciar el mapa: se conserva lo que ya estaba pintado.
-        if (found.length > 0) setPlants(found);
       })
       .catch(() => { if (!controller.signal.aborted) { setAreaPlants([]); setAreaFailed(true); } })
       .finally(() => { if (!controller.signal.aborted) setAreaLoading(false); });
@@ -362,8 +357,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   }, [lang, radius, setPlants]);
 
   useEffect(() => {
-    if (locatedPosition && !chosenArea) loadArea(locatedPosition, radius);
-  }, [locatedPosition, chosenArea, loadArea, radius]);
+    if (locationPermission === null || chosenArea) return;
+    const center = locatedPosition ?? VALENCIA;
+    loadArea(center, locatedPosition ? radius : 10000);
+  }, [locationPermission, locatedPosition, chosenArea, loadArea, radius]);
 
   // Radio efectivo de cercanas, vivo para updateUserLocation (memoizado sin
   // dependencias, como el cargador de abajo).
@@ -388,10 +385,35 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }, 3500);
   }, []);
 
+  /** Marca de ubicación y círculo azul: solo existen si hay GPS. */
+  const drawUser = useCallback((coords: Coordinates) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const point: L.LatLngExpression = [coords.latitude, coords.longitude];
+    if (userMarkerRef.current) userMarkerRef.current.setLatLng(point);
+    else {
+      userMarkerRef.current = L.marker(point, {
+        icon: userLocationIcon, keyboard: false, interactive: false, zIndexOffset: 1000,
+      }).addTo(map);
+    }
+    if (searchAreaCircleRef.current) {
+      searchAreaCircleRef.current.setLatLng(point).setRadius(effectiveRadiusRef.current);
+    } else {
+      searchAreaCircleRef.current = L.circle(point, {
+        radius: effectiveRadiusRef.current, color: LOCATION_COLOR, fillColor: LOCATION_COLOR,
+        fillOpacity: 0.12, weight: 1, interactive: false,
+      }).addTo(map);
+    }
+  }, []);
+
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
+    // Esperamos a que se resuelva el permiso: mientras `status` es null no se
+    // pinta nada. Con o sin GPS se carga el inventario completo; el círculo
+    // azul decidirá después qué parte se pinta.
+    if (locationPermission === null) return;
     loadPlantsRef.current = (coords: Coordinates) => {
-      const modeRadius = radius;
+      const modeRadius = 10000;
       // Sin regla de 100 plantas por km: las plantas cercanas se agrupan por
       // especie, así que se piden todas las que entren en el radio.
       const last = lastFetchCenterRef.current;
@@ -443,12 +465,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           // Una sola publicación: cada setPlants reagrupaba las 67k plantas y
           // repintaba el mapa, cuatro veces por carga.
           setPlants(found);
-          setNeedsGlobalPlants(false);
-        }
-        else if (plantsRef.current === null || plantsRef.current.length === 0) setNeedsGlobalPlants(true);
+                  }
       };
       loadPages().catch(() => {
-        // Fallo de red silencioso: el mapa sigue con lo último mostrado.
+        if (!controller.signal.aborted) setPlantsFailed(true);
       }).finally(() => {
         // Solo la carga vigente decide: una abortada que termina tarde no toca
         // el estado de la que tomó el relevo.
@@ -485,30 +505,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const map = mapRef.current;
 
     if (!map) return;
-    if (userMarkerRef.current) userMarkerRef.current.setLatLng(point);
-    else {
-      userMarkerRef.current = L.marker(point, {
-        icon: userLocationIcon,
-        keyboard: false,
-        interactive: false,
-        zIndexOffset: 1000,
-      }).addTo(map);
-    }
-
-    if (searchAreaCircleRef.current) {
-      searchAreaCircleRef.current.setLatLng(point).setRadius(effectiveRadiusRef.current);
-    } else {
-      // Círculo azul = área de búsqueda de plantas cercanas (radio efectivo del
-      // modo), no la precisión del GPS.
-      searchAreaCircleRef.current = L.circle(point, {
-        radius: effectiveRadiusRef.current,
-        color: LOCATION_COLOR,
-        fillColor: LOCATION_COLOR,
-        fillOpacity: 0.12,
-        weight: 1,
-        interactive: false,
-      }).addTo(map);
-    }
+    drawUser(coords);
 
     if (followUserRef.current) {
       map.setView(point, Math.max(map.getZoom(), 16), { animate: true });
@@ -525,8 +522,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       );
     }
 
-    loadPlantsRef.current(coords);
-  }, []);
+    // La carga la inicia el effects del permiso con esta misma posición.
+  }, [drawUser]);
 
   useEffect(() => {
     if (!mapElementRef.current) return;
@@ -564,35 +561,30 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // Con posición conocida (la fija el permiso) la vía cercanas toma el relevo,
   // salvo que alrededor no haya ningún ejemplar: entonces se pintan las
   // globales para que el mapa no quede vacío fuera de València.
-  const hasPosition = locatedPosition !== null && !needsGlobalPlants;
 
   // Plantas del inventario: sin posición conocida, las globales de la UT 908;
   // en cuanto hay posición, la vía cercanas toma el relevo con parámetros por
   // modo (aventura: radio fijo; resto: radio de Ajustes).
   useEffect(() => {
-    if (hasPosition) {
-      const current = locatedPosition ?? currentPositionRef.current;
-      if (current) {
-        // No tocar `lastFetchCenterRef`: el guard del cargador decide por
-        // distancia si hay que repetir, incluso si ya hay una carga en curso.
-        loadPlantsRef.current(current);
-      }
+    if (locationPermission === null) return;
+    // El permiso y la posición llegan por separado: cargar solo una vez con
+    // la primera posición conocida (o Valencia si no hay GPS).
+    if (plantsLoadingRef.current || plantsRef.current !== null) return;
+    const current = locatedPosition ?? currentPositionRef.current ?? VALENCIA;
+    loadPlantsRef.current({ latitude: current.latitude, longitude: current.longitude });
+  }, [locationPermission, locatedPosition]);
+
+  // El círculo azul y el punto de ubicación solo salen con GPS.
+  useEffect(() => {
+    if (locatedPosition === null) {
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
+      searchAreaCircleRef.current?.remove();
+      searchAreaCircleRef.current = null;
       return;
     }
-    const map = mapRef.current;
-    if (!map) return;
-    // Si ya hay plantas o una carga en curso, no lanzar otra: antes los dos
-    // cargadores (global y cercanas) se pisaban y abortaban entre sí.
-    if (plantsRef.current !== null || plantsLoadingRef.current) return;
-    plantsLoadingRef.current = true;
-    fetchPlantPins(lang)
-      .then((pins) => {
-        setPlants(pins);
-        setPlantsFailed(false);
-      })
-      .catch(() => setPlantsFailed(true))
-      .finally(() => { plantsLoadingRef.current = false; });
-  }, [hasPosition, locatedPosition, lang, setPlants]);
+    drawUser(locatedPosition);
+  }, [locatedPosition, drawUser]);
 
   // Etiquetas de plantas junto al icono solo a partir del zoom de la UT 908.
   useEffect(() => {
@@ -761,8 +753,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // de parques), no en cada zoom. Con 67k plantas cuesta ~0,4 s; repetirlo en
   // cada moveend era lo que congelaba el mapa.
   const plantGroups = useMemo(() => {
-    const source = zoneSpeciesId !== null ? (zoneSpecies?.pins ?? []) : plants;
+    let source = zoneSpeciesId !== null ? (zoneSpecies?.pins ?? []) : plants;
     if (!source) return null;
+    // Con GPS solo se pintan los ejemplares dentro del círculo azul.
+    if (locatedPosition !== null && zoneSpeciesId === null) {
+      source = source.filter((pin) => metersBetween(locatedPosition, pin) <= radius);
+    }
     const parks = zoneSpeciesId === null && greenAreas !== null
       ? clusterPlantsByPark(source, greenAreas)
       : null;
@@ -779,7 +775,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       loose: parks ? parks.loose : source,
       groups: groupNearbyPlants(parks ? parks.loose : source),
     };
-  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas]);
+  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas, locatedPosition, radius]);
 
   // Capa de marcadores de plantas: en cada movimiento solo se filtran al viewport
   // los grupos ya calculados y se cogen los más numerosos (muestreo barato).
@@ -889,7 +885,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     poisLayerRef.current?.remove();
     const bounds = map.getBounds();
     const layer = L.layerGroup();
-    pois.filter((poi) => bounds.contains([poi.lat, poi.lon])).forEach((poi) => {
+    pois.filter((poi) => bounds.contains([poi.lat, poi.lon]))
+      .filter((poi) => locatedPosition === null || metersBetween(locatedPosition, { latitude: poi.lat, longitude: poi.lon }) <= radius)
+      .forEach((poi) => {
       const marker = L.circleMarker([poi.lat, poi.lon], { radius: 8, color: '#8b5e20', fillColor: '#c58a31', fillOpacity: 1, weight: 2 });
       // Tooltip al pasar por encima, no permanente: con cientos de POIs, un
       // nodo DOM visible por punto hunde el render del mapa.
@@ -905,7 +903,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     repaintPoisRef.current = paint;
     paint();
     return () => { repaintPoisRef.current = () => undefined; poisLayerRef.current?.remove(); };
-  }, [pois, t, lang]);
+  }, [pois, t, lang, locatedPosition, radius]);
 
   // «Ver en el mapa» (ficha, RF3): centra el ejemplar más cercano de la especie
   // pedida por parámetro y pinta su área; si no hay ninguno dentro del radio
