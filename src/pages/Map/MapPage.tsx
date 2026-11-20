@@ -553,7 +553,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     if (hasPosition) {
       const current = locatedPosition ?? currentPositionRef.current;
       if (current) {
-        lastFetchCenterRef.current = null;
+        // No tocar `lastFetchCenterRef`: el guard del cargador decide por
+        // distancia si hay que repetir, incluso si ya hay una carga en curso.
         loadPlantsRef.current(current);
       }
       return;
