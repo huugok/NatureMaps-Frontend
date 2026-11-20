@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ChevronDown, ChevronUp, Landmark, Leaf, LocateFixed, MapPinOff, Search, Trees, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Landmark, Leaf, LocateFixed, MapPinOff, Search, Trash2, Trees, X } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance, repairTextEncoding } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchPlantPins } from '../../services/plants';
+import { fetchRouteDetail } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea } from '../../services/plantGroups';
@@ -21,6 +22,7 @@ import type { GreenAreasLayer } from './greenAreasLayer';
 import { addParkMarkers, clusterPlantsByPark, PARK_CLUSTER_MAX_ZOOM } from './parkClusters';
 import type { GreenArea } from '../../types/greenArea';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
+import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
 const LOCATION_COLOR = '#3b7ddd';
@@ -146,6 +148,10 @@ export interface MapPageProps {
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const { t, lang } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
+  // La ruta pintada se deriva del parámetro `verRuta` (ver «Ver en el mapa» de
+  // la ficha): si está, el mapa muestra el botón «Limpiar mapa».
+  const verRutaRaw = searchParams.get('verRuta');
+  const routeVisible = verRutaRaw !== null && /^\d+$/.test(verRutaRaw);
   const navigate = useNavigate();
   // Zonas verdes (NM-08, PA 3011): capa apagada por defecto para no cargar el
   // mapa; `?zona=<grupo>` la enciende, resalta ese parque y lo encuadra.
@@ -197,12 +203,20 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const poisLayerRef = useRef<L.LayerGroup | null>(null);
   const locatedItemRef = useRef<L.Circle | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const routeAbortRef = useRef<AbortController | null>(null);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
   const followUserRef = useRef(true);
   const keepBothVisibleRef = useRef(false);
+  // `onOpenPlant` llega por props y cambia de identidad: se lee por ref para no
+  // redibujar las capas (y la ruta) en cada render de App.
+  const onOpenPlantRef = useRef(onOpenPlant);
+  useEffect(() => {
+    onOpenPlantRef.current = onOpenPlant;
+  }, [onOpenPlant]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState('');
@@ -445,7 +459,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       center: [VALENCIA.latitude, VALENCIA.longitude],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     });
     mapRef.current = map;
     addOfflineTileLayer(map);
@@ -756,7 +770,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     // mapa mientras se está mostrando la selección solicitada desde la ficha.
     followUserRef.current = false;
     keepBothVisibleRef.current = false;
-    setSearchParams({}, { replace: true });
+    // Limpiar solo verEspecie: si venía con verRuta, la ruta sigue pintada.
+    const next = new URLSearchParams(searchParams);
+    next.delete('verEspecie');
+    setSearchParams(next, { replace: true });
     const speciesId = Number(verRaw);
     selectedSpeciesLayerRef.current?.remove();
     setFocusMessage('');
@@ -862,6 +879,55 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     setSearchParams(params, { replace: true });
   };
 
+  // «Ver en el mapa» desde la ficha de ruta: pinta el recorrido y sus paradas
+  // mientras exista el parámetro `verRuta`. Las paradas de planta usan el pin
+  // del mapa y abren su ficha; las de POI son un marcador visual (su ficha
+  // llega en una UT posterior). «Limpiar mapa» quita el parámetro y la capa.
+  useEffect(() => {
+    routeAbortRef.current?.abort();
+    routeAbortRef.current = null;
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+    const raw = searchParams.get('verRuta');
+    const routeId = raw !== null && /^\d+$/.test(raw) ? Number(raw) : null;
+    if (routeId === null) return;
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
+    fetchRouteDetail(routeId, controller.signal)
+      .then((route) => {
+        if (controller.signal.aborted) return;
+        const map = mapRef.current;
+        if (!map) return;
+        // Mismo dibujado que la ficha de ruta: polilínea, inicio y paradas.
+        const layer = addRouteOverlay(map, route, {
+          onOpenStop: (stop) => {
+            if (stop.kind !== 'planta') return;
+            onOpenPlantRef.current?.(routeStopToPlantPin(stop));
+          },
+        });
+        fitRouteBounds(map, route);
+        routeLayerRef.current = layer;
+      })
+      .catch(() => {
+        // Si la ruta no se puede cargar, el botón «Limpiar mapa» sigue
+        // quitando el parámetro: no hay capa que quitar y no molesta.
+      });
+    return () => {
+      controller.abort();
+      if (routeLayerRef.current) {
+        routeLayerRef.current.remove();
+        routeLayerRef.current = null;
+      }
+    };
+  }, [searchParams]);
+
+  const clearRoute = () => {
+    setSearchParams({}, { replace: true });
+  };
+
+  // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.
   // El área de búsqueda sigue el radio configurado en Ajustes.
   useEffect(() => {
     searchAreaCircleRef.current?.setRadius(radius);
@@ -1230,6 +1296,18 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           )}
         </div>
       </div>
+
+      {routeVisible && (
+        <button
+          type="button"
+          onClick={clearRoute}
+          aria-label={t('map.clearMap')}
+          title={t('map.clearMap')}
+          className="absolute right-4 bottom-52 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <Trash2 size={21} aria-hidden="true" />
+        </button>
+      )}
 
       <button
         type="button"

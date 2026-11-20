@@ -3,10 +3,10 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-11-10 · `main` @ `0f8b6ef` · Rama de trabajo:
-> `feat/foto-ficha` (worktree `wt-pa-2941-foto-ficha`). El resultado de la identificación permite
-> guardar la captura en la ficha de la especie (PA 2941): sustituye a la foto del catálogo y se
-> conserva en el dispositivo.
+> Última verificación: 2026-11-12 · rama `feat/rutas-catalogo` (desde `main` @ `0f8b6ef`).
+> Pestaña `/rutas` conectada al catálogo de rutas del backend y ficha `/rutas/:id` con el
+> recorrido en Leaflet (UT de rutas predefinidas).
+> `main` trae además flora y zonas verdes (NM-08): capa de parques, fichas de zona y artículos.
 
 ## Qué es este proyecto
 
@@ -161,9 +161,9 @@ consultarla sin conexión: ficha, plantas y mapa. Necesita el endpoint del backe
 - **Lectura sin conexión** (`offlineRead.ts`): `fetchGreenAreaDetail`, `fetchGreenAreas` y
   `fetchNearbyTrees` piden al backend y, **solo si falla la red o el servidor da 5xx** (no un 404),
   sirven lo descargado. Sin zonas descargadas conservan su error de siempre.
-- **Límites conocidos**: la app en sí (JS/HTML) no se guarda: sin service worker, abrirla en frío
-  sin red depende de la caché HTTP del navegador. Los POIs del mapa (Overpass/Nominatim) y las
-  fichas de especie no se guardan; los textos quedan en el idioma de la descarga.
+- **Límites conocidos**: el módulo de zonas no guarda fichas de especie ni POIs de
+  Overpass/Nominatim. La descarga de rutas sí guarda sus fichas y añade un service worker
+  al build de producción para reabrir la app sin red; comprobar con build y preview.
 
 ## Stack
 
@@ -339,7 +339,8 @@ Reglas:
 
 - Backend en `http://localhost:3000` (CORS abierto, sin auth todavía).
 - Endpoints disponibles: `GET /health`, `GET /trees`, `GET /trees/nearby`, `GET /trees/:id`,
-  `POST /trees/import`, `GET /species`, `POST /species/enrich`.
+  `POST /trees/import`, `GET /species`, `POST /species/enrich`, `GET /pois/nearby`,
+  `GET /pois/:id`, `GET /routes` y `GET /routes/:id`.
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
 - La identificación por foto (`src/services/identify.ts`) consume `POST /plants/identify` con la
   base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
@@ -363,6 +364,33 @@ Reglas:
   pinta las plantas globales de
   `src/services/plants.ts` (UT 908). El círculo azul sobre el usuario muestra el
   área de búsqueda (radio efectivo del modo), no la precisión del GPS.
+- Rutas predefinidas (`src/services/routes.ts`): `GET /routes` (listado ligero)
+  y `GET /routes/:id` (ficha con paradas y `path`). El listado (`/rutas`,
+  `RoutesList`) pinta una tarjeta por ruta con nombre, **tema y forma**
+  (botánica/cultural/mixta y circular/lineal: con las dos se distinguen todas
+  las del catálogo), longitud, duración y nº de paradas; sin filtros. Guarda la
+  posición del scroll y la restaura al volver, para que el listado se lea como
+  un scroll continuo. La ficha
+  (`/rutas/:id`, `RouteDetail` + `RouteMap`) pinta el recorrido como polilínea
+  con el punto de partida y las paradas: las de planta usan el mismo pin de hoja
+  del mapa y se pulsan para abrir la ficha de la planta; las de POI son un punto
+  de la paleta con su nombre en el `title`, **sin ficha todavía** (ver abajo).
+  La ficha repite los datos principales del listado. «Descargar ruta» guarda
+  recorrido, paradas, fichas e imágenes, con progreso, cancelación y borrado.
+  Las fichas guardadas (incluidos POIs) se consultan dentro de la propia ruta.
+  El botón «Iniciar ruta» de la ficha lleva a `/mapa?verRuta=<id>`: el
+  mapa principal pinta la ruta (`src/pages/Map/routeOverlay.ts`, el mismo
+  dibujado que la ficha) y muestra un botón de solo icono «Limpiar mapa»
+  (`map.clearMap`) que quita la capa. El frontend nunca llama a Valhalla: la
+  geometría ya viene guardada en BD. El error de `apiGet` lleva `status` para
+  distinguir 404 («no existe») de fallo de red («reintenta»).
+  - **Ficha de POI (pendiente, UT posterior)**: las paradas de POI ya viajan
+    con `id`, nombre y coordenadas, y el dibujado (`addRouteOverlay`) ya las
+    pinta; lo que falta es la pantalla. El punto de extensión está en
+    `handleOpenRouteStop` (`src/App.tsx`): hoy ignora las paradas `kind: 'poi'`
+    y solo abre la ficha de planta. Cuando exista la ficha de POI, se abre ahí
+    (mismo patrón overlay que la planta: `FichaAbierta.origin` admite ya
+    `'ruta'`).
 - Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta).
 
 ## Git
@@ -384,6 +412,32 @@ configuración de protección y el versionado están en `docs/agents/git-workflo
 - No hacer `git push` ni abrir PRs sin que lo pida el usuario.
 
 ## Agent skills
+
+### Rutas sin conexión
+
+`components/OfflineRoute/` integra descarga, progreso, cancelación, lista, fichas
+guardadas y borrado. `offlineRouteStorage.ts` es el único escritor de IndexedDB
+`naturemaps-offline-routes`; datos e imágenes se confirman juntos. Vite genera
+el shell offline para producción. Ejecutar `npm run test:offline-browser` tras
+build para comprobar reapertura sin red (requiere Playwright y Edge o Chrome).
+Cada build identifica su worker mediante una URL versionada. La descarga espera
+a que ese worker esté activado y controle la pestaña; un worker anterior activo
+no garantiza que los assets actuales estén disponibles sin conexión. Se conserva
+también el shell anterior para las pestañas abiertas durante la actualización.
+La prueba de navegador incluye la actualización desde un worker antiguo antes
+de comprobar la recarga completa sin red.
+Usa Vite preview real (incluido `Vary: Origin`) y comprueba el marco de escritorio
+antes y después de recargar sin red. Para los archivos estáticos del build, el
+worker busca con `ignoreVary: true`: los módulos envían Origin, pero el precache
+no, aunque la URL y el contenido sean idénticos. No aplicar esta excepción a API.
+El contrato actual es `schemaVersion: 2`, con `map` (URL, SHA-256, cobertura y
+tamaño). La descarga verifica el archivo antes del commit. IndexedDB v2 añade
+el store `maps`: una copia por hash, compartida entre rutas y retirada al borrar
+la última referencia, en la misma transacción. Las descargas v1 se conservan
+y piden volver a descargar para incorporar el mapa. `protomaps-leaflet` dibuja
+el PMTiles local en la ficha y en el mapa principal; no descarga teselas OSM.
+La prueba de navegador requiere `NATUREMAPS_TEST_MAP` apuntando al PMTiles real.
+Los archivos cartográficos y las capturas permanecen fuera de Git.
 
 ### Issue tracker
 

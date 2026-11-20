@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.setConfig({ testTimeout: 15000 });
@@ -77,6 +78,10 @@ const leaflet = vi.hoisted(() => {
     remove: vi.fn(),
     getBounds: vi.fn(() => ({ pad: () => ({}) })),
   };
+  const line = {
+    addTo: vi.fn(function (this: unknown) { return this; }),
+    getBounds: vi.fn(() => ({ pad: () => ({}) })),
+  };
   return {
     map,
     marker,
@@ -87,8 +92,9 @@ const leaflet = vi.hoisted(() => {
     tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
     markerFactory: vi.fn(() => marker),
     circleFactory: vi.fn(() => circle),
+    polylineFactory: vi.fn(() => line),
     divIcon: vi.fn(() => ({})),
-    latLngBounds: vi.fn(() => ({})),
+    latLngBounds: vi.fn(() => ({ pad: () => ({}) })),
     latLng: vi.fn((point: [number, number]) => ({ lat: point[0], lng: point[1] })),
     point: vi.fn(() => ({})),
   };
@@ -100,11 +106,14 @@ vi.mock('leaflet', () => ({
     tileLayer: leaflet.tileLayer,
     marker: leaflet.markerFactory,
     circle: leaflet.circleFactory,
+    circleMarker: vi.fn(() => ({ addTo: vi.fn(() => ({})), on: vi.fn(), bindTooltip: vi.fn() })),
     layerGroup: leaflet.layerGroupFactory,
+    polyline: leaflet.polylineFactory,
     divIcon: leaflet.divIcon,
     latLngBounds: leaflet.latLngBounds,
     latLng: leaflet.latLng,
     point: leaflet.point,
+    canvas: vi.fn(() => ({})),
   },
 }));
 
@@ -169,7 +178,7 @@ describe('MapPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', () => {
+  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', async () => {
     geo.watchPosition.mockImplementation((_success, error) => {
       error({ code: 1, message: 'Permission denied' });
       return 7;
@@ -181,9 +190,9 @@ describe('MapPage', () => {
       center: [39.4699, -0.3763],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     }));
-    expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object));
+    await waitFor(() => expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object)));
     expect(leaflet.markerFactory).not.toHaveBeenCalled();
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
   });
@@ -510,52 +519,34 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('«Ver en el mapa»: centra el ejemplar más cercano de la especie y pinta su área', async () => {
-    Object.defineProperty(navigator, 'permissions', {
-      configurable: true,
-      value: { query: vi.fn(async () => ({ state: 'granted' })) },
-    });
-    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
-      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
-    });
-    // Dos Plátanos de sombra (specie 3) vecinos —el más cercano NO es el primero
-    // del grupo— y una Morera (specie 4) que no debe recibir el foco.
+  it('«Ver en el mapa»: pinta los ejemplares de la especie y encuadra el mapa', async () => {
+    // El effects actual pide la ficha y las ubicaciones al backend (no usa las
+    // plantas cercanas), así que se simulan esas dos respuestas.
+    const speciesDetail = {
+      id: 3, scientificName: 'Platanus hispanica',
+      names: [{ name: 'Plátano de sombra', language: 'es' }],
+      profile: null, enrichment: null, image: null,
+      locations: {
+        total: 2, returned: 2, nextAfterId: null,
+        items: [
+          { id: 7, latitude: 39.4795, longitude: -0.3795, district: 'Ciutat Vella', neighborhood: null, source: 'VALENCIA_ARBOLADO', sourceUrl: null },
+          { id: 8, latitude: 39.4797, longitude: -0.3795, district: 'Ciutat Vella', neighborhood: null, source: 'VALENCIA_ARBOLADO', sourceUrl: null },
+        ],
+      },
+    };
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
-      json: async () => String(url).includes('/trees/nearby')
-        ? {
-            center: { latitude: 39.48, longitude: -0.38 },
-            radius: 1000,
-            returned: 3,
-            limit: 100,
-            language: 'es',
-            trees: [
-              {
-                id: 7, speciesId: 3, scientificName: 'Platanus hispanica', commonName: 'Plátano de sombra',
-                displayName: 'Plátano de sombra', latitude: 39.4795, longitude: -0.3795, distance: 300,
-              },
-              {
-                id: 8, speciesId: 3, scientificName: 'Platanus hispanica', commonName: 'Plátano de sombra',
-                displayName: 'Plátano de sombra', latitude: 39.4797, longitude: -0.3795, distance: 150,
-              },
-              {
-                id: 9, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
-                displayName: 'Morera', latitude: 39.4801, longitude: -0.3801, distance: 50,
-              },
-            ],
-          }
+      json: async () => String(url).includes('/species/3')
+        ? speciesDetail
         : { nextOffset: null, trees: [] },
     })) as unknown as typeof fetch);
 
     renderMap(<MapPage />, '/mapa?verEspecie=3');
 
-    // El área pintada cubre al grupo (no el círculo mínimo) y el mapa encuadra.
+    // Se pintan los ejemplares y el mapa encuadra su extensión.
     await waitFor(() => expect(leaflet.map.fitBounds).toHaveBeenCalled());
-    const areaCall = (leaflet.circleFactory.mock.calls as unknown as Array<[unknown, { className?: string }]>)
-      .find(([, options]) => options.className === 'plant-group-area');
-    expect(areaCall).toBeDefined();
-    expect(leaflet.circle.setRadius).not.toHaveBeenCalledWith(30);
-    delete (navigator as unknown as { permissions?: unknown }).permissions;
+    expect(leaflet.latLngBounds).toHaveBeenCalledWith([[39.4795, -0.3795], [39.4797, -0.3795]]);
+    expect(await screen.findByText(/Plátano de sombra/)).toBeInTheDocument();
   });
 
   it('«Ver en el mapa»: avisa si la especie no tiene ejemplares en el área', async () => {
@@ -600,6 +591,51 @@ describe('MapPage', () => {
       expect.objectContaining({ className: 'plant-group-area' }),
     );
     delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('«Ver en el mapa» desde una ruta: pinta el recorrido y «Limpiar mapa» lo quita', async () => {
+    const route = {
+      id: 7,
+      name: 'Historia bajo los árboles',
+      theme: 'mixta',
+      shape: 'circular',
+      lengthCategory: 'corta',
+      distanceMeters: 2280,
+      durationSeconds: 1980,
+      start: { latitude: 39.4699, longitude: -0.3763 },
+      description: 'Plantas y patrimonio alternados.',
+      stopsCount: 1,
+      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      path: [
+        { latitude: 39.4699, longitude: -0.3763 },
+        { latitude: 39.4705, longitude: -0.3755 },
+        { latitude: 39.4699, longitude: -0.3763 },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (
+      String(url).includes('/routes/7')
+        ? { ok: true, json: async () => route }
+        : { ok: true, json: async () => ({ nextOffset: null, trees: [] }) }
+    )) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verRuta=7');
+
+    // El recorrido se pinta como polilínea y el mapa se encuadra en él.
+    await waitFor(() => expect(leaflet.polylineFactory).toHaveBeenCalled());
+    expect(leaflet.polylineFactory).toHaveBeenCalledWith(
+      route.path.map((point) => [point.latitude, point.longitude]),
+      expect.anything(),
+    );
+    expect(leaflet.map.fitBounds).toHaveBeenCalled();
+
+    // «Limpiar mapa» aparece como botón de solo icono y quita la capa.
+    const clear = await screen.findByRole('button', { name: 'Limpiar mapa' });
+    expect(clear.querySelector('svg')).toBeInTheDocument();
+    expect(clear.textContent).toBe('');
+    await userEvent.click(clear);
+
+    await waitFor(() => expect(leaflet.layerGroup.remove).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Limpiar mapa' })).not.toBeInTheDocument();
   });
 
   it('al tocar el mapa se contrae la ventana de explorar', () => {

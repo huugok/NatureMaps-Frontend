@@ -23,6 +23,9 @@ import { Home } from './pages/Home';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
+import { RouteDetail } from './pages/RouteDetail';
+import { routeStopToPlantPin } from './pages/Map/routeOverlay';
+import type { RouteStop } from './services/routes';
 import { Search } from './pages/Search';
 import { LanguageSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
@@ -41,17 +44,17 @@ import { getSpeciesPhoto, saveSpeciesPhoto } from './services/speciesPhoto';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
-/** Ficha abierta por encima del escaneo o del mapa: conserva foto, resultado y
- * especie marcada, y deja viva la pantalla que había debajo. */
+/** Ficha abierta por encima del escaneo, del mapa o de una ruta: conserva foto,
+ * resultado y especie marcada, y deja viva la pantalla que había debajo. */
 interface FichaAbierta {
   species: FichaEspecie;
   identification: IdentificacionFicha | null;
-  /** «mapa» cuando se abrió tocando un punto: ya se está en el mapa y no
-   * tiene sentido ofrecer «Ver en el mapa». */
-  origin?: 'mapa';
+  /** «mapa» cuando se abrió tocando un punto del mapa: ya se está en el mapa y
+   * no tiene sentido ofrecer «Ver en el mapa». «ruta» cuando se abrió desde una
+   * parada de una ruta: al volver se sigue en la ficha de la ruta. */
+  origin?: 'mapa' | 'ruta';
   /** Clave de historial de la pantalla desde la que se salió a una zona verde
-   * o a un artículo (NM-08). Mientras se está fuera la ficha se oculta, y al
-   * volver atrás a esa misma entrada reaparece: no se pierde el origen. */
+   * o a un artículo (NM-08): al volver a esa entrada la ficha reaparece. */
   awayKey?: string;
 }
 
@@ -257,11 +260,10 @@ export default function App() {
     handleOpenSpecies(match, photo, guardada ? null : photo);
   };
 
-  /** Abre la ficha de la planta tocada en el mapa (F03.1) como overlay: el
-   * mapa sigue montado debajo, así que al volver conserva centro y zoom
-   * (PA 691). Se pinta al instante con la lista del catálogo o, si aún no está
-   * cargada, con el nombre del propio punto; el detalle la enriquece después. */
-  const handleOpenPlantFromMap = useCallback((plant: PlantPin): boolean => {
+  /** Abre la ficha de una planta como overlay: la pantalla de debajo sigue
+   * montada y al volver se conserva (PA 691). `origin` distingue si veníamos
+   * del mapa (donde «Ver en el mapa» no aporta nada) o de una ruta. */
+  const handleOpenPlant = useCallback((plant: PlantPin, origin: 'mapa' | 'ruta'): boolean => {
     const items = fichaList.status === 'ready' ? fichaList.items : [];
     const matchedIndex =
       plant.speciesId == null
@@ -280,7 +282,7 @@ export default function App() {
     setFicha({
       species: conFotoPropia(item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant)),
       identification: null,
-      origin: 'mapa',
+      origin,
     });
     getSpeciesDetail(speciesId, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
@@ -296,6 +298,23 @@ export default function App() {
       });
     return true;
   }, [fichaList, lang]);
+
+  /** Toca de una planta en el mapa (F03.1): abre su ficha como overlay. */
+  const handleOpenPlantFromMap = useCallback(
+    (plant: PlantPin): boolean => handleOpenPlant(plant, 'mapa'),
+    [handleOpenPlant],
+  );
+
+  /** Toca de una parada de una ruta: las de planta abren su ficha (al volver
+   * se sigue en la ficha de la ruta). Las de POI todavía no tienen ficha —
+   * quedan para la UT de fichas de POI; mientras tanto no hacen nada. */
+  const handleOpenRouteStop = useCallback(
+    (stop: RouteStop) => {
+      if (stop.kind !== 'planta') return;
+      handleOpenPlant(routeStopToPlantPin(stop), 'ruta');
+    },
+    [handleOpenPlant],
+  );
 
   /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
    * mapa que centre su ejemplar más cercano (parámetro de un solo uso). */
@@ -355,6 +374,7 @@ export default function App() {
                 }
               />
               <Route path="/rutas" element={<RoutesList />} />
+              <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} />} />
               <Route path="/buscar" element={<Search onSelectSpecies={(item) => {
                 setFicha({ species: fichaDesdeItemLista(item, lang), identification: null });
                 getSpeciesDetail(item.id, lang)

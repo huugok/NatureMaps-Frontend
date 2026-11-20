@@ -33,7 +33,27 @@ vi.mock('./pages/Map', () => ({
     </div>
   ),
 }))
-vi.mock('./services/api', () => ({ checkHealth: vi.fn().mockResolvedValue(true) }))
+vi.mock('./services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./services/api')>()
+  return { ...actual, checkHealth: vi.fn().mockResolvedValue(true) }
+})
+
+// Leaflet no pinta en jsdom: la ficha de ruta monta su propio mapa.
+vi.mock('leaflet', () => ({
+  default: {
+    map: vi.fn(() => ({
+      on: vi.fn(), off: vi.fn(), remove: vi.fn(), setView: vi.fn(), fitBounds: vi.fn(),
+    })),
+    tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
+    layerGroup: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() })),
+    polyline: vi.fn(() => ({ addTo: vi.fn(), getBounds: vi.fn(() => ({ pad: () => ({}) })) })),
+    marker: vi.fn(() => ({
+      addTo: vi.fn(), on: vi.fn(), bindTooltip: vi.fn(function (this: unknown) { return this; }),
+    })),
+    divIcon: vi.fn(() => ({})),
+    latLngBounds: vi.fn(() => ({ pad: () => ({}) })),
+  },
+}))
 
 const respuestaJson = { headers: { 'content-type': 'application/json' } }
 
@@ -155,6 +175,107 @@ describe('rutas, pestañas y marco', () => {
     withMode()
     renderWithProviders(<App />, { route: '/nada' })
     expect(screen.getByText('Pantalla no encontrada')).toBeInTheDocument()
+  })
+})
+
+describe('catálogo de rutas (UT de rutas predefinidas)', () => {
+  const ruta = {
+    id: 7,
+    name: 'Historia bajo los árboles',
+    theme: 'mixta',
+    shape: 'circular',
+    lengthCategory: 'corta',
+    distanceMeters: 2280,
+    durationSeconds: 1980,
+    start: { latitude: 39.4699, longitude: -0.3763 },
+    description: 'Plantas del inventario y patrimonio histórico alternados.',
+    stopsCount: 2,
+    stops: [
+      { kind: 'planta', id: 11, name: 'Naranjo de la plaza', latitude: 39.4705, longitude: -0.3755, speciesId: 2 },
+      { kind: 'poi', id: 22, name: 'Torres de Serranos', latitude: 39.4792, longitude: -0.3762, speciesId: null },
+    ],
+    path: [
+      { latitude: 39.4699, longitude: -0.3763 },
+      { latitude: 39.4705, longitude: -0.3755 },
+      { latitude: 39.4699, longitude: -0.3763 },
+    ],
+  }
+  const listado = {
+    total: 1,
+    routes: [{
+      id: 7,
+      name: 'Historia bajo los árboles',
+      theme: 'mixta',
+      shape: 'circular',
+      lengthCategory: 'corta',
+      distanceMeters: 2280,
+      durationSeconds: 1980,
+      start: { latitude: 39.4699, longitude: -0.3763 },
+      description: 'Plantas del inventario y patrimonio histórico alternados.',
+      stopsCount: 2,
+    }],
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    withMode()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/routes/7')) {
+          return Promise.resolve(new Response(JSON.stringify(ruta), respuestaJson))
+        }
+        if (url.includes('/routes')) {
+          return Promise.resolve(new Response(JSON.stringify(listado), respuestaJson))
+        }
+        if (url.includes('/species/')) {
+          const id = Number(url.split('/species/')[1]?.split('?')[0] ?? '1')
+          return Promise.resolve(new Response(JSON.stringify(detalleEspecie(id)), respuestaJson))
+        }
+        return Promise.resolve(new Response(JSON.stringify(catalogo), respuestaJson))
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('el listado muestra nombre, tema, longitud, duración y paradas', async () => {
+    renderWithProviders(<App />, { route: '/rutas' })
+
+    expect(await screen.findByText('Historia bajo los árboles')).toBeInTheDocument()
+    expect(screen.getByText('Mixta')).toBeInTheDocument()
+    expect(screen.getByText('2,3 km')).toBeInTheDocument()
+    expect(screen.getByText('33 min')).toBeInTheDocument()
+    expect(screen.getByText('2 paradas')).toBeInTheDocument()
+  })
+
+  it('la ficha repite los datos y abre la ficha de la planta al tocar su parada', async () => {
+    renderWithProviders(<App />, { route: '/rutas/7' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
+    expect(screen.getByText('2,3 km')).toBeInTheDocument()
+    expect(screen.getByText('33 min')).toBeInTheDocument()
+    expect(screen.getByText('2 paradas')).toBeInTheDocument()
+
+    // La parada de planta abre su ficha; la de POI todavía no (llega luego).
+    fireEvent.click(screen.getByRole('button', { name: /Naranjo de la plaza/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Citrus aurantium' })).toBeInTheDocument()
+
+    // Al volver se sigue en la ficha de la ruta. Hay dos flechas «Volver» (la de
+    // la ruta y la de la ficha abierta encima): se pulsa la de la ficha.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Volver' }).at(-1) as HTMLElement)
+    expect(screen.getByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
+  })
+
+  it('la ficha ofrece «Iniciar ruta» e informa si el almacenamiento offline no está disponible', async () => {
+    renderWithProviders(<App />, { route: '/rutas/7' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Iniciar ruta' })).toBeInTheDocument()
+    expect(screen.getByText('Este navegador no permite guardar rutas sin conexión.')).toBeInTheDocument()
   })
 })
 
