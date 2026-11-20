@@ -207,13 +207,11 @@ describe('RouteDetail', () => {
     expect(screen.getByText('mapa?verRuta=7')).toBeInTheDocument()
   })
 
-  it('incluye el botón «Descargar ruta» como marcador de posición', async () => {
-    const user = userEvent.setup()
+  it('explica la falta de almacenamiento offline cuando el navegador no lo permite', async () => {
     mockFetchRouteDetail.mockResolvedValue(route)
     renderDetail()
 
-    await user.click(await screen.findByRole('button', { name: 'Descargar ruta' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Disponible en próximas versiones.')
+    expect(await screen.findByText('Este navegador no permite guardar rutas sin conexión.')).toBeInTheDocument()
   })
 
   it('un id no numérico muestra «no existe» sin llamar al servicio', () => {

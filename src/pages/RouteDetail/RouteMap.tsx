@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { RouteDetail, RouteStop } from '../../services/routes';
 import { addRouteOverlay, fitRouteBounds } from '../Map/routeOverlay';
+import { addOfflineTileLayer } from '../Map/offlineTileLayer';
 
 // Mapa de la ficha de ruta: el recorrido (`path`, ya guardado en BD) como
 // polilínea y las paradas con los mismos puntos que usa el mapa principal (las
@@ -27,13 +28,10 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
 
     const map = L.map(element, {
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     });
     mapRef.current = map;
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+    addOfflineTileLayer(map);
 
     const layer = addRouteOverlay(map, route, { onOpenStop });
     layerRef.current = layer;

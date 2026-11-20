@@ -8,6 +8,9 @@ import '@fontsource-variable/literata/opsz-italic.css'
 import '@fontsource/atkinson-hyperlegible/400.css'
 import '@fontsource/atkinson-hyperlegible/700.css'
 import './index.css'
+import { prepareOfflineApp } from './services/offlineApp'
+
+void prepareOfflineApp().catch(() => undefined)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
