@@ -284,6 +284,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // ejemplares deja la lista vacía, pero el mapa conserva lo que ya mostraba.
   const [areaPlants, setAreaPlants] = useState<PlantPin[] | null>(null);
   const plantsAbortRef = useRef<AbortController | null>(null);
+  const plantsLoadingRef = useRef(false);
   const speciesFocusRequestRef = useRef(0);
   const lastFetchCenterRef = useRef<Coordinates | null>(null);
   const {
@@ -394,8 +395,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       // Con la lista ya poblada basta con no repetir la consulta en cada paso;
       // si está vacía (fuera de cobertura) se vuelve a intentar al moverse.
       const loaded = plantsRef.current !== null && plantsRef.current.length > 0;
-      if (last && loaded && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
+      if (last && (loaded || plantsLoadingRef.current) && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
       plantsAbortRef.current?.abort();
+      plantsLoadingRef.current = true;
       const controller = new AbortController();
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
@@ -429,14 +431,19 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           offset += response.trees.length;
           more = response.trees.length > 0 && offset < total && total > 0;
           setPlantProgress({ loaded: found.length, total });
-          if (found.length > 0) setPlants([...found]);
         } while (more);
-        if (found.length > 0) setNeedsGlobalPlants(false);
+        if (found.length > 0) {
+          // Una sola publicación: cada setPlants reagrupaba las 67k plantas y
+          // repintaba el mapa, cuatro veces por carga.
+          setPlants(found);
+          setNeedsGlobalPlants(false);
+        }
         else if (plantsRef.current === null || plantsRef.current.length === 0) setNeedsGlobalPlants(true);
       };
       loadPages().catch(() => {
         // Fallo de red silencioso: el mapa sigue con lo último mostrado.
       }).finally(() => {
+        plantsLoadingRef.current = false;
         if (!controller.signal.aborted) {
           if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
           if (toastHideRef.current) clearTimeout(toastHideRef.current);
