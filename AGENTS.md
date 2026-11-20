@@ -161,9 +161,9 @@ consultarla sin conexión: ficha, plantas y mapa. Necesita el endpoint del backe
 - **Lectura sin conexión** (`offlineRead.ts`): `fetchGreenAreaDetail`, `fetchGreenAreas` y
   `fetchNearbyTrees` piden al backend y, **solo si falla la red o el servidor da 5xx** (no un 404),
   sirven lo descargado. Sin zonas descargadas conservan su error de siempre.
-- **Límites conocidos**: la app en sí (JS/HTML) no se guarda: sin service worker, abrirla en frío
-  sin red depende de la caché HTTP del navegador. Los POIs del mapa (Overpass/Nominatim) y las
-  fichas de especie no se guardan; los textos quedan en el idioma de la descarga.
+- **Límites conocidos**: el módulo de zonas no guarda fichas de especie ni POIs de
+  Overpass/Nominatim. La descarga de rutas sí guarda sus fichas y añade un service worker
+  al build de producción para reabrir la app sin red; comprobar con build y preview.
 
 ## Stack
 
@@ -375,9 +375,9 @@ Reglas:
   con el punto de partida y las paradas: las de planta usan el mismo pin de hoja
   del mapa y se pulsan para abrir la ficha de la planta; las de POI son un punto
   de la paleta con su nombre en el `title`, **sin ficha todavía** (ver abajo).
-  La ficha repite los datos principales del listado e incluye los botones
-  «Iniciar ruta» y «Descargar ruta» como marcadores de posición (la UT del
-  guía de recorrido y la descarga llegan más adelante).
+  La ficha repite los datos principales del listado. «Descargar ruta» guarda
+  recorrido, paradas, fichas e imágenes, con progreso, cancelación y borrado.
+  Las fichas guardadas (incluidos POIs) se consultan dentro de la propia ruta.
   El botón «Iniciar ruta» de la ficha lleva a `/mapa?verRuta=<id>`: el
   mapa principal pinta la ruta (`src/pages/Map/routeOverlay.ts`, el mismo
   dibujado que la ficha) y muestra un botón de solo icono «Limpiar mapa»
@@ -412,6 +412,14 @@ configuración de protección y el versionado están en `docs/agents/git-workflo
 - No hacer `git push` ni abrir PRs sin que lo pida el usuario.
 
 ## Agent skills
+
+### Rutas sin conexión
+
+`components/OfflineRoute/` integra descarga, progreso, cancelación, lista, fichas
+guardadas y borrado. `offlineRouteStorage.ts` es el único escritor de IndexedDB
+`naturemaps-offline-routes`; datos e imágenes se confirman juntos. Vite genera
+el shell offline para producción. Ejecutar `npm run test:offline-browser` tras
+build para comprobar reapertura sin red (requiere Playwright y Edge o Chrome).
 
 ### Issue tracker
 

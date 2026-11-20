@@ -1,4 +1,6 @@
 import { apiGet } from './api';
+import { isUnreachable } from './offlineError';
+import { routeStore } from './offlineRouteStorage';
 
 // Catálogo de rutas botánico-culturales predefinidas (GET /routes del backend).
 // El catálogo ya viene calculado y guardado en BD: la ficha pinta el `path`
@@ -58,11 +60,24 @@ export interface RouteDetail extends RouteSummary {
 
 /** Listado del catálogo, ordenado por distancia (corta → larga). */
 export async function fetchRouteList(signal?: AbortSignal): Promise<RouteSummary[]> {
-  const data = await apiGet<{ total: number; routes: RouteSummary[] }>('/routes', signal);
-  return data.routes;
+  try {
+    const data = await apiGet<{ total: number; routes: RouteSummary[] }>('/routes', signal);
+    return data.routes;
+  } catch (error) {
+    if (!isUnreachable(error)) throw error;
+    const records = await routeStore().all();
+    if (records.length === 0) throw error;
+    return records.map((record) => record.packet.route).sort((a, b) => a.distanceMeters - b.distanceMeters);
+  }
 }
 
 /** Ficha completa de una ruta, con paradas y recorrido. */
 export async function fetchRouteDetail(id: number, signal?: AbortSignal): Promise<RouteDetail> {
-  return apiGet<RouteDetail>(`/routes/${id}`, signal);
+  try { return await apiGet<RouteDetail>(`/routes/${id}`, signal); }
+  catch (error) {
+    if (!isUnreachable(error)) throw error;
+    const saved = await routeStore().get(id);
+    if (!saved) throw error;
+    return saved.packet.route;
+  }
 }

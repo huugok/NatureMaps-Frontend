@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
+import { Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
+import { OfflineRouteCard, SavedStopCards } from '../../components/OfflineRoute';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
 import { useApp } from '../../context/useApp';
@@ -31,7 +32,6 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const { id } = useParams();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const [notice, setNotice] = useState('');
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 
@@ -135,8 +135,6 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
         </ul>
         <p className="text-small text-pretty break-words">{route.description}</p>
 
-        {/* Acciones de la ruta: «Iniciar ruta» la pinta en el mapa para
-            recorrerla a pie; la descarga queda como marcador de posición. */}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -146,20 +144,8 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
             <Footprints size={16} aria-hidden="true" />
             {t('routes.start')}
           </button>
-          <button
-            type="button"
-            onClick={() => setNotice(t('routes.comingSoon'))}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-small font-bold text-accent shadow-raised transition-[transform,background-color] active:scale-95"
-          >
-            <Download size={16} aria-hidden="true" />
-            {t('routes.download')}
-          </button>
         </div>
-        {notice && (
-          <p role="status" className="text-caption text-muted">
-            {notice}
-          </p>
-        )}
+        <OfflineRouteCard key={route.id} routeId={route.id} />
 
         <section aria-label={t('routes.stopsList')}>
           <h2 className="font-display text-body font-bold">{t('routes.stopsList')}</h2>
@@ -204,6 +190,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
             })}
           </ol>
         </section>
+        <SavedStopCards key={`saved-${route.id}`} routeId={route.id} />
       </div>
     </Page>
   );

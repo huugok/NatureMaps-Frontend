@@ -9,6 +9,7 @@ import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteList } from '../../services/routes';
 import type { RouteShape, RouteSummary, RouteTheme } from '../../services/routes';
 import { DownloadedZones } from '../../components/OfflineZone'
+import { DownloadedRoutes } from '../../components/OfflineRoute';
 
 /** Rutas: catálogo predefinido del backend (GET /routes). Cada tarjeta lleva
  * nombre, tema, longitud, duración y número de paradas; la ficha abre en
@@ -151,6 +152,7 @@ export function RoutesList() {
           ))}
         </ul>
       )}
+      <DownloadedRoutes />
       <DownloadedZones />
     </Page>
   );
