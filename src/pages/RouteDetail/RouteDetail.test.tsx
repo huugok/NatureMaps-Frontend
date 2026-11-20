@@ -131,6 +131,7 @@ function renderDetail(id = '7', onOpenStop?: (stop: RouteDetailData['stops'][num
 describe('RouteDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    leaflet.created.length = 0
   })
 
   afterEach(() => {

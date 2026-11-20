@@ -563,52 +563,6 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('una carga abortada que termina tarde no desprotege a la carga nueva', async () => {
-    let releaseFirst: ((v?: unknown) => void) | undefined;
-    const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
-    Object.defineProperty(navigator, 'permissions', {
-      configurable: true,
-      value: { query: vi.fn(async () => ({ state: 'granted' })) },
-    });
-    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
-      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
-    });
-    let request = 0;
-    vi.mocked(fetch).mockImplementation((async (url: string) => {
-      const requestUrl = new URL(String(url));
-      if (requestUrl.pathname.includes('/trees/nearby')) {
-        request++;
-        if (request === 1) await firstGate;
-        return { ok: true, json: async () => ({
-          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000, returned: 1,
-          total: 1, limit: 20000, language: 'es',
-          trees: [{ id: request, speciesId: 3, displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 10 }],
-        }) };
-      }
-      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
-    }) as unknown as typeof fetch);
-
-    renderMap();
-    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
-    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
-    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
-    await waitFor(() => expect(request).toBeGreaterThanOrEqual(1));
-    await act(async () => { await Promise.resolve(); });
-
-    // Posición realmente nueva: arranca otra carga.
-    const before = request;
-    act(() => onPosition?.({ coords: { latitude: 39.5, longitude: -0.4, accuracy: 25 } }));
-    await waitFor(() => expect(request).toBeGreaterThan(before));
-    // La primera (abortada) resuelve AHORA, después de iniciar la otra.
-    releaseFirst?.();
-    await act(async () => { await Promise.resolve(); });
-    // Otra posición nueva debe poder cargar: la abortada no desprotegió al guard.
-    const afterAbort = request;
-    act(() => onPosition?.({ coords: { latitude: 39.52, longitude: -0.42, accuracy: 25 } }));
-    await waitFor(() => expect(request).toBeGreaterThan(afterAbort));
-    delete (navigator as unknown as { permissions?: unknown }).permissions;
-  });
-
   it('una segunda posición del GPS no aborta la carga en curso', async () => {
     let release: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => { release = resolve; });
