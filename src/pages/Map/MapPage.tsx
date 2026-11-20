@@ -21,7 +21,7 @@ import { OfflineSavedToast, OfflineZoneCard } from '../../components/OfflineZone
 import type { GreenAreasLayer } from './greenAreasLayer';
 import { addParkMarkers, clusterPlantsByPark } from './parkClusters';
 import type { GreenArea } from '../../types/greenArea';
-import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
+import { addPlantMarkers } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
@@ -443,14 +443,15 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       loadPages().catch(() => {
         // Fallo de red silencioso: el mapa sigue con lo último mostrado.
       }).finally(() => {
+        // Solo la carga vigente puede liberar el guard: una carga abortada que
+        // termina después de iniciar otra no debe desproteger a la nueva.
+        if (plantsAbortRef.current !== controller) return;
         plantsLoadingRef.current = false;
-        if (!controller.signal.aborted) {
-          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-          if (toastHideRef.current) clearTimeout(toastHideRef.current);
-          setPlantProgress(null);
-          setShowPlantToast(false);
-          setToastExiting(false);
-        }
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        if (toastHideRef.current) clearTimeout(toastHideRef.current);
+        setPlantProgress(null);
+        setShowPlantToast(false);
+        setToastExiting(false);
       });
     };
   });
@@ -581,7 +582,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const container = mapElementRef.current;
     if (!map || !container) return;
     const syncLabels = () =>
-      container.classList.toggle('plants-labels-visible', map.getZoom() >= PLANT_LABEL_MIN_ZOOM);
+      container.classList.toggle('plants-labels-visible', map.getZoom() >= 16);
     syncLabels();
     map.on('zoomend', syncLabels);
     return () => {

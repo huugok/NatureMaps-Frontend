@@ -234,7 +234,7 @@ describe('MapPage', () => {
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes('nominatim'))).toHaveLength(1));
   });
 
-  it('908: pinta cada planta del inventario con su icono y su nombre', async () => {
+  it('908: pinta cada planta del inventario con su icono, sin etiqueta de nombre', async () => {
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')
@@ -256,7 +256,7 @@ describe('MapPage', () => {
     const icons = iconCalls.map(([options]) => options).filter((o) => o.className === 'plant-icon');
     expect(icons).toHaveLength(2);
     expect(icons[0].html?.className).toBe('plant-pin');
-    expect(icons[0].html?.querySelector('.plant-pin__label')?.textContent).toBe('Naranjo amargo');
+    expect(icons[0].html?.querySelector('.plant-pin__label')).toBeNull();
     expect(icons[1].html?.className).toBe('plant-pin plant-pin--unidentified');
   });
 
@@ -517,6 +517,52 @@ describe('MapPage', () => {
     expect(leaflet.circleFactory).toHaveBeenCalled();
 
     localStorage.removeItem('naturemaps:radius');
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('una carga abortada que termina tarde no desprotege a la carga nueva', async () => {
+    let releaseFirst: ((v?: unknown) => void) | undefined;
+    const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    let request = 0;
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        request++;
+        if (request === 1) await firstGate;
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000, returned: 1,
+          total: 1, limit: 20000, language: 'es',
+          trees: [{ id: request, speciesId: 3, displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 10 }],
+        }) };
+      }
+      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    await waitFor(() => expect(request).toBeGreaterThanOrEqual(1));
+    await act(async () => { await Promise.resolve(); });
+
+    // Posición realmente nueva: arranca otra carga.
+    const before = request;
+    act(() => onPosition?.({ coords: { latitude: 39.5, longitude: -0.4, accuracy: 25 } }));
+    await waitFor(() => expect(request).toBeGreaterThan(before));
+    // La primera (abortada) resuelve AHORA, después de iniciar la otra.
+    releaseFirst?.();
+    await act(async () => { await Promise.resolve(); });
+    // Otra posición nueva debe poder cargar: la abortada no desprotegió al guard.
+    const afterAbort = request;
+    act(() => onPosition?.({ coords: { latitude: 39.52, longitude: -0.42, accuracy: 25 } }));
+    await waitFor(() => expect(request).toBeGreaterThan(afterAbort));
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 

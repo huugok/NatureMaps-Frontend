@@ -42,15 +42,6 @@ export function createPlantIcon(pin: PlantPin): L.DivIcon {
     root.append(count);
   }
 
-  // Los grupos llevan la pastilla con el recuento;añadir además el nombre
-  // de la especie a cada uno hace el mapa ilegible. El nombre sigue disponible
-  // en el tooltip del marcador.
-  if (pin.count === undefined || pin.count <= 1) {
-    const label = document.createElement('span');
-    label.className = 'plant-pin__label';
-    label.textContent = pin.displayName;
-    root.append(label);
-  }
   return L.divIcon({
     className: 'plant-icon',
     html: root,
@@ -58,9 +49,6 @@ export function createPlantIcon(pin: PlantPin): L.DivIcon {
     iconAnchor: [14, 14],
   });
 }
-
-/** Zoom a partir del cual se escribe el nombre junto al icono. */
-export const PLANT_LABEL_MIN_ZOOM = 16;
 
 /** Dibuja las plantas en una capa propia y devuelve la capa. `popupFor` permite
  * añadir un popup por marcador (vía cercanas: nombre y distancia) y

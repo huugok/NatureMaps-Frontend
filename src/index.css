@@ -363,15 +363,16 @@
   fill-opacity: 0.12;
 }
 
-.plants-labels-visible .plant-pin__label {
-  display: block;
-}
 
 .poi-distance-label {
   display: none;
 }
 
 .plants-labels-visible .poi-distance-label {
+  display: block;
+}
+
+.plants-labels-visible .park-pin__label {
   display: block;
 }
 
@@ -508,7 +509,9 @@
   white-space: nowrap;
 }
 
+/* El nombre de la zona solo se lee de cerca: de lejos tapa el mapa. */
 .park-pin__label {
+  display: none;
   position: absolute;
   top: 50%;
   left: 100%;
