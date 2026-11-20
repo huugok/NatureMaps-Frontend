@@ -460,12 +460,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           offset += response.trees.length;
           more = response.trees.length > 0 && offset < total && total > 0;
           setPlantProgress({ loaded: found.length, total });
+          // Publicación progresiva: cada página entra en cuanto llega, para no
+          // agrupar y pintar las 67k de golpe al final. El filtro por radio y
+          // por zonas hace que cada render trabaje con muchas menos plantas.
+          if (found.length > 0) setPlants([...found]);
         } while (more);
-        if (found.length > 0) {
-          // Una sola publicación: cada setPlants reagrupaba las 67k plantas y
-          // repintaba el mapa, cuatro veces por carga.
-          setPlants(found);
-                  }
       };
       loadPages().catch(() => {
         if (!controller.signal.aborted) setPlantsFailed(true);

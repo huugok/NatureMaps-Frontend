@@ -603,6 +603,32 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('las plantas se pintan página a página, sin esperar a la última', async () => {
+    let releaseSecond: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSecond = resolve; });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        const offset = Number(requestUrl.searchParams.get('offset') ?? 0);
+        if (offset === 1) await gate;
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.4699, longitude: -0.3763 }, radius: 10000,
+          returned: 1, total: 2, limit: 20000, language: 'es',
+          trees: [{ id: offset + 1, speciesId: 3, displayName: `Planta ${offset + 1}`, latitude: 39.47 + offset * 0.001, longitude: -0.37, distance: 100 }],
+        }) };
+      }
+      return { ok: true, json: async () => [] };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    // La primera página ya pinta su planta mientras la segunda está retenida.
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.47, -0.37], expect.objectContaining({ title: 'Planta 1' })), { timeout: 5000 });
+    releaseSecond?.();
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.471, -0.37], expect.objectContaining({ title: 'Planta 2' })), { timeout: 5000 });
+  });
+
   it('el círculo de carga va por el perímetro, está bajo el buscador y se retira al terminar', async () => {
     let releaseSecond: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => { releaseSecond = resolve; });
