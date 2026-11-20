@@ -1,6 +1,7 @@
 import type { FichaDataSource, FichaDetail, FichaImageInfo } from '../services/ficha';
 import type { RouteDetail } from '../services/routes';
 import type { Language } from './language';
+import type { OfflineMapMetadata } from './offlineMap';
 
 export interface RoutePoi {
   id: number;
@@ -12,7 +13,8 @@ export interface RoutePoi {
 }
 
 export interface RoutePacket {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  map?: OfflineMapMetadata;
   language: string;
   revision: string;
   route: RouteDetail;
@@ -32,13 +34,15 @@ export interface OfflineRouteRecord {
   downloadedAt: string;
   bytes: number;
   packet: RoutePacket;
+  /** Referencia al paquete compartido en el store `maps`, por SHA-256. */
+  map?: OfflineMapMetadata;
   /** Los blobs y los datos se confirman juntos, en una sola transacción IDB.
    * Cada ruta posee sus imágenes: borrar/cancelar nunca rompe otra descarga. */
   images: Array<{ url: string; blob: Blob }>;
 }
 
 export interface RouteDownloadProgress {
-  phase: 'content' | 'images' | 'saving';
+  phase: 'content' | 'images' | 'map' | 'saving';
   fraction: number;
   done: number;
   total: number;

@@ -9,6 +9,7 @@ function deps(overrides: Partial<RouteDownloadDeps> = {}): RouteDownloadDeps {
   return {
     store: createMemoryRouteStore(), packet: vi.fn(async () => structuredClone(routePacket)),
     image: vi.fn(async () => new Blob(['photo'], { type: 'image/png' })),
+    map: vi.fn(async (_metadata, _signal, progress) => { progress?.(1); return new Blob([new Uint8Array(127)]); }),
     now: () => new Date('2026-11-20T10:00:00Z'), freeBytes: async () => null, ...overrides,
   };
 }
@@ -23,6 +24,7 @@ describe('descarga completa y atómica de rutas', () => {
     expect(saved.packet.images[0]!.author).toBe('Autor');
     expect(saved.images[0]!.blob.size).toBe(5);
     expect(await dependencies.store.get(7)).toBe(saved);
+    expect((await dependencies.store.map(saved.map!.sha256))!.size).toBe(127);
     expect(progress[0]!.fraction).toBe(0);
     expect(progress.at(-1)!.fraction).toBe(1);
     expect(progress.map((p) => p.fraction)).toEqual(progress.map((p) => p.fraction).sort((a, b) => a - b));
@@ -83,5 +85,28 @@ describe('descarga completa y atómica de rutas', () => {
   it('funciona cuando la ruta no tiene fotos', async () => {
     const dependencies = deps({ packet: async () => ({ ...routePacket, images: [] }) });
     expect((await downloadRoute({ id: 7, lang: 'es' }, dependencies)).images).toEqual([]);
+  });
+
+  it('cancelar durante la descarga del mapa conserva la ruta anterior', async () => {
+    const controller = new AbortController();
+    const dependencies = deps({ map: async (_metadata, signal) => {
+      controller.abort(); signal!.throwIfAborted(); return new Blob();
+    } });
+    const previous = savedRoute();
+    await dependencies.store.put(previous, new Blob(['mapa anterior']));
+    await expect(downloadRoute({ id: 7, lang: 'es', signal: controller.signal }, dependencies)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(await dependencies.store.get(7)).toBe(previous);
+    expect((await dependencies.store.map(previous.map!.sha256))!.size).toBe(13);
+  });
+
+  it('dos rutas comparten el mapa y se elimina solo al borrar la última', async () => {
+    const dependencies = deps();
+    await downloadRoute({ id: 7, lang: 'es' }, dependencies);
+    dependencies.packet = async () => ({ ...routePacket, route: { ...routePacket.route, id: 8 } });
+    await downloadRoute({ id: 8, lang: 'es' }, dependencies);
+    await dependencies.store.delete(7);
+    expect(await dependencies.store.map(routePacket.map!.sha256)).toBeDefined();
+    await dependencies.store.delete(8);
+    expect(await dependencies.store.map(routePacket.map!.sha256)).toBeUndefined();
   });
 });

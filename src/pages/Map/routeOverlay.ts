@@ -112,8 +112,10 @@ export function addRouteOverlay(
 export function fitRouteBounds(map: L.Map, route: RouteDetail): void {
   if (route.path.length >= 2) {
     const bounds = L.latLngBounds(route.path.map((point) => [point.latitude, point.longitude]));
-    map.fitBounds(bounds.pad(0.12));
+    // Al cambiar de pantalla no dejamos una transición de zoom pendiente:
+    // Leaflet 1.x puede terminarla después de desmontar el contenedor.
+    map.fitBounds(bounds.pad(0.12), { animate: false });
     return;
   }
-  map.setView([route.start.latitude, route.start.longitude], 15);
+  map.setView([route.start.latitude, route.start.longitude], 15, { animate: false });
 }

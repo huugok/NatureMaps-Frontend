@@ -10,7 +10,7 @@ import type { OfflineRouteRecord, RouteDownloadProgress } from '../../types/offl
 import type { StringKey } from '../../i18n/strings';
 
 const phaseKeys: Record<RouteDownloadProgress['phase'], StringKey> = {
-  content: 'routeOffline.content', images: 'routeOffline.images', saving: 'offline.phase.saving',
+  content: 'routeOffline.content', images: 'routeOffline.images', map: 'routeOffline.map', saving: 'offline.phase.saving',
 };
 
 export function OfflineRouteCard({ routeId }: { routeId: number }) {
@@ -63,7 +63,7 @@ export function OfflineRouteCard({ routeId }: { routeId: number }) {
     <section aria-label={t('offline.title')} className="rounded-card bg-surface-2 p-4">
       {!supported ? <p className="text-small text-muted">{t('routeOffline.unsupported')}</p> : <>
         {error && <p role="alert" className="mb-2 text-small text-danger">{t(error)}</p>}
-        {record && <p className="mb-2 text-small text-accent">{t('routeOffline.saved', {
+        {record && <p className="mb-2 text-small text-accent">{t(record.map ? 'routeOffline.saved' : 'routeOffline.legacy', {
           size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang,
         })}</p>}
         {progress ? <>

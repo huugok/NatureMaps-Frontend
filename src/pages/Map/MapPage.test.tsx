@@ -178,7 +178,7 @@ describe('MapPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', () => {
+  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', async () => {
     geo.watchPosition.mockImplementation((_success, error) => {
       error({ code: 1, message: 'Permission denied' });
       return 7;
@@ -190,9 +190,9 @@ describe('MapPage', () => {
       center: [39.4699, -0.3763],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     }));
-    expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object));
+    await waitFor(() => expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object)));
     expect(leaflet.markerFactory).not.toHaveBeenCalled();
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
   });
