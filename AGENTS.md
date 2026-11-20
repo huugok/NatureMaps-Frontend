@@ -420,6 +420,14 @@ guardadas y borrado. `offlineRouteStorage.ts` es el único escritor de IndexedDB
 `naturemaps-offline-routes`; datos e imágenes se confirman juntos. Vite genera
 el shell offline para producción. Ejecutar `npm run test:offline-browser` tras
 build para comprobar reapertura sin red (requiere Playwright y Edge o Chrome).
+El contrato actual es `schemaVersion: 2`, con `map` (URL, SHA-256, cobertura y
+tamaño). La descarga verifica el archivo antes del commit. IndexedDB v2 añade
+el store `maps`: una copia por hash, compartida entre rutas y retirada al borrar
+la última referencia, en la misma transacción. Las descargas v1 se conservan
+y piden volver a descargar para incorporar el mapa. `protomaps-leaflet` dibuja
+el PMTiles local en la ficha y en el mapa principal; no descarga teselas OSM.
+La prueba de navegador requiere `NATUREMAPS_TEST_MAP` apuntando al PMTiles real.
+Los archivos cartográficos y las capturas permanecen fuera de Git.
 
 ### Issue tracker
 

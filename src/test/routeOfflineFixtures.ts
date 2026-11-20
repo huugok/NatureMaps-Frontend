@@ -1,7 +1,11 @@
 import type { OfflineRouteRecord, RoutePacket } from '../types/offlineRoute';
 
 export const routePacket: RoutePacket = {
-  schemaVersion: 1, revision: 'revision-1', language: 'es',
+  schemaVersion: 2, revision: 'revision-1', language: 'es',
+  map: { code: 'valencia', sha256: 'a'.repeat(64), bytes: 127, bounds: [-0.52, 39.36, -0.24, 39.62],
+    minZoom: 0, maxZoom: 15, sourceUrl: 'https://build.protomaps.com/20261118.pmtiles',
+    attribution: '© OpenStreetMap contributors · Protomaps', licenseUrl: 'https://www.openstreetmap.org/copyright',
+    url: `/offline-maps/valencia/${'a'.repeat(64)}.pmtiles` },
   route: {
     id: 7, name: 'Ruta de los jardines', theme: 'mixta', shape: 'lineal', lengthCategory: 'corta',
     distanceMeters: 2000, durationSeconds: 1500, description: 'Un paseo botánico.',
@@ -26,5 +30,5 @@ export const routePacket: RoutePacket = {
 
 export function savedRoute(id = 7): OfflineRouteRecord {
   return { routeId: id, lang: 'es', downloadedAt: '2026-11-20T10:00:00Z', bytes: 100,
-    packet: { ...routePacket, route: { ...routePacket.route, id } }, images: [] };
+    packet: { ...routePacket, route: { ...routePacket.route, id } }, images: [], map: routePacket.map };
 }
