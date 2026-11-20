@@ -420,6 +420,12 @@ guardadas y borrado. `offlineRouteStorage.ts` es el único escritor de IndexedDB
 `naturemaps-offline-routes`; datos e imágenes se confirman juntos. Vite genera
 el shell offline para producción. Ejecutar `npm run test:offline-browser` tras
 build para comprobar reapertura sin red (requiere Playwright y Edge o Chrome).
+Cada build identifica su worker mediante una URL versionada. La descarga espera
+a que ese worker esté activado y controle la pestaña; un worker anterior activo
+no garantiza que los assets actuales estén disponibles sin conexión. Se conserva
+también el shell anterior para las pestañas abiertas durante la actualización.
+La prueba de navegador incluye la actualización desde un worker antiguo antes
+de comprobar la recarga completa sin red.
 El contrato actual es `schemaVersion: 2`, con `map` (URL, SHA-256, cobertura y
 tamaño). La descarga verifica el archivo antes del commit. IndexedDB v2 añade
 el store `maps`: una copia por hash, compartida entre rutas y retirada al borrar
