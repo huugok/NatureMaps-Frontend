@@ -44,6 +44,7 @@ const leaflet = vi.hoisted(() => {
     flyTo: vi.fn(),
     fitBounds: vi.fn(),
     getZoom: vi.fn(() => 15),
+    getCenter: vi.fn(() => ({ lat: 39.45, lng: -0.36 })),
     getBounds: vi.fn(() => ({
       getWest: () => -0.5,
       getNorth: () => 39.6,

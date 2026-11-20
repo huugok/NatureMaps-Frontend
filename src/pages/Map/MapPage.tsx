@@ -222,6 +222,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // por React (un setState aquí rerenderiza el panel y vuelve a agrupar 67k
   // plantas en cada movimiento).
   const repaintPlantsRef = useRef<() => void>(() => undefined);
+  const repaintPoisRef = useRef<() => void>(() => undefined);
+  const paintedCenterRef = useRef<Coordinates | null>(null);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
@@ -725,15 +727,34 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }).addTo(map);
   }, [clearGroupArea]);
 
-  // Solo se repinta al hacer zoom (cambia el muestreo). Los marcadores se
-  // mueven con Leaflet al arrastrar: recrear cientos de iconos en cada
-  // `moveend` era lo que congelaba el mapa al desplazarlo.
+  // Repintado al desplazarse: Leaflet mueve los marcadores por sí solo, pero
+  // el muestreo depende del viewport, así que al soltar hay que recalcular.
+  // Con retardo y umbral para no reconstruir cientos de iconos en cada paso.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const repaint = () => repaintPlantsRef.current();
-    map.on('zoomend', repaint);
-    return () => { map.off('zoomend', repaint); };
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const repaint = (force = false) => {
+      const center = map.getCenter();
+      const point = { latitude: center.lat, longitude: center.lng };
+      const last = paintedCenterRef.current;
+      if (!force && last && metersBetween(last, point) < 300) return;
+      paintedCenterRef.current = point;
+      repaintPlantsRef.current();
+      repaintPoisRef.current();
+    };
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; repaint(); }, 250);
+    };
+    const onZoom = () => { if (timer) { clearTimeout(timer); timer = null; } repaint(true); };
+    map.on('moveend', schedule);
+    map.on('zoomend', onZoom);
+    return () => {
+      if (timer) clearTimeout(timer);
+      map.off('moveend', schedule);
+      map.off('zoomend', onZoom);
+    };
   }, []);
 
   // Agrupación fina: se calcula UNA VEZ cuando cambian las plantas (o la capa
@@ -864,9 +885,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    const paint = () => {
     poisLayerRef.current?.remove();
+    const bounds = map.getBounds();
     const layer = L.layerGroup();
-    pois.forEach((poi) => {
+    pois.filter((poi) => bounds.contains([poi.lat, poi.lon])).forEach((poi) => {
       const marker = L.circleMarker([poi.lat, poi.lon], { radius: 8, color: '#8b5e20', fillColor: '#c58a31', fillOpacity: 1, weight: 2 });
       // Tooltip al pasar por encima, no permanente: con cientos de POIs, un
       // nodo DOM visible por punto hunde el render del mapa.
@@ -878,7 +901,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       marker.addTo(layer);
     });
     poisLayerRef.current = layer.addTo(map);
-    return () => { layer.remove(); };
+    };
+    repaintPoisRef.current = paint;
+    paint();
+    return () => { repaintPoisRef.current = () => undefined; poisLayerRef.current?.remove(); };
   }, [pois, t, lang]);
 
   // «Ver en el mapa» (ficha, RF3): centra el ejemplar más cercano de la especie
