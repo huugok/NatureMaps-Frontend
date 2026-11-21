@@ -1358,7 +1358,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           >
             <span className="h-1.5 w-12 rounded-full bg-line-strong" aria-hidden="true" />
           </button>
-          <p className="mb-2 text-small font-semibold text-ink">{t('map.nearbyTitle')}</p>
+          <p className="mb-2 text-center text-small font-semibold text-ink">{t('map.nearbyTitle')}</p>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {/* Cerrado = solo la estructura: montar cientos de artículos en cada
                 render de progreso era el 24 % de las muestras de CPU. */}
