@@ -1,5 +1,8 @@
 import { apiGet } from './api';
 import type { Mode } from '../types';
+import { repairTextEncoding } from '../i18n/format';
+import { isUnreachable } from './offlineError';
+import { offlineNearbyTrees } from './offlineRead';
 
 // Plantas cercanas al usuario (GET /trees/nearby del backend).
 // El backend devuelve `distance` en metros (línea recta) y ordena de más
@@ -16,13 +19,17 @@ export interface NearbyPlant {
   longitude: number;
   /** Distancia en línea recta al punto consultado, en metros. */
   distance: number;
+  /** Zona verde que contiene el ejemplar (NM-08); null en arbolado viario. */
+  greenAreaId?: number | null;
 }
 
 export interface NearbyResponse {
   center: { latitude: number; longitude: number };
   radius: number;
   returned: number;
-  limit: number;
+  /** Total de plantas del radio, para el indicador de progreso. */
+  total: number;
+  limit: number | null;
   language: string;
   trees: NearbyPlant[];
 }
@@ -57,15 +64,35 @@ export function saveNearbyRadius(meters: number): void {
 }
 
 export async function fetchNearbyTrees(
-  params: { latitude: number; longitude: number; radius: number; limit?: number; lang: string },
+  params: { latitude: number; longitude: number; radius: number; limit?: number; offset?: number; lang: string },
   signal?: AbortSignal,
 ): Promise<NearbyResponse> {
   const query = new URLSearchParams({
     lat: String(params.latitude),
     lon: String(params.longitude),
     radius: String(params.radius),
-    limit: String(params.limit ?? 100),
     lang: params.lang,
   });
-  return apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal);
+  // Sin límite explícito el backend devuelve todas las plantas del radio.
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
+  // Mismo arreglo de codificación para lo que llega de la red y para la copia descargada.
+  const repair = (response: NearbyResponse): NearbyResponse => ({
+    ...response,
+    trees: response.trees.map((tree) => ({
+      ...tree,
+      commonName: tree.commonName ? repairTextEncoding(tree.commonName) : null,
+      displayName: repairTextEncoding(tree.displayName),
+      scientificName: tree.scientificName ? repairTextEncoding(tree.scientificName) : null,
+      reportedScientificName: tree.reportedScientificName ? repairTextEncoding(tree.reportedScientificName) : null,
+    })),
+  });
+  try {
+    return repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
+  } catch (error) {
+    // Sin red, las plantas de las zonas descargadas; sin zonas descargadas, el error de siempre.
+    const saved = isUnreachable(error) ? await offlineNearbyTrees(params) : null;
+    if (saved) return repair(saved);
+    throw error;
+  }
 }

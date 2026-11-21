@@ -3,6 +3,44 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { Search } from './Search'
 
+const { speciesCatalog } = vi.hoisted(() => ({ speciesCatalog: [
+  {
+    id: 1,
+    scientificName: 'Citrus × aurantium',
+    names: [{ name: 'Naranjo', language: 'es' }],
+    content: null,
+    profile: null,
+    enrichment: null,
+    image: null,
+  },
+  {
+    id: 2,
+    scientificName: 'Citrus limon',
+    names: [{ name: 'Limonero', language: 'es' }],
+    content: null,
+    profile: null,
+    enrichment: null,
+    image: null,
+  },
+  {
+    id: 3,
+    scientificName: 'Olea europaea',
+    names: [{ name: 'Olivo', language: 'es' }],
+    content: null,
+    profile: null,
+    enrichment: null,
+    image: null,
+  },
+]}))
+
+vi.mock('../../services/ficha', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/ficha')>()
+  return {
+    ...actual,
+    getAllSpeciesList: vi.fn().mockResolvedValue(speciesCatalog),
+  }
+})
+
 describe('Search', () => {
   afterEach(() => {
     delete (navigator as unknown as { geolocation?: unknown }).geolocation;
@@ -18,12 +56,57 @@ describe('Search', () => {
     expect(input).toHaveValue('olivo')
   })
 
-  it('ofrece activar la ubicación cuando no hay permiso para ella', async () => {
+  it('carga el catálogo completo al entrar aunque todavía no haya texto', async () => {
     renderWithProviders(<Search />)
-    expect(await screen.findByRole('button', { name: 'Activar ubicación' })).toBeInTheDocument()
+
+    expect(await screen.findByRole('button', { name: /Naranjo.*Citrus × aurantium/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Limonero.*Citrus limon/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Olivo.*Olea europaea/i })).toBeInTheDocument()
   })
 
-  it('agrupa las plantas cercanas por especie en desplegables con su distancia', async () => {
+  it('busca por nombre común y científico sin distinguir mayúsculas ni acentos', async () => {
+    renderWithProviders(<Search />)
+    const input = screen.getByPlaceholderText('Buscar una planta…')
+    await screen.findByRole('button', { name: /Naranjo.*Citrus × aurantium/i })
+
+    fireEvent.change(input, { target: { value: 'NARANJO' } })
+    expect(screen.getByRole('button', { name: /Naranjo.*Citrus × aurantium/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Limonero.*Citrus limon/i })).not.toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: 'citrus' } })
+    expect(screen.getByRole('button', { name: /Naranjo.*Citrus × aurantium/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Limonero.*Citrus limon/i })).toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: 'limónero' } })
+    expect(screen.getByRole('button', { name: /Limonero.*Citrus limon/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Olivo.*Olea europaea/i })).not.toBeInTheDocument()
+  })
+
+  it('muestra un mensaje explícito cuando la búsqueda no encuentra especies', async () => {
+    renderWithProviders(<Search />)
+    await screen.findByRole('button', { name: /Naranjo.*Citrus × aurantium/i })
+    fireEvent.change(screen.getByPlaceholderText('Buscar una planta…'), { target: { value: 'zzzz' } })
+
+    expect(screen.getByRole('status')).toHaveTextContent('No se han encontrado plantas')
+    expect(screen.queryByRole('button', { name: /Naranjo/i })).not.toBeInTheDocument()
+  })
+
+  it('devuelve la especie seleccionada al pulsar un resultado', async () => {
+    const onSelectSpecies = vi.fn()
+    renderWithProviders(<Search onSelectSpecies={onSelectSpecies} />)
+    await screen.findByRole('button', { name: /Naranjo.*Citrus × aurantium/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Naranjo.*Citrus × aurantium/i }))
+
+    expect(onSelectSpecies).toHaveBeenCalledWith(speciesCatalog[0])
+  })
+
+  it('ofrece activar la ubicación cuando no hay permiso para ella', async () => {
+    renderWithProviders(<Search />)
+    expect(await screen.findByRole('button', { name: /Activar ubicación/ })).toBeInTheDocument()
+  })
+
+  it('ordena primero las especies con ubicaciones cercanas y muestra su distancia', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: async () => ({ state: 'granted' }) },
@@ -41,21 +124,17 @@ describe('Search', () => {
       json: async () => ({
         center: { latitude: 39.47, longitude: -0.37 },
         radius: 1000,
-        returned: 3,
+        returned: 2,
         limit: 100,
         language: 'es',
         trees: [
           {
-            id: 1, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
-            displayName: 'Almez', latitude: 39.47, longitude: -0.37, distance: 250,
+            id: 3, speciesId: 3, scientificName: 'Olea europaea', commonName: 'Olivo',
+            displayName: 'Olivo', latitude: 39.47, longitude: -0.37, distance: 250,
           },
           {
-            id: 2, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
-            displayName: 'Almez', latitude: 39.47, longitude: -0.37, distance: 260,
-          },
-          {
-            id: 3, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
-            displayName: 'Morera', latitude: 39.47, longitude: -0.37, distance: 2500,
+            id: 1, speciesId: 1, scientificName: 'Citrus × aurantium', commonName: 'Naranjo',
+            displayName: 'Naranjo', latitude: 39.47, longitude: -0.37, distance: 260,
           },
         ],
       }),
@@ -63,22 +142,13 @@ describe('Search', () => {
 
     renderWithProviders(<Search />)
 
-    expect(await screen.findByRole('heading', { name: 'Cerca de ti' })).toBeInTheDocument()
-
-    // Una fila desplegable por especie, la más cercana primero, con recuento
-    // de ejemplares y la distancia del más próximo.
-    const almezRow = screen.getByText('Almez').closest('summary')
-    expect(almezRow).toHaveTextContent('2')
-    expect(almezRow).toHaveTextContent('250 m')
-    const moreraRow = screen.getByText('Morera').closest('summary')
-    expect(moreraRow).toHaveTextContent('2,5 km')
-
-    // Al abrir el desplegable se listan los ejemplares con su distancia.
-    fireEvent.click(almezRow!)
-    expect(almezRow!.parentElement).toHaveAttribute('open')
-    const specimenItems = almezRow!.parentElement!.querySelectorAll('ul > li')
-    expect(specimenItems).toHaveLength(2)
-    expect(screen.getByText('260 m')).toBeInTheDocument()
+    await waitFor(() => {
+      const speciesResults = screen.getAllByRole('button').filter((button) => button.textContent?.includes('Citrus') || button.textContent?.includes('Olea'))
+      expect(speciesResults[0]).toHaveTextContent('Olivo')
+    })
+    const speciesResults = screen.getAllByRole('button').filter((button) => button.textContent?.includes('Citrus') || button.textContent?.includes('Olea'))
+    expect(speciesResults[0]).toHaveTextContent('250 m')
+    expect(speciesResults[1]).toHaveTextContent('260 m')
   })
 
   it('en modo aventura usa el radio fijo de 1000 m aunque el deslizador esté a 5000', async () => {

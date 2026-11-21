@@ -1,6 +1,7 @@
 import { apiGet } from './api';
 import type { Language } from '../types/language';
 import type { PlantPin } from '../types/plant';
+import { repairTextEncoding } from '../i18n/format';
 
 // Plantas del mapa (F03.1). Consume `GET /trees` del backend, que pagina de 200
 // en 200 y todavía no filtra por zona; por eso se limita el total que se carga.
@@ -19,6 +20,7 @@ interface TreesResponse {
     reportedScientificName: string | null;
     latitude: number;
     longitude: number;
+    greenAreaId?: number | null;
   }>;
 }
 
@@ -37,12 +39,13 @@ export async function fetchPlantPins(lang: Language, signal?: AbortSignal): Prom
     for (const tree of page.trees) {
       pins.push({
         id: tree.id,
-        displayName: tree.displayName,
-        scientificName: tree.scientificName ?? tree.reportedScientificName,
+        displayName: repairTextEncoding(tree.displayName),
+        scientificName: tree.scientificName ? repairTextEncoding(tree.scientificName) : tree.reportedScientificName ? repairTextEncoding(tree.reportedScientificName) : null,
         latitude: tree.latitude,
         longitude: tree.longitude,
         identified: tree.speciesId !== null,
         speciesId: tree.speciesId,
+        greenAreaId: tree.greenAreaId ?? null,
       });
     }
     offset = page.nextOffset;

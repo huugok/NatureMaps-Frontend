@@ -23,7 +23,10 @@ export interface FichaRouteProps {
   onRetryDetail: () => void;
   onPrevious?: (() => void) | undefined;
   onNext?: (() => void) | undefined;
-  onViewOnMap: (speciesId?: number) => void;
+  onViewOnMap: (speciesId?: number, neighborhood?: string) => void;
+  onViewNeighborhoodOnMap: (speciesId: number, neighborhood: string) => void;
+  onOpenGreenArea?: ((groupSlug: string) => void) | undefined;
+  onOpenFloraArticle?: (() => void) | undefined;
 }
 
 function FichaEstado({ mensaje }: { mensaje: string }) {
@@ -82,6 +85,9 @@ export function FichaRoute({
   onPrevious,
   onNext,
   onViewOnMap,
+  onViewNeighborhoodOnMap,
+  onOpenGreenArea,
+  onOpenFloraArticle,
 }: FichaRouteProps) {
   const { t } = useApp();
 
@@ -113,8 +119,11 @@ export function FichaRoute({
         total={list.items.length}
         onBack={onBack}
         onViewOnMap={onViewOnMap}
+        onViewNeighborhoodOnMap={onViewNeighborhoodOnMap}
         {...(onPrevious !== undefined ? { onPrevious } : {})}
         {...(onNext !== undefined ? { onNext } : {})}
+        {...(onOpenGreenArea !== undefined ? { onOpenGreenArea } : {})}
+        {...(onOpenFloraArticle !== undefined ? { onOpenFloraArticle } : {})}
       />
     </div>
   );

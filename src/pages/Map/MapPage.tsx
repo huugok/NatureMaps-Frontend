@@ -1,20 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LocateFixed, MapPinOff, Search, X, ChevronUp, ChevronDown, Leaf, Landmark } from 'lucide-react';
+import { ChevronDown, ChevronUp, Landmark, Leaf, LocateFixed, MapPinOff, Search, Trash2, Trees, X } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
-import { formatDistance } from '../../i18n/format';
+import { formatDistance, repairTextEncoding } from '../../i18n/format';
 import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
-import { fetchPlantPins } from '../../services/plants';
+import { fetchRouteDetail } from '../../services/routes';
+import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea } from '../../services/plantGroups';
 import type { PlantPin } from '../../types/plant';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { fetchGreenAreaPlants, fetchGreenAreas } from '../../services/greenAreas';
+import { addGreenAreasLayer } from './greenAreasLayer';
+import { addOfflineTileLayer } from './offlineTileLayer';
+import { OfflineSavedToast, OfflineZoneCard } from '../../components/OfflineZone';
+import type { GreenAreasLayer } from './greenAreasLayer';
+import { addParkMarkers, clusterPlantsByPark } from './parkClusters';
+import type { GreenArea } from '../../types/greenArea';
+import { addPlantMarkersProgressively } from './plantMarkers';
+import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
+// Páginas grandes: con 67k plantas, 5k por página son 14 viajes y ~10 s;
+// 20k son 4 viajes y ~5 s, con 4 pasos reales para el anillo.
+const NEARBY_PAGE_SIZE = 20000;
+// Muestreo del mapa: se cargan todas las plantas del radio, pero solo se pintan
+// las visibles y se agrupan hasta no pasar de este número de marcadores.
+const MAX_PLANT_MARKERS = 150;
+// Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
+// localStorage: al recargar la página se pierde, igual que el resto de la vista.
+let paintedRouteId: number | null = null;
+export function clearPaintedRoute() { paintedRouteId = null; }
 const LOCATION_COLOR = '#3b7ddd';
 
 interface Coordinates {
@@ -57,7 +76,6 @@ function zoomToKeepUserAndPlaceVisible(map: L.Map, user: Coordinates, place: L.L
 const NEARBY_REFRESH_METERS = 200;
 // Círculo mínimo pintado al ir a un ejemplar suelto («Ver en el mapa»), para
 // que el punto sea localizable a simple vista.
-const FOCUS_RADIUS_METERS = 30;
 const POI_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const poiAreaCache = new Map<string, { savedAt: number; items: Array<{id: number; name: string; lat: number; lon: number; distance: number}> }>();
@@ -68,6 +86,61 @@ function poiCacheKey(center: Coordinates, radius: number): string {
 
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+}
+
+function normalizeLocationName(value: string): string {
+  return repairTextEncoding(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim();
+}
+
+/** Junta ejemplares con coordenadas prácticamente iguales en un único pin. */
+function groupSelectedLocations(pins: PlantPin[]): PlantPin[] {
+  const cells = new Map<string, PlantPin[]>();
+  for (const pin of pins) {
+    // Una celda de 0,0001° equivale aproximadamente a 8–11 metros en València.
+    const key = `${Math.round(pin.latitude * 10_000)}:${Math.round(pin.longitude * 10_000)}`;
+    const cell = cells.get(key);
+    if (cell) cell.push(pin);
+    else cells.set(key, [pin]);
+  }
+  return [...cells.values()].map((cell) => {
+    if (cell.length === 1) return cell[0];
+    return {
+      ...cell[0],
+      latitude: cell.reduce((total, pin) => total + pin.latitude, 0) / cell.length,
+      longitude: cell.reduce((total, pin) => total + pin.longitude, 0) / cell.length,
+      count: cell.length,
+    };
+  });
+}
+
+/** Marcadores canvas para lotes grandes de ubicaciones de una ficha. */
+function addSpeciesLocationMarkers(map: L.Map, pins: PlantPin[], onOpen?: (pin: PlantPin) => void): L.LayerGroup {
+  const layer = L.layerGroup();
+  const renderer = L.canvas({ padding: 0.5 });
+  const selection = getComputedStyle(document.documentElement).getPropertyValue('--color-selection').trim();
+  const surface = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim();
+  for (const pin of pins) {
+    const marker = L.circleMarker([pin.latitude, pin.longitude], {
+      renderer,
+      radius: pin.count && pin.count > 1 ? Math.min(12, 7 + Math.log2(pin.count)) : 6,
+      weight: 2,
+      color: surface,
+      fillColor: selection,
+      fillOpacity: 0.9,
+    });
+    if (pin.count && pin.count > 1) {
+      marker.bindTooltip(String(pin.count), {
+        permanent: true,
+        direction: 'center',
+        className: 'selected-species-count',
+      });
+    } else {
+      marker.bindTooltip(pin.displayName, { direction: 'top', offset: L.point(0, -8) });
+    }
+    if (onOpen) marker.on('click', () => onOpen(pin));
+    marker.addTo(layer);
+  }
+  return layer.addTo(map);
 }
 
 export interface MapPageProps {
@@ -83,31 +156,113 @@ export interface MapPageProps {
  */
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const { t, lang } = useApp();
-  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  // Ruta pintada: el parámetro `verRuta` manda al iniciarla; si ya no está
+  // (el usuario cambió de pestaña), se recupera la última pintada. Solo se
+  // borra con «Limpiar mapa» o al iniciar otra.
+  const verRutaRaw = searchParams.get('verRuta');
+  const paramRouteId = verRutaRaw !== null && /^\d+$/.test(verRutaRaw) ? Number(verRutaRaw) : null;
+  const [savedRouteId, setSavedRouteId] = useState<number | null>(paintedRouteId);
+  const routeId = paramRouteId ?? savedRouteId;
+  const routeVisible = routeId !== null;
+  const navigate = useNavigate();
+  // Zonas verdes (NM-08, PA 3011): capa apagada por defecto para no cargar el
+  // mapa; `?zona=<grupo>` la enciende, resalta ese parque y lo encuadra.
+  const zoneParam = searchParams.get('zona');
+  const selectedZone = zoneParam !== null && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(zoneParam) ? zoneParam : null;
+  const [greenAreasToggled, setGreenAreasToggled] = useState(false);
+  // Con el filtro de especie de un parque activo, «Ocultar parques» solo quita
+  // el contorno: `?zona=` se queda en la URL porque hace falta para pedir los
+  // ejemplares, y por eso la capa se apaga con este estado y no con la URL.
+  const [zoneLayerHidden, setZoneLayerHidden] = useState(false);
+  // Sube cada vez que la capa queda pintada: avisa al efecto que resalta el parque.
+  const [greenAreasVersion, setGreenAreasVersion] = useState(0);
+  const [greenAreasFailed, setGreenAreasFailed] = useState(false);
+  const greenAreasLayerRef = useRef<GreenAreasLayer | null>(null);
+  // Zonas verdes cargadas: la capa del interruptor las dibuja, y el mapa las
+  // usa además para agrupar por parque los pines de plantas (NM-08).
+  const [greenAreas, setGreenAreas] = useState<GreenArea[] | null>(null);
+  // Parque que estaba resaltado al apagar la capa: al volver a encenderla se
+  // vuelve a resaltar en lugar de quedarse sin contorno.
+  const [rememberedZone, setRememberedZone] = useState<string | null>(null);
+  // Parques cuya tarjeta de descarga el usuario ha cerrado, y aviso de «descargado».
+  const [dismissedDownloads, setDismissedDownloads] = useState<string[]>([]);
+  const [savedToast, setSavedToast] = useState<string | null>(null);
+  const closeSavedToast = useCallback(() => setSavedToast(null), []);
+  // Zona resaltada (`?zona=`): su caja reúne todos los polígonos del parque y
+  // permite descargarla para usarla sin conexión desde el propio mapa.
+  const selectedZoneBox = useMemo(() => {
+    const parts = selectedZone ? (greenAreas ?? []).filter((area) => area.groupSlug === selectedZone) : [];
+    if (parts.length === 0) return null;
+    return {
+      bbox: [
+        Math.min(...parts.map((area) => area.bbox[0])), Math.min(...parts.map((area) => area.bbox[1])),
+        Math.max(...parts.map((area) => area.bbox[2])), Math.max(...parts.map((area) => area.bbox[3])),
+      ] as [number, number, number, number],
+      plants: parts.reduce((total, area) => total + (area.plants ?? 0), 0),
+    };
+  }, [selectedZone, greenAreas]);
+  const parksLayerRef = useRef<L.LayerGroup | null>(null);
+  // Por debajo del zoom de parque, las plantas de una zona verde se agrupan en
+  // un solo marcador: en Viveros o el Turia son cientos y tapan el mapa.
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const searchAreaCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
+  const cancelPlantFramesRef = useRef<(() => void) | null>(null);
+  const selectedSpeciesLayerRef = useRef<L.LayerGroup | null>(null);
   const poisLayerRef = useRef<L.LayerGroup | null>(null);
   const locatedItemRef = useRef<L.Circle | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const routeAbortRef = useRef<AbortController | null>(null);
+  // Repintado de la capa de plantas: lo llama Leaflet en `moveend` sin pasar
+  // por React (un setState aquí rerenderiza el panel y vuelve a agrupar 67k
+  // plantas en cada movimiento).
+  const repaintPlantsRef = useRef<() => void>(() => undefined);
+  const repaintPoisRef = useRef<() => void>(() => undefined);
+  const paintedCenterRef = useRef<Coordinates | null>(null);
   const groupAreasRef = useRef<Map<number, GroupArea>>(new Map());
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
-  const followUserRef = useRef(true);
+  // Centrar al entrar es puntual: se omite si la URL trae `verRuta` (la ruta
+  // manda), `verEspecie` (manda el ejemplar) o `zona` (manda el parque).
+  // El navbar y «Ver el mapa» del inicio piden el centrado con centerRequest,
+  // aunque MapPage siga montado o haya una ruta guardada.
+  const followUserRef = useRef(paramRouteId === null && !searchParams.has('verEspecie') && selectedZone === null);
   const keepBothVisibleRef = useRef(false);
+  // `onOpenPlant` llega por props y cambia de identidad: se lee por ref para no
+  // redibujar las capas (y la ruta) en cada render de App.
+  const onOpenPlantRef = useRef(onOpenPlant);
+  useEffect(() => {
+    onOpenPlantRef.current = onOpenPlant;
+  }, [onOpenPlant]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState('');
   const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
   const [plantsFailed, setPlantsFailed] = useState(false);
-  const [focusFailed, setFocusFailed] = useState(false);
+  const [focusMessage, setFocusMessage] = useState('');
+  const [focusLoading, setFocusLoading] = useState(false);
+  const [selectedSpeciesName, setSelectedSpeciesName] = useState('');
+  const [selectedSpeciesLocationCount, setSelectedSpeciesLocationCount] = useState(0);
+  const [hiddenSpeciesId, setHiddenSpeciesId] = useState<number | null>(null);
+  // «Ver en el mapa» desde la ficha de un parque (`?zona=&verEspecie=`): el mapa
+  // enseña solo los ejemplares de esa especie dentro del parque, sin las plantas
+  // cercanas al usuario, para que quede limpio aunque el usuario esté lejos.
+  const speciesRaw = searchParams.get('verEspecie');
+  const zoneSpeciesId = selectedZone !== null && speciesRaw !== null && /^\d+$/.test(speciesRaw) ? Number(speciesRaw) : null;
+  const greenAreasOn = !(zoneLayerHidden && zoneSpeciesId !== null) && (greenAreasToggled || selectedZone !== null);
+  useEffect(() => {
+    if (zoneSpeciesId === null) setZoneLayerHidden(false);
+  }, [zoneSpeciesId]);
+  const [zoneSpecies, setZoneSpecies] = useState<{ name: string; pins: PlantPin[] } | null>(null);
+  const [zoneSpeciesFailed, setZoneSpeciesFailed] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
-  const [chosenArea, setChosenArea] = useState(false);
   const [pois, setPois] = useState<Array<{id: number; name: string; lat: number; lon: number; distance: number}>>([]);
   const [areaLoading, setAreaLoading] = useState(false);
   const [poiLoading, setPoiLoading] = useState(false);
@@ -121,8 +276,20 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // en cuanto hay posición, las cercanas al usuario con parámetros por modo.
   const [radius] = useState(readNearbyRadius);
   const [plants, setPlantsState] = useState<PlantPin[] | null>(null);
+  const [plantProgress, setPlantProgress] = useState<{ loaded: number, total: number } | null>(null);
+  const [showPlantToast, setShowPlantToast] = useState(false);
+  const [toastExiting, setToastExiting] = useState(false);
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plantsRef = useRef<PlantPin[] | null>(null);
+  // Resultado de «Explorar cerca», separado de los pines del mapa: un área sin
+  // ejemplares deja la lista vacía, pero el mapa conserva lo que ya mostraba.
+  const [areaPlants, setAreaPlants] = useState<PlantPin[] | null>(null);
   const plantsAbortRef = useRef<AbortController | null>(null);
+  const plantsLoadingRef = useRef(false);
+  const lastRequestedCenterRef = useRef<Coordinates | null>(null);
+  const speciesFocusRequestRef = useRef(0);
   const lastFetchCenterRef = useRef<Coordinates | null>(null);
   const {
     status: locationPermission,
@@ -142,16 +309,19 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     areaRequestRef.current = controller;
     setAreaLoading(true);
     setAreaFailed(false);
-    // Conserva la misma densidad que el mapa original: 100 ejemplares por km
-    // de radio, con el máximo del backend para radios mayores.
-    const limit = 1000;
-    fetchNearbyTrees({ latitude: center.latitude, longitude: center.longitude, radius: searchRadius, limit, lang }, controller.signal)
-      .then((response) => setPlants(response.trees.map((plant) => ({
-        id: plant.id, displayName: plant.displayName, scientificName: plant.scientificName ?? plant.reportedScientificName,
-        latitude: plant.latitude, longitude: plant.longitude, identified: plant.speciesId !== null,
-        speciesId: plant.speciesId, distance: plant.distance,
-      }))))
-      .catch(() => { if (!controller.signal.aborted) { setPlants([]); setAreaFailed(true); } })
+    fetchNearbyTrees({ latitude: center.latitude, longitude: center.longitude, radius: searchRadius, lang }, controller.signal)
+      .then((response) => {
+        const found = response.trees.map((plant) => ({
+          id: plant.id, displayName: plant.displayName, scientificName: plant.scientificName ?? plant.reportedScientificName,
+          latitude: plant.latitude, longitude: plant.longitude, identified: plant.speciesId !== null,
+          speciesId: plant.speciesId, distance: plant.distance,
+          greenAreaId: plant.greenAreaId ?? null,
+        }));
+        // El panel de «Explorar cerca» tiene su propio estado: no debe
+        // sustituir a las plantas del mapa.
+        setAreaPlants(found);
+      })
+      .catch(() => { if (!controller.signal.aborted) { setAreaPlants([]); setAreaFailed(true); } })
       .finally(() => { if (!controller.signal.aborted) setAreaLoading(false); });
     const cachedPois = poiAreaCache.get(poiCacheKey(center, searchRadius));
     if (cachedPois && Date.now() - cachedPois.savedAt < POI_CACHE_TTL_MS) {
@@ -191,8 +361,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   }, [lang, radius, setPlants]);
 
   useEffect(() => {
-    if (locatedPosition && !chosenArea) loadArea(locatedPosition, radius);
-  }, [locatedPosition, chosenArea, loadArea, radius]);
+    if (locationPermission === null) return;
+    const center = locatedPosition ?? VALENCIA;
+    loadArea(center, locatedPosition ? radius : 10000);
+  }, [locationPermission, locatedPosition, loadArea, radius]);
 
   // Radio efectivo de cercanas, vivo para updateUserLocation (memoizado sin
   // dependencias, como el cargador de abajo).
@@ -203,39 +375,126 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
   // Cargador cercanas reasignado tras cada render para que updateUserLocation
   // (memoizado) use siempre el radio, idioma y modo vigentes.
+  /** Abre (o reabre al tocar el círculo) la tarjeta de carga durante 3 s. */
+  const openPlantToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    if (toastHideRef.current) clearTimeout(toastHideRef.current);
+    setToastExiting(false);
+    setShowPlantToast(true);
+    setToastKey((key) => key + 1); // remonta el nodo para repetir la animación
+    toastTimerRef.current = setTimeout(() => setToastExiting(true), 3000);
+    toastHideRef.current = setTimeout(() => {
+      setShowPlantToast(false);
+      setToastExiting(false);
+    }, 3500);
+  }, []);
+
+  /** Marca de ubicación y círculo azul: solo existen si hay GPS. */
+  const drawUser = useCallback((coords: Coordinates) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const point: L.LatLngExpression = [coords.latitude, coords.longitude];
+    if (userMarkerRef.current) userMarkerRef.current.setLatLng(point);
+    else {
+      userMarkerRef.current = L.marker(point, {
+        icon: userLocationIcon, keyboard: false, interactive: false, zIndexOffset: 1000,
+      }).addTo(map);
+    }
+    if (searchAreaCircleRef.current) {
+      searchAreaCircleRef.current.setLatLng(point).setRadius(effectiveRadiusRef.current);
+    } else {
+      searchAreaCircleRef.current = L.circle(point, {
+        radius: effectiveRadiusRef.current, color: LOCATION_COLOR, fillColor: LOCATION_COLOR,
+        fillOpacity: 0.12, weight: 1, interactive: false,
+      }).addTo(map);
+    }
+  }, []);
+
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
+    // Esperamos a que se resuelva el permiso: mientras `status` es null no se
+    // pinta nada. Con o sin GPS se carga el inventario completo; el círculo
+    // azul decidirá después qué parte se pinta.
+    if (locationPermission === null) return;
     loadPlantsRef.current = (coords: Coordinates) => {
-      const modeRadius = radius;
-      // Regla de tres: 100 plantas por cada 1000 m de radio.
-      const modeLimit = Math.max(1, Math.round(modeRadius / 10));
+      const modeRadius = 10000;
+      // Sin regla de 100 plantas por km: las plantas cercanas se agrupan por
+      // especie, así que se piden todas las que entren en el radio.
       const last = lastFetchCenterRef.current;
-      if (last && plantsRef.current !== null && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
-      plantsAbortRef.current?.abort();
+      // Con la lista ya poblada basta con no repetir la consulta en cada paso;
+      // si está vacía (fuera de cobertura) se vuelve a intentar al moverse.
+      const loaded = plantsRef.current !== null && plantsRef.current.length > 0;
+      lastRequestedCenterRef.current = coords;
+      if (last && (loaded || plantsLoadingRef.current) && metersBetween(last, coords) < NEARBY_REFRESH_METERS) return;
+      // Si ya se está cargando, NO la abortamos: 67k plantas se pidieron para
+      // una posición y deben terminar. La siguiente posición se atenderá al
+      // terminar, en lugar de reiniciar la descarga una y otra vez.
+      if (plantsLoadingRef.current) return;
+      plantsLoadingRef.current = true;
       const controller = new AbortController();
       plantsAbortRef.current = controller;
       lastFetchCenterRef.current = coords;
-      fetchNearbyTrees(
-        { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, limit: modeLimit, lang },
-        controller.signal,
-      )
-        .then((response) => {
-          if (!controller.signal.aborted) {
-            setPlants(response.trees.map((plant) => ({
-              id: plant.id,
-              displayName: plant.displayName,
-              scientificName: plant.scientificName ?? plant.reportedScientificName,
-              latitude: plant.latitude,
-              longitude: plant.longitude,
-              identified: plant.speciesId !== null,
-              speciesId: plant.speciesId,
-              distance: plant.distance,
-            })));
-          }
-        })
-        .catch(() => {
-          // Fallo de red silencioso: el mapa sigue con lo último mostrado.
-        });
+      // La rueda aparece ya en el primer render útil, con el anillo vacío.
+      setPlantProgress({ loaded: 0, total: 0 });
+      openPlantToast();
+      const loadPages = async () => {
+        let offset = 0;
+        let total = 0;
+        let more = true;
+        const found: PlantPin[] = [];
+        do {
+          const response = await fetchNearbyTrees(
+            { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius,
+              limit: NEARBY_PAGE_SIZE, offset, lang },
+            controller.signal,
+          );
+          if (controller.signal.aborted) return;
+          total = response.total;
+          found.push(...response.trees.map((plant) => ({
+            id: plant.id,
+            displayName: plant.displayName,
+            scientificName: plant.scientificName ?? plant.reportedScientificName,
+            latitude: plant.latitude,
+            longitude: plant.longitude,
+            identified: plant.speciesId !== null,
+            speciesId: plant.speciesId,
+            distance: plant.distance,
+            greenAreaId: plant.greenAreaId ?? null,
+          })));
+          offset += response.trees.length;
+          more = response.trees.length > 0 && offset < total && total > 0;
+          setPlantProgress({ loaded: found.length, total });
+          // Publicación progresiva: cada página entra en cuanto llega, para no
+          // agrupar y pintar las 67k de golpe al final. El filtro por radio y
+          // por zonas hace que cada render trabaje con muchas menos plantas.
+          if (found.length > 0) setPlants([...found]);
+        } while (more);
+      };
+      loadPages().catch(() => {
+        if (!controller.signal.aborted) setPlantsFailed(true);
+      }).finally(() => {
+        // Solo la carga vigente decide: una abortada que termina tarde no toca
+        // el estado de la que tomó el relevo.
+        if (plantsAbortRef.current !== controller) return;
+        plantsLoadingRef.current = false;
+        if (controller.signal.aborted) {
+          // Nos abortaron para cargar otra zona: esa nueva carga ya está en
+          // marcha y maneja su propia rueda. No apagar el progreso aquí.
+          return;
+        }
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        if (toastHideRef.current) clearTimeout(toastHideRef.current);
+        setPlantProgress(null);
+        setShowPlantToast(false);
+        setToastExiting(false);
+        // El GPS pidió otra zona mientras cargábamos: se atiende ahora, sin
+        // haber abortado la descarga que ya estaba en marcha.
+        const pending = lastRequestedCenterRef.current;
+        if (pending && metersBetween(pending, coords) >= NEARBY_REFRESH_METERS) {
+          lastFetchCenterRef.current = null;
+          loadPlantsRef.current(pending);
+        }
+      });
     };
   });
 
@@ -249,32 +508,13 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     const map = mapRef.current;
 
     if (!map) return;
-    if (userMarkerRef.current) userMarkerRef.current.setLatLng(point);
-    else {
-      userMarkerRef.current = L.marker(point, {
-        icon: userLocationIcon,
-        keyboard: false,
-        interactive: false,
-        zIndexOffset: 1000,
-      }).addTo(map);
-    }
-
-    if (searchAreaCircleRef.current) {
-      searchAreaCircleRef.current.setLatLng(point).setRadius(effectiveRadiusRef.current);
-    } else {
-      // Círculo azul = área de búsqueda de plantas cercanas (radio efectivo del
-      // modo), no la precisión del GPS.
-      searchAreaCircleRef.current = L.circle(point, {
-        radius: effectiveRadiusRef.current,
-        color: LOCATION_COLOR,
-        fillColor: LOCATION_COLOR,
-        fillOpacity: 0.12,
-        weight: 1,
-        interactive: false,
-      }).addTo(map);
-    }
+    drawUser(coords);
 
     if (followUserRef.current) {
+      // Centrar es puntual: al entrar al mapa o al pulsar el botón. Se consume
+      // aquí para que las siguientes posiciones del GPS no arranquen el mapa
+      // (una ruta cargada o una ficha abierta deben conservar su encuadre).
+      followUserRef.current = false;
       map.setView(point, Math.max(map.getZoom(), 16), { animate: true });
     } else if (
       keepBothVisibleRef.current &&
@@ -289,8 +529,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       );
     }
 
-    loadPlantsRef.current(coords);
-  }, []);
+    // La carga la inicia el effects del permiso con esta misma posición.
+  }, [drawUser]);
 
   useEffect(() => {
     if (!mapElementRef.current) return;
@@ -302,10 +542,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       attributionControl: false,
     });
     mapRef.current = map;
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+    addOfflineTileLayer(map);
     map.on('dragstart', () => {
       followUserRef.current = false;
       keepBothVisibleRef.current = false;
@@ -322,48 +559,52 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       searchAreaCircleRef.current = null;
       searchedPlaceMarkerRef.current = null;
       plantsLayerRef.current = null;
+      selectedSpeciesLayerRef.current = null;
+      parksLayerRef.current = null;
       groupAreaRef.current = null;
     };
   }, []);
 
-  // Con posición conocida (la fija el permiso) la vía cercanas toma el relevo.
-  const hasPosition = locatedPosition !== null;
+  // Con posición conocida (la fija el permiso) la vía cercanas toma el relevo,
+  // salvo que alrededor no haya ningún ejemplar: entonces se pintan las
+  // globales para que el mapa no quede vacío fuera de València.
 
   // Plantas del inventario: sin posición conocida, las globales de la UT 908;
   // en cuanto hay posición, la vía cercanas toma el relevo con parámetros por
   // modo (aventura: radio fijo; resto: radio de Ajustes).
   useEffect(() => {
-    if (hasPosition) {
-      const current = locatedPosition ?? currentPositionRef.current;
-      if (current) {
-        lastFetchCenterRef.current = null;
-        loadPlantsRef.current(current);
-      }
+    if (locationPermission === null) return;
+    // El permiso y la posición llegan por separado: cargar solo una vez con
+    // la primera posición conocida (o Valencia si no hay GPS).
+    if (plantsLoadingRef.current || plantsRef.current !== null) return;
+    const current = locatedPosition ?? currentPositionRef.current ?? VALENCIA;
+    loadPlantsRef.current({ latitude: current.latitude, longitude: current.longitude });
+  }, [locationPermission, locatedPosition]);
+
+  // El círculo azul y el punto de ubicación solo salen con GPS.
+  useEffect(() => {
+    if (locatedPosition === null) {
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
+      searchAreaCircleRef.current?.remove();
+      searchAreaCircleRef.current = null;
       return;
     }
-    const map = mapRef.current;
-    if (!map) return;
-    const controller = new AbortController();
-    fetchPlantPins(lang, controller.signal)
-      .then((pins) => {
-        if (!controller.signal.aborted) {
-          setPlants(pins);
-          setPlantsFailed(false);
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setPlantsFailed(true);
-      });
-    return () => controller.abort();
-  }, [hasPosition, locatedPosition, lang, setPlants]);
+    drawUser(locatedPosition);
+  }, [locatedPosition, drawUser]);
 
   // Etiquetas de plantas junto al icono solo a partir del zoom de la UT 908.
   useEffect(() => {
     const map = mapRef.current;
     const container = mapElementRef.current;
     if (!map || !container) return;
-    const syncLabels = () =>
-      container.classList.toggle('plants-labels-visible', map.getZoom() >= PLANT_LABEL_MIN_ZOOM);
+    const syncLabels = () => {
+      const zoom = map.getZoom();
+      container.classList.toggle('plants-labels-visible', zoom >= 16);
+      // Cuanto más lejos, más pequeños: parques y plantas dejan de solaparse.
+      container.classList.toggle('plants-compact', zoom < 16);
+      container.classList.toggle('plants-tiny', zoom <= 13);
+    };
     syncLabels();
     map.on('zoomend', syncLabels);
     return () => {
@@ -384,7 +625,105 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [updateUserLocation, locationPermission]);
 
-  useEffect(() => () => plantsAbortRef.current?.abort(), []);
+
+  // El navbar y «Ver en el mapa» piden el mismo centrado que al entrar: como
+  // MapPage puede seguir montado (solo cambia la query), el ref no basta.
+  const centerRequest = (location.state as { centerOnUser?: number } | null)?.centerOnUser;
+  useEffect(() => {
+    if (centerRequest === undefined) return;
+    followUserRef.current = true;
+    const current = currentPositionRef.current;
+    const map = mapRef.current;
+    if (current && map) {
+      followUserRef.current = false;
+      map.setView([current.latitude, current.longitude], Math.max(map.getZoom(), 16), { animate: true });
+    }
+  }, [centerRequest]);
+
+  // Zonas verdes: se piden una vez por sesión (quedan en caché) aunque la capa
+  // esté apagada, porque el mapa las necesita para agrupar las plantas por
+  // parque. Si fallan, no se agrupa y no se avisa: el mapa sigue igual.
+  useEffect(() => {
+    let cancelled = false;
+    fetchGreenAreas()
+      .then((areas) => {
+        if (!cancelled) setGreenAreas(areas);
+      })
+      .catch(() => {
+        // Sin zonas no hay agrupación; el interruptor sí avisa si falla.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Capa de zonas verdes: se descarga la primera vez que se enciende (queda
+  // en caché para la sesión) y se retira entera al apagarla.
+  const openZoneLabel = t('map.greenAreaOpen');
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!greenAreasOn || !map) return;
+    let cancelled = false;
+    fetchGreenAreas()
+      .then((areas) => {
+        if (cancelled || mapRef.current !== map) return;
+        greenAreasLayerRef.current = addGreenAreasLayer(map, areas, {
+          onOpen: (groupSlug) => navigate(`/zona/${groupSlug}`),
+          text: { open: openZoneLabel },
+        });
+        setGreenAreasVersion((current) => current + 1);
+      })
+      .catch(() => {
+        if (!cancelled) setGreenAreasFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      greenAreasLayerRef.current?.remove();
+      greenAreasLayerRef.current = null;
+    };
+  }, [greenAreasOn, navigate, openZoneLabel]);
+
+  // Parque seleccionado: se resalta solo ese y el mapa se centra en él. Deja
+  // de seguir al usuario para que la siguiente posición no deshaga el encuadre.
+  useEffect(() => {
+    const layer = greenAreasLayerRef.current;
+    if (!layer) return;
+    layer.select(selectedZone);
+    if (selectedZone !== null && layer.fit(selectedZone)) {
+      followUserRef.current = false;
+      keepBothVisibleRef.current = false;
+    }
+  }, [greenAreasVersion, selectedZone]);
+
+  const toggleGreenAreas = () => {
+    if (zoneSpeciesId !== null) {
+      // Con una especie del parque a la vista, ocultar o mostrar la capa no
+      // toca ni la URL ni el filtro, y por tanto tampoco el encuadre del mapa.
+      setGreenAreasFailed(false);
+      if (greenAreasOn) {
+        setZoneLayerHidden(true);
+        setGreenAreasToggled(false);
+      } else {
+        setZoneLayerHidden(false);
+        setGreenAreasToggled(true);
+      }
+      return;
+    }
+    if (greenAreasOn && selectedZone !== null) {
+      // Al apagar la capa se quita el resaltado, pero se recuerda el parque.
+      setRememberedZone(selectedZone);
+      const params = new URLSearchParams(searchParams);
+      params.delete('zona');
+      setSearchParams(params, { replace: true });
+    } else if (!greenAreasOn && rememberedZone !== null) {
+      // Al encenderla de nuevo, vuelve el contorno del parque que había elegido.
+      const params = new URLSearchParams(searchParams);
+      params.set('zona', rememberedZone);
+      setSearchParams(params, { replace: true });
+    }
+    setGreenAreasFailed(false);
+    setGreenAreasToggled(!greenAreasOn);
+  };
 
   // Área de un grupo de plantas (RF2): círculo que cubre a sus miembros, fuera
   // de React porque es estado puro de Leaflet. Se limpia al reconstruir la capa.
@@ -406,30 +745,110 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }).addTo(map);
   }, [clearGroupArea]);
 
-  /** Pinta el área y encuadra el mapa para verla entera. Solo lo usa «Ver en
-   * el mapa» desde la ficha, donde el cambio de vista es intencionado. */
-  const focusArea = useCallback((center: Coordinates, radius: number) => {
-    drawArea(center, radius);
-    const map = mapRef.current;
-    if (!map || !groupAreaRef.current) return;
-    map.fitBounds(groupAreaRef.current.getBounds(), { padding: [48, 48], maxZoom: 17 });
-  }, [drawArea]);
-
-  // Capa de marcadores de plantas (render de la UT 908): se reconstruye cuando
-  // llegan datos nuevos, cambia el idioma o se pasa de globales a cercanas.
-  // Con distancia conocida (vía cercanas), cada marcador lleva su popup con
-  // nombre y distancia; las plantas del mismo tipo encadenadas se agrupan en
-  // un marcador con recuento y, al pulsarlo, pintan el área del grupo.
+  // Repintado al desplazarse: Leaflet mueve los marcadores por sí solo, pero
+  // el muestreo depende del viewport, así que al soltar hay que recalcular.
+  // Con retardo y umbral para no reconstruir cientos de iconos en cada paso.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const repaint = (force = false) => {
+      const center = map.getCenter();
+      const point = { latitude: center.lat, longitude: center.lng };
+      const last = paintedCenterRef.current;
+      if (!force && last && metersBetween(last, point) < 300) return;
+      paintedCenterRef.current = point;
+      repaintPlantsRef.current();
+      repaintPoisRef.current();
+    };
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; repaint(); }, 250);
+    };
+    const onZoom = () => { if (timer) { clearTimeout(timer); timer = null; } repaint(true); };
+    map.on('moveend', schedule);
+    map.on('zoomend', onZoom);
+    return () => {
+      if (timer) clearTimeout(timer);
+      map.off('moveend', schedule);
+      map.off('zoomend', onZoom);
+    };
+  }, []);
+
+  // Agrupación fina: se calcula UNA VEZ cuando cambian las plantas (o la capa
+  // de parques), no en cada zoom. Con 67k plantas cuesta ~0,4 s; repetirlo en
+  // cada moveend era lo que congelaba el mapa.
+  const plantGroups = useMemo(() => {
+    let source = zoneSpeciesId !== null ? (zoneSpecies?.pins ?? []) : plants;
+    if (!source) return null;
+    // Con GPS solo se pintan los ejemplares dentro del círculo azul.
+    if (locatedPosition !== null && zoneSpeciesId === null) {
+      source = source.filter((pin) => metersBetween(locatedPosition, pin) <= radius);
+    }
+    // Con la capa de zonas encendida, el parque absorbe a sus plantas: se
+    // ocultan del mapa y solo se ve su marcador con el recuento.
+    if (greenAreasOn && zoneSpeciesId === null) {
+      const zoneIds = new Set((greenAreas ?? []).map((area) => area.id));
+      source = source.filter((pin) => pin.greenAreaId == null || !zoneIds.has(pin.greenAreaId));
+    }
+    const parks = zoneSpeciesId === null && greenAreas !== null
+      ? clusterPlantsByPark(source, greenAreas)
+      : null;
+    // Grupos finos de cada zona para poder soltarlos poco a poco al acercarse.
+    const parkGroups = new Map<string, PlantPin[]>();
+    for (const [slug, members] of parks?.membersByGroup ?? []) {
+      parkGroups.set(slug, groupNearbyPlants(members).pins
+        .sort((a, b) => (b.count ?? 1) - (a.count ?? 1)));
+    }
+    return {
+      parks: parks?.clusters ?? [],
+      membersByGroup: parks?.membersByGroup ?? new Map<string, PlantPin[]>(),
+      parkGroups,
+      loose: parks ? parks.loose : source,
+      groups: groupNearbyPlants(parks ? parks.loose : source),
+    };
+  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas, greenAreasOn, locatedPosition, radius]);
+
+  // Capa de marcadores de plantas: en cada movimiento solo se filtran al viewport
+  // los grupos ya calculados y se cogen los más numerosos (muestreo barato).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const paint = () => {
     if (plantsLayerRef.current) {
       plantsLayerRef.current.remove();
       plantsLayerRef.current = null;
     }
+    parksLayerRef.current?.remove();
+    parksLayerRef.current = null;
     clearGroupArea();
-    const mapPlants = plants;
-    if (!mapPlants || mapPlants.length === 0) {
+    const bounds = map.getBounds();
+    const zoom = map.getZoom();
+    // Cuanto más lejos, más ejemplares absorbe la zona: contador grande y
+    // menos iconos. Al acercarse se van soltando grupos de la zona al mapa.
+    const absorbedFraction = zoom <= 15 ? 1 : zoom === 16 ? 0.5 : zoom === 17 ? 0.25 : 0;
+    const parkMarkers = [];
+    const releasedFromParks: PlantPin[] = [];
+    for (const cluster of plantGroups?.parks ?? []) {
+      if (!bounds.contains([cluster.latitude, cluster.longitude])) continue;
+      const groups = plantGroups?.parkGroups.get(cluster.groupSlug) ?? [];
+      const absorbed = groups.slice(0, Math.round(groups.length * absorbedFraction));
+      releasedFromParks.push(...groups.slice(absorbed.length));
+      const shown = absorbed.reduce((sum, group) => sum + (group.count ?? 1), 0);
+      if (shown > 0) parkMarkers.push({ ...cluster, shown });
+    }
+    if (parkMarkers.length > 0) {
+      parksLayerRef.current = addParkMarkers(
+        map,
+        parkMarkers,
+        (groupSlug) => {
+          setExploreOpen(false);
+          navigate(`/zona/${groupSlug}`);
+        },
+        { label: (cluster) => t('map.parkPlants', { name: cluster.name, count: cluster.total ?? cluster.shown }) },
+      );
+    }
+    if (!plantGroups || (plantGroups.loose.length === 0 && releasedFromParks.length === 0)) {
       groupAreasRef.current = new Map();
       memberAreasRef.current = new Map();
       return;
@@ -441,21 +860,35 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         : '';
       return `<strong>${escapeHtml(pin.displayName)}</strong><br>${detail}${escapeHtml(formatDistance(pin.distance, lang))}`;
     };
-    if (!hasPosition) {
-      groupAreasRef.current = new Map();
-      memberAreasRef.current = new Map();
-      plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
-      return;
+    const visible = [...plantGroups.groups.pins, ...releasedFromParks]
+      .filter((pin) => bounds.contains([pin.latitude, pin.longitude]));
+    let pins = visible;
+    if (visible.length > MAX_PLANT_MARKERS) {
+      // 16x16 celdas del viewport: el grupo más numeroso de cada celda. Así la
+      // muestra se reparte por el mapa en vez de amontonarse donde hay más.
+      const cols = 16;
+      const rows = 16;
+      const west = bounds.getWest();
+      const south = bounds.getSouth();
+      const cellWidth = (bounds.getEast() - west) / cols;
+      const cellHeight = (bounds.getNorth() - south) / rows;
+      const best = new Map<string, PlantPin>();
+      for (const pin of visible) {
+        const cx = Math.min(cols - 1, Math.max(0, Math.floor((pin.longitude - west) / cellWidth)));
+        const cy = Math.min(rows - 1, Math.max(0, Math.floor((pin.latitude - south) / cellHeight)));
+        const key = `${cx}:${cy}`;
+        const current = best.get(key);
+        if (!current || (pin.count ?? 1) > (current.count ?? 1)) best.set(key, pin);
+      }
+      pins = [...best.values()];
     }
-    if (!hasPosition) {
-      groupAreasRef.current = new Map();
-      memberAreasRef.current = new Map();
-      plantsLayerRef.current = addPlantMarkers(map, mapPlants, popupFor);
-      return;
-    }
-    const { pins, areasById, areaByMemberId } = groupNearbyPlants(mapPlants);
-    groupAreasRef.current = areasById;
-    memberAreasRef.current = areaByMemberId;
+    // Índice por id: antes se comparaban 7500 áreas con 400 pines (3M
+    // comparaciones) en cada repintado.
+    const pinIds = new Set(pins.map((pin) => pin.id));
+    groupAreasRef.current = new Map(
+      [...(plantGroups?.groups.areasById ?? [])].filter(([id]) => pinIds.has(id)),
+    );
+    memberAreasRef.current = plantGroups?.groups.areaByMemberId ?? new Map();
     const handlePlantClick = (pin: PlantPin) => {
       clearGroupArea();
       setExploreOpen(false);
@@ -465,18 +898,35 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       }
       return onOpenPlant?.(pin) ?? false;
     };
-    plantsLayerRef.current = addPlantMarkers(map, pins, popupFor, handlePlantClick);
-  }, [plants, lang, hasPosition, clearGroupArea, drawArea, onOpenPlant, t]);
+    cancelPlantFramesRef.current?.();
+    const progressive = addPlantMarkersProgressively(
+      map,
+      hiddenSpeciesId === null ? pins : pins.filter((pin) => pin.speciesId !== hiddenSpeciesId),
+      popupFor,
+      handlePlantClick,
+    );
+    plantsLayerRef.current = progressive.layer;
+    cancelPlantFramesRef.current = progressive.cancel;
+    };
+    repaintPlantsRef.current = paint;
+    paint();
+    return () => { repaintPlantsRef.current = () => undefined; };
+  }, [plantGroups, lang, clearGroupArea, drawArea, onOpenPlant, t, hiddenSpeciesId, navigate]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    const paint = () => {
     poisLayerRef.current?.remove();
+    const bounds = map.getBounds();
     const layer = L.layerGroup();
-    pois.forEach((poi) => {
+    pois.filter((poi) => bounds.contains([poi.lat, poi.lon]))
+      .filter((poi) => locatedPosition === null || metersBetween(locatedPosition, { latitude: poi.lat, longitude: poi.lon }) <= radius)
+      .forEach((poi) => {
       const marker = L.circleMarker([poi.lat, poi.lon], { radius: 8, color: '#8b5e20', fillColor: '#c58a31', fillOpacity: 1, weight: 2 });
+      // Tooltip al pasar por encima, no permanente: con cientos de POIs, un
+      // nodo DOM visible por punto hunde el render del mapa.
       marker.bindTooltip(`${escapeHtml(poi.name)} · ${escapeHtml(formatDistance(poi.distance, lang))}`, {
-        permanent: true,
         direction: 'top',
         offset: L.point(0, -8),
         className: 'poi-distance-label',
@@ -484,8 +934,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       marker.addTo(layer);
     });
     poisLayerRef.current = layer.addTo(map);
-    return () => { layer.remove(); };
-  }, [pois, t, lang]);
+    };
+    repaintPoisRef.current = paint;
+    paint();
+    return () => { repaintPoisRef.current = () => undefined; poisLayerRef.current?.remove(); };
+  }, [pois, t, lang, locatedPosition, radius]);
 
   // «Ver en el mapa» (ficha, RF3): centra el ejemplar más cercano de la especie
   // pedida por parámetro y pinta su área; si no hay ninguno dentro del radio
@@ -494,24 +947,177 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   useEffect(() => {
     const verRaw = searchParams.get('verEspecie');
     if (verRaw === null || !/^\d+$/.test(verRaw)) return;
-    if (!hasPosition || plants === null) return;
-    setSearchParams({}, { replace: true });
-    const candidates = plants.filter((pin) => pin.speciesId === Number(verRaw));
-    if (candidates.length === 0) {
-      setFocusFailed(true);
-      return;
-    }
-    setFocusFailed(false);
-    const nearest = candidates.reduce((a, b) =>
-      (b.distance ?? Number.POSITIVE_INFINITY) < (a.distance ?? Number.POSITIVE_INFINITY) ? b : a,
-    );
-    const area = memberAreasRef.current.get(nearest.id);
-    focusArea(
-      area?.center ?? { latitude: nearest.latitude, longitude: nearest.longitude },
-      area?.radius ?? FOCUS_RADIUS_METERS,
-    );
-  }, [searchParams, plants, hasPosition, setSearchParams, focusArea]);
+    // Con parque (`?zona=`) lo atiende el filtro de especie del parque.
+    if (selectedZone !== null) return;
+    const neighborhood = searchParams.get('barrio');
+    const requestId = ++speciesFocusRequestRef.current;
+    // El GPS puede seguir actualizando la ubicación, pero no debe recentrar el
+    // mapa mientras se está mostrando la selección solicitada desde la ficha.
+    followUserRef.current = false;
+    keepBothVisibleRef.current = false;
+    // Limpiar solo verEspecie: si venía con verRuta, la ruta sigue pintada.
+    const next = new URLSearchParams(searchParams);
+    next.delete('verEspecie');
+    setSearchParams(next, { replace: true });
+    const speciesId = Number(verRaw);
+    selectedSpeciesLayerRef.current?.remove();
+    setFocusMessage('');
+    setSelectedSpeciesLocationCount(0);
+    setFocusLoading(true);
+    Promise.all([getSpeciesDetail(speciesId, lang), getSpeciesLocations(speciesId, lang)])
+      .then(([species, locations]) => {
+        if (requestId !== speciesFocusRequestRef.current) return;
+        selectedSpeciesLayerRef.current?.remove();
+        const name = commonNameFor(species.names, lang) ?? species.scientificName;
+        setSelectedSpeciesName(neighborhood ? `${name} · ${neighborhood}` : name);
+        setHiddenSpeciesId(speciesId);
+        const matchingLocations = neighborhood
+          ? locations.filter((location) => normalizeLocationName(location.neighborhood ?? location.district ?? '') === normalizeLocationName(neighborhood))
+          : locations;
+        const locationPins: PlantPin[] = matchingLocations.map((location) => ({
+          id: location.id, speciesId, displayName: name, scientificName: species.scientificName,
+          latitude: location.latitude, longitude: location.longitude, identified: true,
+        }));
+        setSelectedSpeciesLocationCount(locationPins.length);
+        if (locationPins.length === 0) {
+          setFocusMessage(neighborhood
+            ? t('map.noNeighborhoodLocations', { name: neighborhood })
+            : t('map.noSpeciesLocations'));
+          setFocusLoading(false);
+          return;
+        }
+        const map = mapRef.current;
+        if (!map) {
+          setFocusLoading(false);
+          return;
+        }
+        const pins = groupSelectedLocations(locationPins);
+        selectedSpeciesLayerRef.current = addSpeciesLocationMarkers(map, pins, onOpenPlant);
+        map.fitBounds(L.latLngBounds(locationPins.map((pin): L.LatLngTuple => [pin.latitude, pin.longitude])), { padding: [56, 56], maxZoom: 17 });
+        setFocusLoading(false);
+      })
+      .catch(() => {
+        if (requestId === speciesFocusRequestRef.current) {
+          setFocusMessage(t('map.speciesLocationsError'));
+          setFocusLoading(false);
+        }
+      });
+  }, [searchParams, setSearchParams, lang, onOpenPlant, t, selectedZone]);
 
+  const clearSpeciesSelection = () => {
+    speciesFocusRequestRef.current += 1;
+    selectedSpeciesLayerRef.current?.remove();
+    selectedSpeciesLayerRef.current = null;
+    setSelectedSpeciesName('');
+    setSelectedSpeciesLocationCount(0);
+    setHiddenSpeciesId(null);
+    setFocusLoading(false);
+    setFocusMessage('');
+  };
+
+  // Ejemplares de la especie elegida dentro del parque: se piden las plantas de
+  // la zona (o su copia descargada) y se queda solo con esa especie.
+  useEffect(() => {
+    setZoneSpecies(null);
+    setZoneSpeciesFailed(false);
+    if (selectedZone === null || zoneSpeciesId === null) return;
+    const controller = new AbortController();
+    fetchGreenAreaPlants(selectedZone, lang, controller.signal)
+      .then((zonePlants) => {
+        if (controller.signal.aborted) return;
+        const pins: PlantPin[] = zonePlants
+          .filter((plant) => plant.speciesId === zoneSpeciesId)
+          .map((plant) => ({
+            id: plant.id,
+            displayName: plant.displayName,
+            scientificName: plant.scientificName ?? plant.reportedScientificName,
+            latitude: plant.latitude,
+            longitude: plant.longitude,
+            identified: true,
+            speciesId: plant.speciesId,
+            greenAreaId: plant.greenAreaId,
+          }));
+        setZoneSpecies({ name: pins[0]?.displayName ?? '', pins });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setZoneSpeciesFailed(true);
+      });
+    return () => controller.abort();
+  }, [selectedZone, zoneSpeciesId, lang]);
+
+  // Encuadra los ejemplares elegidos (y no todo el parque) para verlos de un vistazo.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !zoneSpecies || zoneSpecies.pins.length === 0) return;
+    followUserRef.current = false;
+    keepBothVisibleRef.current = false;
+    const bounds = L.latLngBounds(zoneSpecies.pins.map((pin) => [pin.latitude, pin.longitude] as [number, number]));
+    map.fitBounds(bounds, { padding: [64, 64], maxZoom: 18 });
+  }, [zoneSpecies, greenAreasVersion]);
+
+  const clearSpeciesFilter = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('verEspecie');
+    // Con los parques ocultos, quitar el filtro no debe volver a dibujarlos ni
+    // encuadrar el parque: se suelta también la zona.
+    if (zoneLayerHidden) params.delete('zona');
+    setSearchParams(params, { replace: true });
+  };
+
+  // «Ver en el mapa» desde la ficha de ruta: pinta el recorrido y sus paradas
+  // mientras exista el parámetro `verRuta`. Las paradas de planta usan el pin
+  // del mapa y abren su ficha; las de POI son un marcador visual (su ficha
+  // llega en una UT posterior). «Limpiar mapa» quita el parámetro y la capa.
+  useEffect(() => {
+    routeAbortRef.current?.abort();
+    routeAbortRef.current = null;
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+    if (routeId === null) return;
+    // La ruta manda sobre la vista: que el GPS no recentre el mapa en el
+    // usuario al pintarla (el usuario sí puede arrastrar el mapa después).
+    followUserRef.current = false;
+    keepBothVisibleRef.current = false;
+    paintedRouteId = routeId;
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
+    fetchRouteDetail(routeId, controller.signal)
+      .then((route) => {
+        if (controller.signal.aborted) return;
+        const map = mapRef.current;
+        if (!map) return;
+        // Mismo dibujado que la ficha de ruta: polilínea, inicio y paradas.
+        const layer = addRouteOverlay(map, route, {
+          onOpenStop: (stop) => {
+            if (stop.kind !== 'planta') return;
+            onOpenPlantRef.current?.(routeStopToPlantPin(stop));
+          },
+        });
+        fitRouteBounds(map, route);
+        routeLayerRef.current = layer;
+      })
+      .catch(() => {
+        // Si la ruta no se puede cargar, el botón «Limpiar mapa» sigue
+        // quitando el parámetro: no hay capa que quitar y no molesta.
+      });
+    return () => {
+      controller.abort();
+      if (routeLayerRef.current) {
+        routeLayerRef.current.remove();
+        routeLayerRef.current = null;
+      }
+    };
+  }, [routeId]);
+
+  const clearRoute = () => {
+    clearPaintedRoute();
+    setSavedRouteId(null);
+    if (paramRouteId !== null) setSearchParams({}, { replace: true });
+  };
+
+  // El área de búsqueda sigue al radio aunque cambie el modo o el deslizador.
   // El área de búsqueda sigue el radio configurado en Ajustes.
   useEffect(() => {
     searchAreaCircleRef.current?.setRadius(radius);
@@ -657,11 +1263,13 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
   const centerOnUser = () => {
     const map = mapRef.current;
+    keepBothVisibleRef.current = false;
+    // Si todavía no hay posición, la primera que llegue centra el mapa.
+    followUserRef.current = true;
     if (currentPositionRef.current && map) {
-      keepBothVisibleRef.current = false;
-      followUserRef.current = true;
       const { latitude, longitude } = currentPositionRef.current;
       map.flyTo([latitude, longitude], Math.max(map.getZoom(), 16));
+      followUserRef.current = false;
       return;
     }
     navigator.geolocation?.getCurrentPosition(updateUserLocation, () => {}, {
@@ -670,11 +1278,19 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     });
   };
 
-  const explorePlants = plants === null
-    ? []
-    : hasPosition
-      ? groupNearbyPlants(plants).pins
-      : plants;
+  // «Explorar cerca»: reutiliza los grupos ya calculados para el mapa (agrupar
+  // 67k plantas de nuevo en cada render era lo que congelaba la interfaz) y
+  // muestra solo los primeros 100; el mapa es la vista completa.
+  const explorePlants = useMemo(() => {
+    if (areaPlants !== null) {
+      return locatedPosition !== null ? groupNearbyPlants(areaPlants).pins : areaPlants;
+    }
+    const groups = plantGroups?.groups.pins;
+    if (!groups) return [];
+    return [...groups]
+      .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+      .slice(0, 100);
+  }, [areaPlants, plantGroups, locatedPosition]);
 
   const locateExploreItem = (point: Coordinates) => {
     const map = mapRef.current;
@@ -700,29 +1316,52 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         className="absolute inset-0 h-full w-full"
       />
 
+      {/* Indicador de carga: círculo verde arriba a la derecha que se va
+          completando, con una tarjeta a su izquierda que se retira en 3 s.
+          No bloquea el mapa: se puede arrastrar mientras carga. */}
+      {plantProgress && (
+        <div className="absolute right-4 top-20 z-[1060] flex items-center gap-2">
+          {showPlantToast && (
+            <span key={toastKey} role="status"
+              className={`rounded-full border border-line bg-surface px-3 py-2 text-caption font-semibold text-ink shadow-raised ${toastExiting ? 'plant-progress-card--leaving' : 'plant-progress-card--entering'}`}>
+              {t('map.loadingPlants')}
+            </span>
+          )}
+          <button type="button" onClick={openPlantToast}
+            aria-label={t('map.loadingPlants')}
+            className="plant-progress-ring"
+            title={t('map.loadingPlants')}>
+            <svg viewBox="0 0 36 36" className="h-7 w-7 -rotate-90" aria-hidden="true">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--color-surface)" strokeWidth="4" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--color-accent)" strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 15}
+                strokeDashoffset={2 * Math.PI * 15 * (1 - Math.min(1, plantProgress.loaded / Math.max(plantProgress.total, 1)))} />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <button type="button" onClick={() => setExploreOpen((open) => !open)} aria-expanded={exploreOpen}
         className="absolute bottom-4 left-1/2 z-[1000] flex min-h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-5 text-body font-semibold text-ink shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
         {exploreOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />} {t('map.explore')}
       </button>
 
-      <aside className={`absolute inset-x-0 bottom-0 z-[1050] rounded-t-3xl bg-surface shadow-float transition-transform duration-300 ${exploreOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{height:'62%'}} aria-label="Exploración cercana">
+      <aside className={`absolute inset-x-0 bottom-0 z-[1050] rounded-t-3xl bg-surface shadow-float transition-transform duration-300 ${exploreOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{height:'62%'}} aria-label={t('map.explorePanel')}>
         <div className="flex h-full flex-col px-4 pt-2 pb-[env(safe-area-inset-bottom,0px)]">
           <button
             type="button"
             onClick={() => setExploreOpen(false)}
             className="mx-auto -mt-1 mb-1 flex h-11 w-36 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            aria-label="Cerrar exploración"
+            aria-label={t('map.exploreClose')}
           >
             <span className="h-1.5 w-12 rounded-full bg-line-strong" aria-hidden="true" />
           </button>
-          <div className="mb-3 flex gap-2">
-            <button type="button" onClick={() => { setChosenArea(false); centerOnUser(); if (locatedPosition) loadArea(locatedPosition, radius); }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${!chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.nearMe')}</button>
-            <button type="button" onClick={() => { const center = mapRef.current?.getCenter(); if (center) { setChosenArea(true); loadArea({latitude:center.lat,longitude:center.lng}); } }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.chooseArea')}</button>
-          </div>
-          <p className="mb-2 text-small font-semibold text-ink">{chosenArea ? t('map.selectedArea') : t('map.nearbyTitle')}</p>
-          {chosenArea && <button type="button" disabled={areaLoading} onClick={() => {const center=mapRef.current?.getCenter(); if(center) loadArea({latitude:center.lat,longitude:center.lng});}} className="mb-2 min-h-10 rounded-control bg-accent-soft px-3 text-small font-semibold text-ink disabled:opacity-60">{areaLoading ? t('map.loadingArea') : t('map.updateArea')}</button>}
+          <p className="mb-2 text-center text-small font-semibold text-ink">{t('map.nearbyTitle')}</p>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            {areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
+            {/* Cerrado = solo la estructura: montar cientos de artículos en cada
+                render de progreso era el 24 % de las muestras de CPU. */}
+            {exploreOpen && (areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
               {explorePlants.slice().sort((a,b)=>(a.distance ?? 0)-(b.distance ?? 0)).map((plant) => <article key={`plant-${plant.id}`} className="border-b border-line py-2">
                 <div className="flex items-center gap-2 text-small text-ink"><Leaf size={17} className="shrink-0 text-accent"/><span className="flex-1">{plant.displayName}{plant.count && plant.count > 1 ? ` · ${plant.count}` : ''}</span><span className="tabular-nums text-muted">{formatDistance(plant.distance ?? 0,lang)}</span></div>
                 <div className="mt-1 flex justify-end gap-2">
@@ -738,7 +1377,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
                 </div>
               </article>)}
               {poiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
-            </>}
+            </>)}
           </div>
         </div>
       </aside>
@@ -795,6 +1434,28 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             </button>
           </form>
 
+          {zoneSpeciesId !== null && (zoneSpecies !== null || zoneSpeciesFailed) && (
+            <div className="mt-2 flex items-center gap-2 rounded-full bg-surface py-1 pr-1 pl-4 shadow-float" role="status">
+              <Leaf size={16} className="shrink-0 text-accent" aria-hidden="true" />
+              <p className="min-w-0 flex-1 truncate text-small font-semibold text-ink">
+                {zoneSpeciesFailed
+                  ? t('map.speciesInParkFailed')
+                  : zoneSpecies!.pins.length === 0
+                    ? t('map.speciesInParkNone')
+                    : t('map.speciesInPark', { name: zoneSpecies!.name, count: zoneSpecies!.pins.length })}
+              </p>
+              <button
+                type="button"
+                onClick={clearSpeciesFilter}
+                aria-label={t('map.speciesInParkClear')}
+                title={t('map.speciesInParkClear')}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+
           {(searchResults.length > 0 || searchError) && (
             <div
               className="mt-2 overflow-hidden rounded-card bg-surface shadow-float"
@@ -828,15 +1489,45 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             </div>
           )}
 
-          {(plantsFailed || focusFailed) && (
+          {greenAreasOn && greenAreasFailed && (
+            <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">
+              {t('map.greenAreasError')}
+            </p>
+          )}
+
+          {(plantsFailed || focusMessage) && (
             <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">
               {plantsFailed
                 ? t('map.plantsError')
-                : t('map.noNearbySpecies', { radius: formatDistance(radius, lang) })}
+                : focusMessage}
             </p>
+          )}
+          {selectedSpeciesName && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-card bg-surface px-3 py-2 shadow-float" role="status">
+              <span className="min-w-0 truncate text-small text-ink">
+                {selectedSpeciesName}
+                <span className="ml-2 text-caption tabular-nums text-muted">{t('map.selectedSpeciesLocationCount', { count: selectedSpeciesLocationCount })}</span>
+              </span>
+              <button type="button" onClick={clearSpeciesSelection} className="shrink-0 rounded-control px-2 py-1 text-small font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('map.clearSpeciesSelection')}</button>
+            </div>
+          )}
+          {focusLoading && (
+            <p className="mt-2 rounded-card bg-surface p-3 text-small text-muted shadow-float" role="status">{t('map.loadingSpeciesLocations')}</p>
           )}
         </div>
       </div>
+
+      {routeVisible && (
+        <button
+          type="button"
+          onClick={clearRoute}
+          aria-label={t('map.clearMap')}
+          title={t('map.clearMap')}
+          className="absolute right-4 bottom-52 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <Trash2 size={21} aria-hidden="true" />
+        </button>
+      )}
 
       <button
         type="button"
@@ -848,13 +1539,24 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         <LocateFixed size={21} aria-hidden="true" />
       </button>
 
+      <button
+        type="button"
+        onClick={toggleGreenAreas}
+        aria-pressed={greenAreasOn}
+        aria-label={greenAreasOn ? t('map.greenAreasHide') : t('map.greenAreasShow')}
+        title={greenAreasOn ? t('map.greenAreasHide') : t('map.greenAreasShow')}
+        className={`absolute right-4 bottom-20 z-[1000] flex h-12 w-12 items-center justify-center rounded-full shadow-float transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${greenAreasOn ? 'bg-accent text-on-accent' : 'bg-surface text-ink hover:bg-surface-2'}`}
+      >
+        <Trees size={21} aria-hidden="true" />
+      </button>
+
       {locationPermission === 'denied' && (
         <button
           type="button"
           onClick={() => navigate('/ajustes/permisos')}
           aria-label={t('location.retryAria')}
           title={t('location.retryAria')}
-          className="absolute right-4 bottom-20 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="absolute right-4 bottom-36 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <MapPinOff size={21} aria-hidden="true" />
         </button>
@@ -863,6 +1565,25 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       {locationPermission === 'prompt' && (
         <div className="absolute inset-0 z-[1100]">
           <LocationPermissionPrompt onAllow={allowLocation} onDeny={denyLocation} />
+        </div>
+      )}
+
+      {selectedZone && selectedZoneBox && zoneSpeciesId === null && !dismissedDownloads.includes(selectedZone) && (
+        <div className="absolute bottom-9 left-4 right-20 z-[1000]">
+          <OfflineZoneCard
+            groupSlug={selectedZone}
+            bbox={selectedZoneBox.bbox}
+            plantCount={selectedZoneBox.plants}
+            floating
+            onSaved={(record) => setSavedToast(record.name)}
+            onClose={() => setDismissedDownloads((current) => [...current, selectedZone])}
+          />
+        </div>
+      )}
+
+      {savedToast !== null && (
+        <div className="absolute inset-x-4 top-20 z-[1200]">
+          <OfflineSavedToast name={savedToast} onClose={closeSavedToast} />
         </div>
       )}
 

@@ -3,10 +3,10 @@
 Guía para agentes (y personas) que trabajen en este repositorio. Mantenerla actualizada cuando
 cambien los comandos, la estructura o las convenciones.
 
-> Última verificación: 2026-11-10 · `main` @ `0f8b6ef` · Rama de trabajo:
-> `feat/foto-ficha` (worktree `wt-pa-2941-foto-ficha`). El resultado de la identificación permite
-> guardar la captura en la ficha de la especie (PA 2941): sustituye a la foto del catálogo y se
-> conserva en el dispositivo.
+> Última verificación: 2026-11-12 · rama `feat/rutas-catalogo` (desde `main` @ `0f8b6ef`).
+> Pestaña `/rutas` conectada al catálogo de rutas del backend y ficha `/rutas/:id` con el
+> recorrido en Leaflet (UT de rutas predefinidas).
+> `main` trae además flora y zonas verdes (NM-08): capa de parques, fichas de zona y artículos.
 
 ## Qué es este proyecto
 
@@ -88,6 +88,82 @@ Ajustes (`src/pages/Settings/`) permite elegir idioma (es/va/en) y guarda la pre
 `src/i18n/strings.ts`. El frontend consume el backend para la identificación por foto
 (`src/services/identify.ts` → `POST /plants/identify`) y para la ficha
 (`src/services/ficha.ts` → `GET /species` y `GET /species/:id`).
+
+## Flora y zonas verdes (NM-08)
+
+Rama `feat/contenido-flora-zonas-verdes` (PA 3011, 3012 y 3013). Necesita el backend de la
+misma rama (migración `0004`, `npm run import:zonas-verdes` y `npm run db:seed:editorial`).
+
+- **Capa de zonas verdes del mapa** (`src/pages/Map/greenAreasLayer.ts`): apagada por defecto,
+  se enciende con el botón del árbol o con `/mapa?zona=<grupo>`, que además resalta ese parque
+  y encuadra el mapa. Solo contorno, sin relleno opaco, en un pane propio por debajo de los
+  marcadores. Por zoom: punto (< 14), contorno (≥ 14), contorno y nombre (≥ 16). Los estilos
+  están en `src/index.css` (`.green-area-*`). La capa se pide una vez por sesión
+  (`fetchGreenAreas`, `GET /green-areas`).
+- **Agrupación por parque** (`src/pages/Map/parkClusters.ts`): por debajo del zoom 17, las
+  plantas que caen dentro de una zona verde se sustituyen por un marcador del parque con su
+  nombre y el total de ejemplares del inventario (en Viveros o el Turia son cientos y tapaban
+  el mapa). Al tocarlo se abre `/zona/:grupo`. Las de calle y las de una zona que no está en la
+  capa se siguen pintando una a una. El umbral es 17 y no 16 porque el mapa centra al usuario
+  con zoom 16. Para esto, `GET /trees` y `/trees/nearby` traen `greenAreaId` y la capa
+  `plants`; las zonas se piden al abrir el mapa aunque la capa esté apagada.
+- **`/zona/:grupo`** (`src/pages/GreenArea/`): ficha de zona con superficie, flora más
+  frecuente, POIs de dentro, artículos y fuente con licencia.
+- **`/descubre`** y **`/descubre/:slug`** (`src/pages/Discover/`): contenido editorial por
+  secciones (flora, parques, jardines, paisajismo). `?tema=` abre una sección y `?zona=` deja
+  los artículos de una zona. Se entra desde Inicio.
+- **Ficha de planta**: sección «Zonas verdes donde encontrarla» (`greenAreas` de
+  `GET /species/:id`) y acceso al artículo de flora. Si la ficha es un overlay, App la aparta
+  (`awayKey`) en lugar de cerrarla: al volver atrás reaparece.
+- **`GreenAreaContext`** (`src/components/GreenAreaContext/`): bloque «Entorno verde» para
+  cualquier ficha con coordenadas; resuelve la zona con `GET /green-areas/at`. **Pendiente de
+  colocar en la ficha de POI** cuando la UT de NM-06 traiga esa ficha a `main`
+  (`<GreenAreaContext latitude={poi.latitude} longitude={poi.longitude} />`).
+- Los artículos están redactados en castellano, valenciano e inglés. Si algún día falta una
+  traducción, la pantalla sirve el español y lo avisa (`isFallbackLanguage`). Los nombres comunes
+  de las especies vienen del inventario municipal, que solo los publica en castellano y valenciano.
+- `useRemote` (`src/hooks/`) y `RemoteLoading`/`RemoteError` (`src/components/RemoteStatus.tsx`)
+  dan los estados cargando/error/reintentar de estas pantallas.
+
+## Zonas sin conexión (descarga offline)
+
+Rama `feat/descarga-zona-offline`. Permite descargar una zona verde (parque o jardín) para
+consultarla sin conexión: ficha, plantas y mapa. Necesita el endpoint del backend
+`GET /green-areas/group/:slug/plants` (misma rama del backend). La gestión global de descargas
+(listar, borrar todas, actualizar) es NM-17 y **no** está aquí.
+
+- **Dónde se descarga**: `OfflineZoneCard` (`src/components/OfflineZone/`) en la ficha de la zona
+  (`/zona/:grupo`) y flotando sobre el mapa cuando hay una zona resaltada (`/mapa?zona=<grupo>`).
+  Muestra el peso estimado, la barra de progreso (con cancelar), el estado «disponible sin
+  conexión» y el borrado. El estado vive en `useOfflineZone` (`src/hooks/`). Sobre el mapa la
+  tarjeta (`floating`) se puede cerrar y desaparece al terminar: en su lugar `OfflineSavedToast`
+  avisa 20 s («Parque descargado… Verlo en Rutas») para dejar el mapa limpio.
+- **Dónde se gestionan**: `DownloadedZones` en la pantalla Rutas (`/rutas`) lista las zonas
+  descargadas (nombre, peso, fecha), con enlaces al mapa y a la ficha y el borrado. Es la lista
+  mínima: espacio total, actualizar y borrar todas son NM-17.
+- **Capa de parques del mapa**: el botón se llama «Mostrar/Ocultar parques» (no «zonas verdes»,
+  que se confundía con las plantas). Al apagar la capa se recuerda el parque resaltado y al
+  encenderla vuelve a resaltarse.
+- **Almacenamiento** (`src/services/offlineStorage.ts`, único sitio que toca IndexedDB y la Cache
+  API): IndexedDB `naturemaps-offline` (almacén `zones`, una entrada por `groupSlug` con la ficha,
+  las plantas y los textos en el idioma en que se descargó) y Cache API `naturemaps-tiles-v1`
+  (teselas de OSM). Sin soporte (modo privado, navegadores antiguos) la tarjeta lo dice y las
+  lecturas devuelven vacío. En tests se sustituye con `setOfflineStorage({ store, tiles })`
+  usando `createMemoryStore()` y `createMemoryTileCache()`; no hay dependencias nuevas.
+- **Descarga** (`offlineDownload.ts`): ficha → plantas paginadas (500 por página) → teselas del
+  rectángulo de la zona con un 10 % de margen, zoom 13–17 (si no cabe en 2000 teselas baja el
+  zoom máximo hasta 15; por debajo, la zona se rechaza). Solo 2 teselas a la vez para no saturar
+  OSM. La zona se guarda **al final**: si se cancela o falla, se retiran las teselas descargadas
+  y no queda nada a medias. Se comprueba el espacio libre (`navigator.storage.estimate`).
+- **Teselas** (`offlineTiles.ts`): la URL de tesela es `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
+  **sin subdominios** (`{s}`), porque es la clave de la caché; no volver a poner `{s}` en
+  `MapPage`. `src/pages/Map/offlineTileLayer.ts` mira primero la caché y luego la red.
+- **Lectura sin conexión** (`offlineRead.ts`): `fetchGreenAreaDetail`, `fetchGreenAreas` y
+  `fetchNearbyTrees` piden al backend y, **solo si falla la red o el servidor da 5xx** (no un 404),
+  sirven lo descargado. Sin zonas descargadas conservan su error de siempre.
+- **Límites conocidos**: la app en sí (JS/HTML) no se guarda: sin service worker, abrirla en frío
+  sin red depende de la caché HTTP del navegador. Los POIs del mapa (Overpass/Nominatim) y las
+  fichas de especie no se guardan; los textos quedan en el idioma de la descarga.
 
 ## Stack
 
@@ -263,7 +339,8 @@ Reglas:
 
 - Backend en `http://localhost:3000` (CORS abierto, sin auth todavía).
 - Endpoints disponibles: `GET /health`, `GET /trees`, `GET /trees/nearby`, `GET /trees/:id`,
-  `POST /trees/import`, `GET /species`, `POST /species/enrich`.
+  `POST /trees/import`, `GET /species`, `POST /species/enrich`, `GET /pois/nearby`,
+  `GET /pois/:id`, `GET /routes` y `GET /routes/:id`.
 - Las llamadas HTTP deben ir en `src/services/`, no dentro de componentes.
 - La identificación por foto (`src/services/identify.ts`) consume `POST /plants/identify` con la
   base URL `VITE_API_URL` (por defecto `http://localhost:3000`).
@@ -287,6 +364,33 @@ Reglas:
   pinta las plantas globales de
   `src/services/plants.ts` (UT 908). El círculo azul sobre el usuario muestra el
   área de búsqueda (radio efectivo del modo), no la precisión del GPS.
+- Rutas predefinidas (`src/services/routes.ts`): `GET /routes` (listado ligero)
+  y `GET /routes/:id` (ficha con paradas y `path`). El listado (`/rutas`,
+  `RoutesList`) pinta una tarjeta por ruta con nombre, **tema y forma**
+  (botánica/cultural/mixta y circular/lineal: con las dos se distinguen todas
+  las del catálogo), longitud, duración y nº de paradas; sin filtros. Guarda la
+  posición del scroll y la restaura al volver, para que el listado se lea como
+  un scroll continuo. La ficha
+  (`/rutas/:id`, `RouteDetail` + `RouteMap`) pinta el recorrido como polilínea
+  con el punto de partida y las paradas: las de planta usan el mismo pin de hoja
+  del mapa y se pulsan para abrir la ficha de la planta; las de POI son un punto
+  de la paleta con su nombre en el `title`, **sin ficha todavía** (ver abajo).
+  La ficha repite los datos principales del listado e incluye los botones
+  «Iniciar ruta» y «Descargar ruta» como marcadores de posición (la UT del
+  guía de recorrido y la descarga llegan más adelante).
+  El botón «Iniciar ruta» de la ficha lleva a `/mapa?verRuta=<id>`: el
+  mapa principal pinta la ruta (`src/pages/Map/routeOverlay.ts`, el mismo
+  dibujado que la ficha) y muestra un botón de solo icono «Limpiar mapa»
+  (`map.clearMap`) que quita la capa. El frontend nunca llama a Valhalla: la
+  geometría ya viene guardada en BD. El error de `apiGet` lleva `status` para
+  distinguir 404 («no existe») de fallo de red («reintenta»).
+  - **Ficha de POI (pendiente, UT posterior)**: las paradas de POI ya viajan
+    con `id`, nombre y coordenadas, y el dibujado (`addRouteOverlay`) ya las
+    pinta; lo que falta es la pantalla. El punto de extensión está en
+    `handleOpenRouteStop` (`src/App.tsx`): hoy ignora las paradas `kind: 'poi'`
+    y solo abre la ficha de planta. Cuando exista la ficha de POI, se abre ahí
+    (mismo patrón overlay que la planta: `FichaAbierta.origin` admite ya
+    `'ruta'`).
 - Pendiente: no hay proxy en `vite.config.ts` (la URL del API es absoluta).
 
 ## Git
@@ -320,3 +424,5 @@ Cinco roles canónicos, con el mismo nombre como label. See `docs/agents/triage-
 ### Domain docs
 
 Single-context: `GLOSSARY.md` + `docs/adr/` en la raíz. See `docs/agents/domain.md`.
+
+- **Especie dentro de un parque**: la ficha de zona enlaza cada especie a `/mapa?zona=<slug>&verEspecie=<id>`. El mapa pide las plantas de la zona (`fetchGreenAreaPlants`, con copia descargada sin red), muestra solo los ejemplares de esa especie (agrupados si son muchos), los encuadra, oculta la tarjeta de descarga y pone un chip con la X para quitar el filtro. Sin `zona`, `verEspecie` sigue buscando entre las plantas cercanas.

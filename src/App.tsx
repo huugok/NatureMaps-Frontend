@@ -17,10 +17,15 @@ import type {
   FichaListState,
 } from './pages/FichaPlanta';
 import type { FichaEspecie, IdentificacionFicha } from './pages/FichaPlanta';
+import { ArticlePage, Discover } from './pages/Discover';
+import { GreenAreaPage } from './pages/GreenArea';
 import { Home } from './pages/Home';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
+import { RouteDetail } from './pages/RouteDetail';
+import { routeStopToPlantPin } from './pages/Map/routeOverlay';
+import type { RouteStop } from './services/routes';
 import { Search } from './pages/Search';
 import { LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
@@ -39,14 +44,18 @@ import { getSpeciesPhoto, saveSpeciesPhoto } from './services/speciesPhoto';
 
 type IdentificationStatus = 'idle' | 'identifying' | 'completed' | 'error';
 
-/** Ficha abierta por encima del escaneo o del mapa: conserva foto, resultado y
- * especie marcada, y deja viva la pantalla que había debajo. */
+/** Ficha abierta por encima del escaneo, del mapa o de una ruta: conserva foto,
+ * resultado y especie marcada, y deja viva la pantalla que había debajo. */
 interface FichaAbierta {
   species: FichaEspecie;
   identification: IdentificacionFicha | null;
-  /** «mapa» cuando se abrió tocando un punto: ya se está en el mapa y no
-   * tiene sentido ofrecer «Ver en el mapa». */
-  origin?: 'mapa';
+  /** «mapa» cuando se abrió tocando un punto del mapa: ya se está en el mapa y
+   * no tiene sentido ofrecer «Ver en el mapa». «ruta» cuando se abrió desde una
+   * parada de una ruta: al volver se sigue en la ficha de la ruta. */
+  origin?: 'mapa' | 'ruta';
+  /** Clave de historial de la pantalla desde la que se salió a una zona verde
+   * o a un artículo (NM-08): al volver a esa entrada la ficha reaparece. */
+  awayKey?: string;
 }
 
 const MapPage = lazy(() =>
@@ -251,11 +260,10 @@ export default function App() {
     handleOpenSpecies(match, photo, guardada ? null : photo);
   };
 
-  /** Abre la ficha de la planta tocada en el mapa (F03.1) como overlay: el
-   * mapa sigue montado debajo, así que al volver conserva centro y zoom
-   * (PA 691). Se pinta al instante con la lista del catálogo o, si aún no está
-   * cargada, con el nombre del propio punto; el detalle la enriquece después. */
-  const handleOpenPlantFromMap = useCallback((plant: PlantPin): boolean => {
+  /** Abre la ficha de una planta como overlay: la pantalla de debajo sigue
+   * montada y al volver se conserva (PA 691). `origin` distingue si veníamos
+   * del mapa (donde «Ver en el mapa» no aporta nada) o de una ruta. */
+  const handleOpenPlant = useCallback((plant: PlantPin, origin: 'mapa' | 'ruta'): boolean => {
     const items = fichaList.status === 'ready' ? fichaList.items : [];
     const matchedIndex =
       plant.speciesId == null
@@ -274,7 +282,7 @@ export default function App() {
     setFicha({
       species: conFotoPropia(item ? fichaDesdeItemLista(item, lang) : fichaDesdePlanta(plant)),
       identification: null,
-      origin: 'mapa',
+      origin,
     });
     getSpeciesDetail(speciesId, lang)
       .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
@@ -291,17 +299,54 @@ export default function App() {
     return true;
   }, [fichaList, lang]);
 
+  /** Toca de una planta en el mapa (F03.1): abre su ficha como overlay. */
+  const handleOpenPlantFromMap = useCallback(
+    (plant: PlantPin): boolean => handleOpenPlant(plant, 'mapa'),
+    [handleOpenPlant],
+  );
+
+  /** Toca de una parada de una ruta: las de planta abren su ficha (al volver
+   * se sigue en la ficha de la ruta). Las de POI todavía no tienen ficha —
+   * quedan para la UT de fichas de POI; mientras tanto no hacen nada. */
+  const handleOpenRouteStop = useCallback(
+    (stop: RouteStop) => {
+      if (stop.kind !== 'planta') return;
+      handleOpenPlant(routeStopToPlantPin(stop), 'ruta');
+    },
+    [handleOpenPlant],
+  );
+
   /** «Ver en el mapa» (RF3): al mapa; con especie de catálogo, pidiendo al
    * mapa que centre su ejemplar más cercano (parámetro de un solo uso). */
-  const handleViewOnMap = (speciesId?: number) => {
+  const handleViewOnMap = (speciesId?: number, neighborhood?: string) => {
     setFicha(null);
-    navigate(speciesId === undefined ? '/mapa' : `/mapa?verEspecie=${speciesId}`);
+    if (speciesId === undefined) {
+      // «Ver el mapa» del inicio: igual que el navbar, centra en el usuario.
+      navigate('/mapa', { state: { centerOnUser: Date.now() } });
+      return;
+    }
+    const params = new URLSearchParams({ verEspecie: String(speciesId) });
+    if (neighborhood) params.set('barrio', neighborhood);
+    // «Ver EN el mapa» de una ficha: centra el ejemplar, no al usuario.
+    navigate(`/mapa?${params.toString()}`);
   };
+
+  /** Enlaces de la ficha de planta al contenido de flora y zonas verdes
+   * (NM-08, PA 3013). Si la ficha es un overlay se aparta sin cerrarse. */
+  const leaveFichaTo = (path: string) => {
+    setFicha((actual) => (actual ? { ...actual, awayKey: location.key } : actual));
+    navigate(path);
+  };
+  const handleOpenGreenArea = (groupSlug: string) => leaveFichaTo(`/zona/${groupSlug}`);
+  const handleOpenFloraArticle = () => leaveFichaTo('/descubre?tema=flora');
+
+  // La ficha abierta se ve salvo que se haya salido de ella hacia otra pantalla.
+  const fichaVisible = ficha !== null && (ficha.awayKey === undefined || ficha.awayKey === location.key);
 
   return (
     <div className="app-shell">
       <div className="app-frame" style={{ zoom: frameScale }}>
-        <div className="flex h-full flex-col" inert={ficha !== null}>
+        <div className="flex h-full flex-col" inert={fichaVisible}>
           <Routes>
             <Route path="/" element={<Navigate to={mode ? '/inicio' : '/modo'} replace />} />
 
@@ -331,7 +376,14 @@ export default function App() {
                 }
               />
               <Route path="/rutas" element={<RoutesList />} />
-              <Route path="/buscar" element={<Search />} />
+              <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} />} />
+              <Route path="/buscar" element={<Search onSelectSpecies={(item) => {
+                setFicha({ species: fichaDesdeItemLista(item, lang), identification: null });
+                getSpeciesDetail(item.id, lang)
+                  .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+                  .then((species) => setFicha((actual) => actual?.species.id === item.id ? { ...actual, species } : actual))
+                  .catch(() => undefined);
+              }} />} />
             </Route>
 
             <Route element={<FullLayout />}>
@@ -372,9 +424,15 @@ export default function App() {
                     onPrevious={index > 0 ? () => cambiarFicha(index - 1) : undefined}
                     onNext={index < fichaItems.length - 1 ? () => cambiarFicha(index + 1) : undefined}
                     onViewOnMap={handleViewOnMap}
+                    onViewNeighborhoodOnMap={handleViewOnMap}
+                    onOpenGreenArea={handleOpenGreenArea}
+                    onOpenFloraArticle={handleOpenFloraArticle}
                   />
                 }
               />
+              <Route path="/descubre" element={<Discover />} />
+              <Route path="/descubre/:slug" element={<ArticlePage />} />
+              <Route path="/zona/:grupo" element={<GreenAreaPage />} />
               <Route path="/componentes" element={<Components />} />
               <Route
                 path="/tipografia"
@@ -399,13 +457,16 @@ export default function App() {
 
         {/* Por encima de los panes de Leaflet (marcadores 600, popups 700,
             controles 1000): con un z-index menor el mapa tapa la ficha. */}
-        {ficha !== null && (
+        {ficha !== null && fichaVisible && (
           <div className="absolute inset-0 z-[1200] overflow-y-auto overscroll-contain bg-surface-2">
             <FichaPlantaPage
               species={ficha.species}
               identification={ficha.identification}
               onBack={() => setFicha(null)}
               onViewOnMap={ficha.origin === 'mapa' ? undefined : handleViewOnMap}
+              onViewNeighborhoodOnMap={handleViewOnMap}
+              onOpenGreenArea={handleOpenGreenArea}
+              onOpenFloraArticle={handleOpenFloraArticle}
             />
           </div>
         )}
