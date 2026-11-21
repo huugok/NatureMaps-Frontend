@@ -339,6 +339,7 @@ export default function App() {
   };
   const handleOpenGreenArea = (groupSlug: string) => leaveFichaTo(`/zona/${groupSlug}`);
   const handleOpenFloraArticle = () => leaveFichaTo('/descubre?tema=flora');
+  const handleOpenHistory = () => leaveFichaTo('/descubre?tema=historia');
 
   // La ficha abierta se ve salvo que se haya salido de ella hacia otra pantalla.
   const fichaVisible = ficha !== null && (ficha.awayKey === undefined || ficha.awayKey === location.key);
@@ -423,6 +424,7 @@ export default function App() {
                     onViewNeighborhoodOnMap={handleViewOnMap}
                     onOpenGreenArea={handleOpenGreenArea}
                     onOpenFloraArticle={handleOpenFloraArticle}
+                    onOpenHistory={handleOpenHistory}
                   />
                 }
               />
@@ -463,6 +465,7 @@ export default function App() {
               onViewNeighborhoodOnMap={handleViewOnMap}
               onOpenGreenArea={handleOpenGreenArea}
               onOpenFloraArticle={handleOpenFloraArticle}
+              onOpenHistory={handleOpenHistory}
             />
           </div>
         )}
