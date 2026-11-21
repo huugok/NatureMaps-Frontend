@@ -258,7 +258,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [zoneSpecies, setZoneSpecies] = useState<{ name: string; pins: PlantPin[] } | null>(null);
   const [zoneSpeciesFailed, setZoneSpeciesFailed] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
-  const [chosenArea, setChosenArea] = useState(false);
   const [pois, setPois] = useState<Array<{id: number; name: string; lat: number; lon: number; distance: number}>>([]);
   const [areaLoading, setAreaLoading] = useState(false);
   const [poiLoading, setPoiLoading] = useState(false);
@@ -358,10 +357,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   }, [lang, radius, setPlants]);
 
   useEffect(() => {
-    if (locationPermission === null || chosenArea) return;
+    if (locationPermission === null) return;
     const center = locatedPosition ?? VALENCIA;
     loadArea(center, locatedPosition ? radius : 10000);
-  }, [locationPermission, locatedPosition, chosenArea, loadArea, radius]);
+  }, [locationPermission, locatedPosition, loadArea, radius]);
 
   // Radio efectivo de cercanas, vivo para updateUserLocation (memoizado sin
   // dependencias, como el cargador de abajo).
@@ -1334,12 +1333,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           >
             <span className="h-1.5 w-12 rounded-full bg-line-strong" aria-hidden="true" />
           </button>
-          <div className="mb-3 flex gap-2">
-            <button type="button" onClick={() => { setChosenArea(false); centerOnUser(); if (locatedPosition) loadArea(locatedPosition, radius); }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${!chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.nearMe')}</button>
-            <button type="button" onClick={() => { const center = mapRef.current?.getCenter(); if (center) { setChosenArea(true); loadArea({latitude:center.lat,longitude:center.lng}); } }} className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${chosenArea ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>{t('map.chooseArea')}</button>
-          </div>
-          <p className="mb-2 text-small font-semibold text-ink">{chosenArea ? t('map.selectedArea') : t('map.nearbyTitle')}</p>
-          {chosenArea && <button type="button" disabled={areaLoading} onClick={() => {const center=mapRef.current?.getCenter(); if(center) loadArea({latitude:center.lat,longitude:center.lng});}} className="mb-2 min-h-10 rounded-control bg-accent-soft px-3 text-small font-semibold text-ink disabled:opacity-60">{areaLoading ? t('map.loadingArea') : t('map.updateArea')}</button>}
+          <p className="mb-2 text-small font-semibold text-ink">{t('map.nearbyTitle')}</p>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {/* Cerrado = solo la estructura: montar cientos de artículos en cada
                 render de progreso era el 24 % de las muestras de CPU. */}
