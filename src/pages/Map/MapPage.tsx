@@ -508,7 +508,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         }
       };
       loadPages().catch(() => {
-        if (!controller.signal.aborted) setPlantsFailed(true);
+        // Con plantas ya en pantalla, un fallo parcial no debe borrar la vista
+        // ni mostrar un error: se conserva lo que ya se había cargado.
+        if (!controller.signal.aborted && plantsRef.current === null) setPlantsFailed(true);
       }).finally(() => {
         // Solo la carga vigente decide: una abortada que termina tarde no toca
         // el estado de la que tomó el relevo.

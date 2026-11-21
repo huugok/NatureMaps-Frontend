@@ -78,16 +78,16 @@ export async function fetchNearbyTrees(
   signal?: AbortSignal,
 ): Promise<NearbyResponse> {
   const key = treeCacheKey(params);
+  const fromCache = (trees: NearbyPlant[]): NearbyResponse => ({
+    center: { latitude: params.latitude, longitude: params.longitude },
+    radius: params.radius, returned: trees.length, total: trees.length,
+    limit: null, language: params.lang, trees,
+  });
   const offset = params.offset ?? 0;
   if (offset === 0) {
     const cached = await plantCache().get(key).catch(() => undefined);
     if (cached && Date.now() - cached.savedAt < TREE_CACHE_TTL_MS) {
-      const trees = cached.trees as NearbyPlant[];
-      return {
-        center: { latitude: params.latitude, longitude: params.longitude },
-        radius: params.radius, returned: trees.length, total: trees.length,
-        limit: null, language: params.lang, trees,
-      };
+      return fromCache(cached.trees as NearbyPlant[]);
     }
   }
   const query = new URLSearchParams({
@@ -113,7 +113,10 @@ export async function fetchNearbyTrees(
   try {
     return repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
   } catch (error) {
-    // Sin red, las plantas de las zonas descargadas; sin zonas descargadas, el error de siempre.
+    // Si Neon falla (500 o red caída), servir la caché aunque esté caducada:
+    // el mapa sigue enseñando plantas en vez de mostrar un error.
+    const stale = await plantCache().get(key).catch(() => undefined);
+    if (stale?.trees.length) return fromCache(stale.trees as NearbyPlant[]);
     const saved = isUnreachable(error) ? await offlineNearbyTrees(params) : null;
     if (saved) return repair(saved);
     throw error;
