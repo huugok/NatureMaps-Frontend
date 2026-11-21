@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, Landmark, Leaf, LocateFixed, MapPinOff, Search,
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance, repairTextEncoding } from '../../i18n/format';
-import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
+import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius, saveNearbyTreesCache } from '../../services/nearby';
 import { fetchRouteDetail } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
@@ -461,7 +461,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         let offset = 0;
         let total = 0;
         let more = true;
+        let fromCache = false;
         const found: PlantPin[] = [];
+        const allTrees: Array<Parameters<typeof saveNearbyTreesCache>[1][number]> = [];
         do {
           const response = await fetchNearbyTrees(
             { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius,
@@ -470,6 +472,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           );
           if (controller.signal.aborted) return;
           total = response.total;
+          fromCache = response.limit === null;
+          allTrees.push(...response.trees);
           found.push(...response.trees.map((plant) => ({
             id: plant.id,
             displayName: plant.displayName,
@@ -489,6 +493,19 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           // por zonas hace que cada render trabaje con muchas menos plantas.
           if (found.length > 0) setPlants([...found]);
         } while (more);
+        if (!controller.signal.aborted && allTrees.length > 0) {
+          // Guardar solo la carga completa: así la próxima entrada al mapa
+          // sirve de IndexedDB y no vuelve a consultar Neon.
+          void saveNearbyTreesCache(
+            { latitude: coords.latitude, longitude: coords.longitude, radius: modeRadius, lang },
+            allTrees,
+          );
+        }
+        if (fromCache) {
+          // La caché llega de golpe: dejar girar la rueda un instante para que
+          // se vea que las plantas se están cargando también en este caso.
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
       };
       loadPages().catch(() => {
         if (!controller.signal.aborted) setPlantsFailed(true);

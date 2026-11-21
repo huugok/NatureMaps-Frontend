@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchNearbyTrees } from './nearby'
+import { fetchNearbyTrees, saveNearbyTreesCache } from './nearby'
 import { createMemoryPlantCache, createMemoryStore, offlineStorage, setOfflineStorage, setPlantCache } from './offlineStorage'
 
 const api = vi.hoisted(() => ({ get: vi.fn() }))
@@ -29,6 +29,7 @@ describe('caché de plantas en IndexedDB', () => {
     const first = await fetchNearbyTrees(params)
     expect(api.get).toHaveBeenCalledTimes(1)
     expect(first.trees).toHaveLength(2)
+    await saveNearbyTreesCache(params, first.trees)
 
     const second = await fetchNearbyTrees(params)
     expect(api.get).toHaveBeenCalledTimes(1)

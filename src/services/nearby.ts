@@ -68,7 +68,6 @@ export function saveNearbyRadius(meters: number): void {
 // y Neon no vuelve a transferir el inventario. Las páginas se acumulan en memoria
 // hasta que llega la última y solo entonces se guarda el resultado completo.
 const TREE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const pendingTrees = new Map<string, NearbyPlant[]>();
 
 function treeCacheKey(params: { latitude: number; longitude: number; radius: number; lang: string }): string {
   return `${params.latitude.toFixed(4)}:${params.longitude.toFixed(4)}:${params.radius}:${params.lang}`;
@@ -112,22 +111,20 @@ export async function fetchNearbyTrees(
     })),
   });
   try {
-    const response = repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
-    if (params.limit !== undefined) {
-      const accumulated = offset === 0 ? [] : pendingTrees.get(key) ?? [];
-      accumulated.push(...response.trees);
-      if (offset + response.trees.length >= response.total) {
-        pendingTrees.delete(key);
-        void plantCache().put(key, { savedAt: Date.now(), trees: accumulated }).catch(() => undefined);
-      } else {
-        pendingTrees.set(key, accumulated);
-      }
-    }
-    return response;
+    return repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
   } catch (error) {
     // Sin red, las plantas de las zonas descargadas; sin zonas descargadas, el error de siempre.
     const saved = isUnreachable(error) ? await offlineNearbyTrees(params) : null;
     if (saved) return repair(saved);
     throw error;
   }
+}
+
+
+/** Guarda la carga completa al terminar el bucle de páginas del mapa. */
+export async function saveNearbyTreesCache(
+  params: { latitude: number; longitude: number; radius: number; lang: string },
+  trees: NearbyPlant[],
+): Promise<void> {
+  await plantCache().put(treeCacheKey(params), { savedAt: Date.now(), trees }).catch(() => undefined);
 }
