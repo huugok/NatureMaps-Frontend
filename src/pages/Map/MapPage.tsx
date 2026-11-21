@@ -228,7 +228,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
-  const followUserRef = useRef(true);
+  // Centrar al entrar es puntual: solo si la entrada no trae ya una vista que
+  // manda (ruta, especie o parque). Si no, el primer dato del GPS se adelantaba
+  // a los effects que encuadran ese contenido y el mapa saltaba al usuario.
+  const followUserRef = useRef(!routeVisible && !searchParams.has('verEspecie') && selectedZone === null);
   const keepBothVisibleRef = useRef(false);
   // `onOpenPlant` llega por props y cambia de identidad: se lee por ref para no
   // redibujar las capas (y la ruta) en cada render de App.
@@ -507,6 +510,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     drawUser(coords);
 
     if (followUserRef.current) {
+      // Centrar es puntual: al entrar al mapa o al pulsar el botón. Se consume
+      // aquí para que las siguientes posiciones del GPS no arranquen el mapa
+      // (una ruta cargada o una ficha abierta deben conservar su encuadre).
+      followUserRef.current = false;
       map.setView(point, Math.max(map.getZoom(), 16), { animate: true });
     } else if (
       keepBothVisibleRef.current &&
@@ -1241,11 +1248,13 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
   const centerOnUser = () => {
     const map = mapRef.current;
+    keepBothVisibleRef.current = false;
+    // Si todavía no hay posición, la primera que llegue centra el mapa.
+    followUserRef.current = true;
     if (currentPositionRef.current && map) {
-      keepBothVisibleRef.current = false;
-      followUserRef.current = true;
       const { latitude, longitude } = currentPositionRef.current;
       map.flyTo([latitude, longitude], Math.max(map.getZoom(), 16));
+      followUserRef.current = false;
       return;
     }
     navigator.geolocation?.getCurrentPosition(updateUserLocation, () => {}, {

@@ -226,6 +226,26 @@ describe('MapPage', () => {
     expect(leaflet.map.setView).toHaveBeenCalledWith([39.48, -0.38], 16, { animate: true });
   });
 
+  it('se centra al entrar al mapa, pero no con cada posición posterior del GPS', () => {
+    renderMap();
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    expect(leaflet.map.setView).toHaveBeenCalledTimes(1);
+
+    leaflet.map.setView.mockClear();
+    onPosition({ coords: { latitude: 39.49, longitude: -0.39, accuracy: 25 } });
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+  });
+
+  it('el botón de centrar vuelve a centrar en el usuario', () => {
+    renderMap();
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    leaflet.map.flyTo.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Centrar el mapa en mi ubicación' }));
+    expect(leaflet.map.flyTo).toHaveBeenCalledWith([39.48, -0.38], 16);
+  });
+
   it('permite buscar un lugar y anuncia cuando no hay resultados', async () => {
     renderMap();
     fireEvent.change(screen.getByRole('textbox', { name: 'Buscar sitios en el mapa' }), { target: { value: 'Xàtiva' } });
@@ -785,6 +805,24 @@ describe('MapPage', () => {
       expect.objectContaining({ className: 'plant-group-area' }),
     );
     delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('al entrar con una ruta, el primer dato del GPS no centra en el usuario', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (
+      String(url).includes('/routes/7')
+        ? { ok: true, json: async () => ({
+            id: 7, name: 'Ruta', theme: 'mixta', shape: 'circular', lengthCategory: 'corta',
+            distanceMeters: 100, durationSeconds: 100, start: { latitude: 39.47, longitude: -0.37 },
+            description: '', stopsCount: 0, stops: [],
+            path: [{ latitude: 39.47, longitude: -0.37 }, { latitude: 39.471, longitude: -0.371 }],
+          }) }
+        : { ok: true, json: async () => ({ nextOffset: null, trees: [] }) }
+    )) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verRuta=7');
+    const onPosition = geo.watchPosition.mock.calls[0][0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
   });
 
   it('«Ver en el mapa» desde una ruta: pinta el recorrido y «Limpiar mapa» lo quita', async () => {
