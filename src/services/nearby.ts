@@ -71,7 +71,8 @@ export function saveNearbyRadius(meters: number): void {
 // y Neon no vuelve a transferir el inventario. La caducidad corta (1 h) la mantiene
 // como caché de sesión: nota de datos guardados a propósito por el usuario (zonas,
 // rutas) viven en otros stores y no se tocan.
-const TREE_CACHE_TTL_MS = 60 * 60 * 1000;
+// Caducidad desactivada mientras se valida el caché: se vuelve a activar
+// cuando termine la tanda de pruebas (comparar Date.now() - savedAt con 1 h).
 
 function treeCacheKey(params: { latitude: number; longitude: number; radius: number; lang: string }): string {
   return `${params.latitude.toFixed(4)}:${params.longitude.toFixed(4)}:${params.radius}:${params.lang}`;
@@ -94,7 +95,7 @@ export async function fetchNearbyTrees(
     };
   };
   const cached = await plantCache().get(key).catch(() => undefined);
-  if (cached && Date.now() - cached.savedAt < TREE_CACHE_TTL_MS) {
+  if (cached) {
     return fromCache(cached.trees as NearbyPlant[]);
   }
   const query = new URLSearchParams({
