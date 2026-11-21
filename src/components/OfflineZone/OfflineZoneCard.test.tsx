@@ -6,15 +6,16 @@ import { renderWithProviders } from '../../test/renderWithProviders';
 import {
   createMemoryStore, createMemoryTileCache, setOfflineStorage,
 } from '../../services/offlineStorage';
+import { resetDownloadRegistry } from '../../services/downloadRegistry';
 import { OfflineZoneCard } from './OfflineZoneCard';
 
 // jsdom no tiene IndexedDB ni Cache API: se da por válido el soporte y se
 // sustituye el almacenamiento por uno en memoria.
-const support = vi.hoisted(() => ({ supported: true }));
+const support = vi.hoisted(() => ({ supported: true, free: null as number | null }));
 vi.mock('../../services/offlineStorage', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/offlineStorage')>()),
   isOfflineSupported: () => support.supported,
-  freeStorageBytes: async () => null,
+  freeStorageBytes: async () => support.free,
 }));
 
 const plantsPage = {
@@ -51,10 +52,12 @@ describe('descarga de una zona (tarjeta)', () => {
   beforeEach(() => {
     localStorage.clear();
     support.supported = true;
+    support.free = null;
     setOfflineStorage({ store: createMemoryStore(), tiles: createMemoryTileCache() });
   });
   afterEach(() => {
     cleanup();
+    resetDownloadRegistry();
     vi.unstubAllGlobals();
     setOfflineStorage();
   });
@@ -63,6 +66,28 @@ describe('descarga de una zona (tarjeta)', () => {
     renderCard();
     expect(await screen.findByRole('button', { name: 'Descargar zona' })).toBeEnabled();
     expect(screen.getByText(/Se guardan el mapa, las plantas y la ficha del parque \(unos [\d.,]+ (KB|MB)\)/)).toBeInTheDocument();
+  });
+
+  it('si no cabe en el dispositivo lo avisa y no deja descargar', async () => {
+    support.free = 500_000;
+    renderCard();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No cabe en el dispositivo/);
+    expect(screen.getByRole('button', { name: 'Descargar zona' })).toBeDisabled();
+  });
+
+  it('si queda poco espacio avisa pero deja descargar', async () => {
+    support.free = 100_500_000;
+    renderCard();
+    expect(await screen.findByText(/Queda poco espacio en el dispositivo/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Descargar zona' })).toBeEnabled();
+  });
+
+  it('con espacio de sobra o sin estimación del navegador no avisa de nada', async () => {
+    support.free = 5_000_000_000;
+    renderCard();
+    expect(await screen.findByRole('button', { name: 'Descargar zona' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Queda poco espacio/)).not.toBeInTheDocument();
   });
 
   it('descarga, enseña que está disponible sin conexión y permite eliminarla', async () => {

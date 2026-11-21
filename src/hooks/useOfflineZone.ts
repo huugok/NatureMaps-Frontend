@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { downloadZone, removeZone } from '../services/offlineDownload';
-import { isAbortError, OfflineError } from '../services/offlineError';
+import {
+  cancelDownload, getActiveDownloads, removeDownloads, startDownload, subscribeActive, subscribeLibrary,
+} from '../services/downloadRegistry';
+import type { ActiveDownload } from '../services/downloadRegistry';
 import { getOfflineZone } from '../services/offlineRead';
-import { isOfflineSupported } from '../services/offlineStorage';
+import { freeStorageBytes, isOfflineSupported } from '../services/offlineStorage';
+import { assessStorage, bytesNeeded } from '../services/offlineQuota';
 import { countTiles, estimateBytes } from '../services/offlineTiles';
 import type { Language } from '../types/language';
 import type { Bbox, DownloadProgress, OfflineErrorCode, OfflineZoneRecord } from '../types/offline';
@@ -17,7 +20,8 @@ export type OfflineZoneState =
 /**
  * Estado de la descarga de una zona: si ya está guardada, su progreso mientras
  * se descarga y las acciones de descargar, cancelar y borrar. La estimación de
- * peso sale de la caja de la zona, sin tocar la red.
+ * peso sale de la caja de la zona, sin tocar la red. La descarga vive en el
+ * registro compartido (NM-17): sigue aunque se cambie de pantalla y Rutas la ve.
  */
 export function useOfflineZone(
   groupSlug: string,
@@ -25,25 +29,44 @@ export function useOfflineZone(
   bbox: Bbox,
   plantCount = 0,
   onSaved?: (record: OfflineZoneRecord) => void,
+  name?: string,
 ) {
   const supported = isOfflineSupported();
-  const [state, setState] = useState<OfflineZoneState>(supported ? { status: 'checking' } : { status: 'unsupported' });
-  const controllerRef = useRef<AbortController | null>(null);
+  // `undefined`: aún sin leer del dispositivo; `null`: la zona no está guardada.
+  // Se guarda con su slug: al cambiar de zona el valor anterior deja de valer sin reiniciar nada.
+  const [loaded, setLoaded] = useState<{ groupSlug: string; record: OfflineZoneRecord | null } | null>(null);
+  const [activeList, setActiveList] = useState<readonly ActiveDownload[]>(() => getActiveDownloads());
+  const record = loaded?.groupSlug === groupSlug ? loaded.record : undefined;
+  const active = activeList.find((entry) => entry.groupSlug === groupSlug) ?? null;
+  const [free, setFree] = useState<number | null>(null);
+  const mountedRef = useRef(true);
   // El aviso de «descargada» se lee de una ref: cambiar de callback no reinicia nada.
   const onSavedRef = useRef(onSaved);
   useEffect(() => {
     onSavedRef.current = onSaved;
   });
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!supported) return;
     let cancelled = false;
-    void getOfflineZone(groupSlug).then((record) => {
-      if (!cancelled) setState(record ? { status: 'saved', record } : { status: 'idle', error: null });
+    void getOfflineZone(groupSlug).then((saved) => {
+      if (!cancelled) setLoaded({ groupSlug, record: saved ?? null });
+    });
+    const offActive = subscribeActive(() => setActiveList(getActiveDownloads()));
+    const offLibrary = subscribeLibrary((change) => {
+      if (change.type === 'saved' && change.record.groupSlug === groupSlug) setLoaded({ groupSlug, record: change.record });
+      if (change.type === 'removed' && change.groupSlugs.includes(groupSlug)) setLoaded({ groupSlug, record: null });
     });
     return () => {
       cancelled = true;
-      controllerRef.current?.abort();
+      offActive();
+      offLibrary();
     };
   }, [groupSlug, supported]);
 
@@ -56,40 +79,38 @@ export function useOfflineZone(
     }
   }, [bbox, plantCount]);
 
+  // Espacio libre, para avisar antes de descargar. Se relee al volver a estar lista para descargar.
+  const idle = supported && record === null && active === null;
+  useEffect(() => {
+    if (!idle) return;
+    let cancelled = false;
+    void freeStorageBytes().then((bytes) => {
+      if (!cancelled) setFree(bytes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [idle]);
+  const storage = useMemo(() => assessStorage(estimate.bytes, free), [estimate.bytes, free]);
+  const storageInfo = { level: storage, free, needed: bytesNeeded(estimate.bytes) };
+
+  const state: OfflineZoneState = useMemo(() => {
+    if (!supported) return { status: 'unsupported' };
+    if (active?.status === 'downloading') return { status: 'downloading', progress: active.progress };
+    if (record === undefined) return { status: 'checking' };
+    if (active?.status === 'error') return { status: 'idle', error: active.error };
+    if (record) return { status: 'saved', record };
+    return { status: 'idle', error: null };
+  }, [supported, active, record]);
+
   const download = useCallback(async () => {
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    setState({ status: 'downloading', progress: { phase: 'detail', done: 0, total: 1, fraction: 0 } });
-    try {
-      const record = await downloadZone({
-        groupSlug,
-        lang,
-        signal: controller.signal,
-        onProgress: (progress) => {
-          if (!controller.signal.aborted) setState({ status: 'downloading', progress });
-        },
-      });
-      // Si el usuario se fue de la pantalla, el estado ya no importa (el efecto aborta).
-      setState({ status: 'saved', record });
-      onSavedRef.current?.(record);
-      void navigator.storage?.persist?.().catch(() => undefined);
-    } catch (error) {
-      if (isAbortError(error)) {
-        setState({ status: 'idle', error: null });
-      } else {
-        setState({ status: 'idle', error: error instanceof OfflineError ? error.code : 'generic' });
-      }
-    } finally {
-      if (controllerRef.current === controller) controllerRef.current = null;
-    }
-  }, [groupSlug, lang]);
+    const saved = await startDownload({ groupSlug, lang, name });
+    if (saved && mountedRef.current) onSavedRef.current?.(saved);
+  }, [groupSlug, lang, name]);
 
-  const cancel = useCallback(() => controllerRef.current?.abort(), []);
+  const cancel = useCallback(() => cancelDownload(groupSlug), [groupSlug]);
 
-  const remove = useCallback(async () => {
-    await removeZone(groupSlug);
-    setState({ status: 'idle', error: null });
-  }, [groupSlug]);
+  const remove = useCallback(() => removeDownloads([groupSlug]), [groupSlug]);
 
-  return { state, estimate, download, cancel, remove };
+  return { state, estimate, storage: storageInfo, download, cancel, remove };
 }

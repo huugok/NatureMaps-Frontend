@@ -6,6 +6,7 @@ import type { GreenAreaDetail } from '../types/greenArea';
 import { isAbortError, OfflineError } from './offlineError';
 import { freeStorageBytes, offlineStorage } from './offlineStorage';
 import type { OfflineStore, TileCache } from './offlineStorage';
+import { assessStorage } from './offlineQuota';
 import { countTiles, estimateBytes, planTiles, tileUrl } from './offlineTiles';
 
 // Descarga de una zona verde para usarla sin conexión (NM-08): ficha, plantas
@@ -53,6 +54,8 @@ export interface DownloadOptions {
   lang: Language;
   signal?: AbortSignal;
   onProgress?: (progress: DownloadProgress) => void;
+  /** Se llama en cuanto llega la ficha de la zona (de ella sale el nombre). */
+  onDetail?: (detail: GreenAreaDetail) => void;
 }
 
 function asNetworkError(error: unknown): unknown {
@@ -63,7 +66,7 @@ function asNetworkError(error: unknown): unknown {
 
 /** Descarga y guarda una zona. Se puede cancelar con `signal`; lanza `OfflineError` si falla. */
 export async function downloadZone(options: DownloadOptions, deps: DownloadDeps = defaultDownloadDeps()): Promise<OfflineZoneRecord> {
-  const { groupSlug, lang, signal, onProgress } = options;
+  const { groupSlug, lang, signal, onProgress, onDetail } = options;
   const report = (phase: DownloadProgress['phase'], done: number, total: number, base: number, weight: number) => {
     const part = total > 0 ? Math.min(done / total, 1) : 1;
     onProgress?.({ phase, done, total, fraction: Math.min(base + part * weight, 1) });
@@ -75,9 +78,10 @@ export async function downloadZone(options: DownloadOptions, deps: DownloadDeps 
   try {
     report('detail', 0, 1, 0, WEIGHT.detail);
     const detail = await deps.fetchDetail(groupSlug, lang, signal);
+    onDetail?.(detail);
     const plan = countTiles(detail.bbox);
     const free = await deps.freeBytes();
-    if (free !== null && free < estimateBytes(plan.count, detail.plants.total) * 1.5) {
+    if (assessStorage(estimateBytes(plan.count, detail.plants.total), free) === 'insufficient') {
       throw new OfflineError('storage-full', 'No hay espacio suficiente en el dispositivo.');
     }
     report('detail', 1, 1, 0, WEIGHT.detail);
