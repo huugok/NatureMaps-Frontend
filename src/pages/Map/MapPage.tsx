@@ -974,7 +974,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         const matchingLocations = neighborhood
           ? locations.filter((location) => normalizeLocationName(location.neighborhood ?? location.district ?? '') === normalizeLocationName(neighborhood))
           : locations;
-        const locationPins: PlantPin[] = matchingLocations.map((location) => ({
+        const locationPins: PlantPin[] = matchingLocations
+          .filter((location) => Number.isFinite(location.latitude) && Number.isFinite(location.longitude))
+          .map((location) => ({
           id: location.id, speciesId, displayName: name, scientificName: species.scientificName,
           latitude: location.latitude, longitude: location.longitude, identified: true,
         }));
@@ -996,7 +998,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         map.fitBounds(L.latLngBounds(locationPins.map((pin): L.LatLngTuple => [pin.latitude, pin.longitude])), { padding: [56, 56], maxZoom: 17 });
         setFocusLoading(false);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error(`No se han podido mostrar las ubicaciones de la especie ${speciesId}`, error);
         if (requestId === speciesFocusRequestRef.current) {
           setFocusMessage(t('map.speciesLocationsError'));
           setFocusLoading(false);
