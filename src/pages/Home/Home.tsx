@@ -1,4 +1,4 @@
-import { Flower2, Leaf, Route, ScanLine } from 'lucide-react'
+import { BookOpen, Flower2, Leaf, Route, ScanLine } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { Page } from '../../components/Page'
 import { Badge } from '../../components/ui/Badge'
@@ -32,6 +32,7 @@ export function Home() {
         <ListItem icon={Leaf} title={t('home.map')} to="/mapa" />
         <ListItem icon={Route} title={t('home.routes')} to="/rutas" />
         <ListItem icon={Flower2} title={t('home.ficha')} subtitle={t('home.fichaDesc')} to="/ficha" />
+        <ListItem icon={BookOpen} title={t('home.discover')} subtitle={t('home.discoverDesc')} to="/descubre" />
       </List>
     </Page>
   )

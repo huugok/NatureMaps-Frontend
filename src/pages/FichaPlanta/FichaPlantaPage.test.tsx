@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { DEMO_SPECIES } from './constants';
 import { FichaPlantaPage } from './FichaPlantaPage';
@@ -385,5 +385,46 @@ describe('FichaPlantaPage — especie por props (PA 1250 y PA 692)', () => {
 
     expect(screen.queryByRole('button', { name: 'Especie anterior' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Especie siguiente' })).not.toBeInTheDocument();
+  });
+});
+
+describe('FichaPlantaPage: enlace con flora y zonas verdes (NM-08, PA 3013)', () => {
+  const conZonas: FichaEspecie = {
+    ...especie,
+    id: 7,
+    greenAreas: [
+      { groupSlug: 'jardin-del-turia', id: 2, name: 'Jardín del Turia', plants: 312, hasArticle: true },
+      { groupSlug: 'jardin-de-las-hesperides', id: 1, name: 'Jardín de las Hespérides', plants: 1, hasArticle: true },
+    ],
+  };
+
+  it('lista los parques donde está la especie y abre la zona elegida', () => {
+    const onOpenGreenArea = vi.fn();
+    renderFicha({ species: conZonas, onOpenGreenArea });
+    expect(screen.getByRole('heading', { name: 'Zonas verdes donde encontrarla' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Jardín del Turia.*312 ejemplares/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Jardín de las Hespérides.*1 ejemplar$/ }));
+    expect(onOpenGreenArea).toHaveBeenCalledWith('jardin-de-las-hesperides');
+  });
+
+  it('ofrece el artículo de flora característica', () => {
+    const onOpenFloraArticle = vi.fn();
+    renderFicha({ species: conZonas, onOpenFloraArticle });
+    fireEvent.click(screen.getByRole('button', { name: /Flora característica de València/ }));
+    expect(onOpenFloraArticle).toHaveBeenCalledOnce();
+  });
+
+  it('no pinta la sección si la especie solo está en la calle o no hay cómo navegar', () => {
+    renderFicha({ species: { ...especie, id: 7 }, onOpenGreenArea: vi.fn() });
+    expect(screen.queryByRole('heading', { name: 'Zonas verdes donde encontrarla' })).not.toBeInTheDocument();
+    cleanup();
+    renderFicha({ species: conZonas });
+    expect(screen.queryByRole('heading', { name: 'Zonas verdes donde encontrarla' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Flora característica/ })).not.toBeInTheDocument();
+  });
+
+  it('una ficha de solo identificación (sin especie de catálogo) no enlaza el artículo', () => {
+    renderFicha({ species: especie, onOpenFloraArticle: vi.fn() });
+    expect(screen.queryByRole('button', { name: /Flora característica/ })).not.toBeInTheDocument();
   });
 });

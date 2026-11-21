@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.setConfig({ testTimeout: 15000 });
 import '@testing-library/jest-dom/vitest';
@@ -106,6 +106,44 @@ vi.mock('leaflet', () => ({
     latLng: leaflet.latLng,
     point: leaflet.point,
   },
+}));
+
+// La capa de zonas verdes (NM-08) tiene su propia suite; aquí solo se comprueba
+// cuándo la enciende, apaga y resalta el mapa.
+const greenAreas = vi.hoisted(() => {
+  const layer = { select: vi.fn(), fit: vi.fn(() => true), remove: vi.fn() };
+  return {
+    layer,
+    add: vi.fn((..._args: unknown[]) => layer),
+    fetch: vi.fn(async () => [{
+      id: 1,
+      groupSlug: 'jardin-de-las-hesperides',
+      groupName: 'Jardín de las Hespérides',
+      center: { latitude: 39.4775, longitude: -0.3882 },
+      bbox: [-0.389, 39.477, -0.387, 39.478],
+      featured: true,
+      plants: 69,
+    }]),
+  };
+});
+vi.mock('./greenAreasLayer', () => ({ addGreenAreasLayer: greenAreas.add }));
+// La descarga de zonas (NM-08) tiene su propia suite; aquí solo se comprueba
+// cuándo se ofrece sobre el mapa y con qué datos.
+vi.mock('../../components/OfflineZone', () => ({
+  OfflineZoneCard: (props: { groupSlug: string; bbox: number[]; plantCount?: number; onSaved?: (record: { name: string }) => void; onClose?: () => void }) => (
+    <div>
+      <button type="button" data-bbox={props.bbox.join(',')} data-plants={props.plantCount} onClick={() => props.onSaved?.({ name: 'Jardín de las Hespérides' })}>Descargar zona {props.groupSlug}</button>
+      <button type="button" onClick={props.onClose}>Cerrar descarga</button>
+    </div>
+  ),
+  OfflineSavedToast: (props: { name: string; onClose: () => void }) => (
+    <div role="status">Descargado {props.name}<button type="button" onClick={props.onClose}>Cerrar aviso</button></div>
+  ),
+}));
+// Solo la capa de zonas se simula; las plantas de un parque salen del fetch del test.
+vi.mock('../../services/greenAreas', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/greenAreas')>()),
+  fetchGreenAreas: greenAreas.fetch,
 }));
 
 const geo = {
@@ -580,5 +618,330 @@ describe('MapPage', () => {
       mapClickHandler?.();
     });
     expect(exploreBtn).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('fuera de València, sin ejemplares cerca, el mapa conserva las plantas del inventario', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    // Posición fuera del término municipal: el inventario no cubre esa zona.
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } });
+    });
+    // Cercanas no devuelve nada; las globales sí.
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees/nearby')
+        ? { center: { latitude: 39.4372, longitude: -0.4653 }, radius: 1000, returned: 0, limit: 100, language: 'es', trees: [] }
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [{ id: 1, speciesId: 5, displayName: 'Naranjo amargo', latitude: 39.47, longitude: -0.37 }] }
+          : [],
+    })) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    act(() => {
+      (geo.watchPosition.mock.calls[0][0] as (position: unknown) => void)({
+        coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 },
+      });
+    });
+
+    // Los pines del inventario siguen pintándose pese a la respuesta vacía.
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo' })));
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('al moverse a una zona con ejemplares se vuelve a las plantas cercanas', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } });
+    });
+    let nearbyTrees: unknown[] = [];
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees/nearby')
+        ? { center: { latitude: 39.47, longitude: -0.37 }, radius: 1000, returned: nearbyTrees.length, limit: 100, language: 'es', trees: nearbyTrees }
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [] }
+          : [],
+    })) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0] as (position: unknown) => void;
+    act(() => onPosition({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } }));
+
+    // Entra en cobertura: una respuesta vacía previa no bloquea la siguiente.
+    nearbyTrees = [{
+      id: 9, speciesId: 3, scientificName: 'Celtis australis', displayName: 'Almez',
+      latitude: 39.4795, longitude: -0.3795, distance: 120,
+    }];
+    act(() => onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.4795, -0.3795], expect.objectContaining({ title: 'Almez' })));
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('agrupa en un marcador las plantas que están dentro de un parque', async () => {
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees')
+        ? {
+            nextOffset: null,
+            trees: [
+              { id: 1, speciesId: 5, displayName: 'Cidro', latitude: 39.4775, longitude: -0.3882, greenAreaId: 1 },
+              { id: 2, speciesId: 6, displayName: 'Limonero', latitude: 39.4776, longitude: -0.3883, greenAreaId: 1 },
+              { id: 3, speciesId: 7, displayName: 'Jacaranda', latitude: 39.47, longitude: -0.37, greenAreaId: null },
+            ],
+          }
+        : [],
+    })) as unknown as typeof fetch);
+
+    renderMap();
+
+    // Un solo marcador para las dos plantas del jardín, con su recuento real,
+    // y la planta de calle sigue teniendo el suyo.
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.4775, -0.3882], expect.objectContaining({ title: 'Jardín de las Hespérides: 69 ejemplares' })));
+    expect(leaflet.markerFactory).toHaveBeenCalledWith([39.47, -0.37], expect.objectContaining({ title: 'Jacaranda' }));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith([39.4776, -0.3883], expect.anything());
+  });
+
+  it('al acercarse al parque se ven sus plantas una a una', async () => {
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/trees')
+        ? {
+            nextOffset: null,
+            trees: [{ id: 1, speciesId: 5, displayName: 'Cidro', latitude: 39.4775, longitude: -0.3882, greenAreaId: 1 }],
+          }
+        : [],
+    })) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.4775, -0.3882], expect.objectContaining({ title: 'Jardín de las Hespérides: 69 ejemplares' })));
+
+    leaflet.map.getZoom.mockReturnValue(18);
+    const zoomHandlers = leaflet.map.on.mock.calls.filter(([event]) => event === 'zoomend');
+    act(() => {
+      for (const [, handler] of zoomHandlers) (handler as () => void)();
+    });
+
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.4775, -0.3882], expect.objectContaining({ title: 'Cidro' })));
+    leaflet.map.getZoom.mockReturnValue(15);
+  });
+
+  it('PA 3011: la capa de zonas verdes está apagada por defecto y se enciende y apaga con su botón', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    renderMap();
+    const toggle = screen.getByRole('button', { name: 'Mostrar parques' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    // Las zonas se piden al abrir el mapa (hacen falta para agrupar por
+    // parque), pero la capa no se dibuja hasta encender el interruptor.
+    expect(greenAreas.add).not.toHaveBeenCalled();
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(greenAreas.add).toHaveBeenCalledTimes(1));
+    expect(greenAreas.add.mock.calls[0]![0]).toBe(leaflet.map);
+    const pressed = screen.getByRole('button', { name: 'Ocultar parques' });
+    expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    // Sin parque elegido no se resalta ni se mueve el mapa.
+    expect(greenAreas.layer.select).toHaveBeenLastCalledWith(null);
+    expect(greenAreas.layer.fit).not.toHaveBeenCalled();
+
+    fireEvent.click(pressed);
+    await waitFor(() => expect(greenAreas.layer.remove).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'Mostrar parques' })).toBeInTheDocument();
+  });
+
+  it('descarga offline: con una zona resaltada se ofrece descargarla desde el mapa', async () => {
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides');
+    const button = await screen.findByRole('button', { name: 'Descargar zona jardin-de-las-hesperides' });
+    expect(button).toHaveAttribute('data-bbox', '-0.389,39.477,-0.387,39.478');
+    expect(button).toHaveAttribute('data-plants', '69');
+  });
+
+  it('descarga offline: sin zona resaltada no se ofrece ninguna descarga', async () => {
+    renderMap(<MapPage />, '/mapa');
+    await waitFor(() => expect(greenAreas.fetch).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: /Descargar zona/ })).not.toBeInTheDocument();
+  });
+
+  it('PA 3011: ?zona= enciende la capa sola, resalta ese parque y encuadra el mapa en él', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides');
+    await waitFor(() => expect(greenAreas.layer.select).toHaveBeenCalledWith('jardin-de-las-hesperides'));
+    expect(greenAreas.layer.fit).toHaveBeenCalledWith('jardin-de-las-hesperides');
+    const pressed = screen.getByRole('button', { name: 'Ocultar parques' });
+    // Apagar la capa quita el resaltado del parque.
+    fireEvent.click(pressed);
+    await waitFor(() => expect(greenAreas.layer.remove).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'Mostrar parques' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('al volver a encender la capa se vuelve a resaltar el parque que había elegido', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides');
+    await waitFor(() => expect(greenAreas.layer.select).toHaveBeenCalledWith('jardin-de-las-hesperides'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar parques' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mostrar parques' })).toHaveAttribute('aria-pressed', 'false'));
+    greenAreas.layer.select.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar parques' }));
+    await waitFor(() => expect(greenAreas.layer.select).toHaveBeenCalledWith('jardin-de-las-hesperides'));
+    expect(screen.getByRole('button', { name: 'Ocultar parques' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  const zonePlantsResponse = (plants: Array<{ id: number; speciesId: number | null; displayName: string; latitude: number; longitude: number }>) =>
+    (async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/plants')
+        ? { groupSlug: 'jardin-de-las-hesperides', total: plants.length, returned: plants.length, nextOffset: null, plants: plants.map((plant) => ({ greenAreaId: 1, scientificName: null, commonName: null, ...plant })) }
+        : { nextOffset: null, trees: [] },
+    })) as unknown as typeof fetch;
+
+  it('especie dentro de un parque: solo se ven los ejemplares de esa especie en el parque y se encuadran', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    vi.mocked(fetch).mockImplementation(zonePlantsResponse([
+      { id: 1, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4771, longitude: -0.3881 },
+      { id: 2, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4774, longitude: -0.3885 },
+      { id: 3, speciesId: 8, displayName: 'Tamarisco', latitude: 39.4776, longitude: -0.3884 },
+    ]));
+    leaflet.map.fitBounds.mockClear();
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides&verEspecie=5');
+    expect(await screen.findByText('Palmera datilera: 2 en este parque')).toBeInTheDocument();
+    expect(String(vi.mocked(fetch).mock.calls.map((call) => call[0]).find((url) => String(url).includes('/plants')))).toContain('/green-areas/group/jardin-de-las-hesperides/plants');
+    await waitFor(() => expect(leaflet.latLngBounds).toHaveBeenCalledWith([[39.4771, -0.3881], [39.4774, -0.3885]]));
+    expect(leaflet.map.fitBounds).toHaveBeenCalled();
+    // Con el filtro activo no se ofrece la descarga: el mapa queda limpio.
+    expect(screen.queryByRole('button', { name: /Descargar zona/ })).not.toBeInTheDocument();
+    // Quitar el filtro devuelve la tarjeta y el mapa normal del parque.
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar el filtro de especie' }));
+    expect(screen.queryByText(/en este parque/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Descargar zona jardin-de-las-hesperides' })).toBeInTheDocument();
+  });
+
+  it('especie dentro de un parque: se ven los ejemplares uno a uno aunque el zoom sea de ciudad', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    vi.mocked(fetch).mockImplementation(zonePlantsResponse([
+      { id: 1, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4771, longitude: -0.3881 },
+      { id: 2, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4774, longitude: -0.3885 },
+    ]));
+    // Un parque grande obliga a encuadrar con poco zoom: no se agrupa en un marcador.
+    leaflet.map.getZoom.mockReturnValue(15);
+    leaflet.markerFactory.mockClear();
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides&verEspecie=5');
+    expect(await screen.findByText('Palmera datilera: 2 en este parque')).toBeInTheDocument();
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ title: expect.stringContaining('Palmera datilera') })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ title: expect.stringContaining('ejemplares') }));
+  });
+
+  it('especie dentro de un parque: ocultar parques quita el contorno pero mantiene el filtro y no mueve el mapa', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    vi.mocked(fetch).mockImplementation(zonePlantsResponse([
+      { id: 1, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4771, longitude: -0.3881 },
+      { id: 2, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4774, longitude: -0.3885 },
+    ]));
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides&verEspecie=5');
+    expect(await screen.findByText('Palmera datilera: 2 en este parque')).toBeInTheDocument();
+    await waitFor(() => expect(leaflet.map.fitBounds).toHaveBeenCalled());
+
+    greenAreas.layer.remove.mockClear();
+    leaflet.map.fitBounds.mockClear();
+    leaflet.map.flyTo.mockClear();
+    leaflet.map.setView.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar parques' }));
+    await waitFor(() => expect(greenAreas.layer.remove).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'Mostrar parques' })).toHaveAttribute('aria-pressed', 'false');
+    // El filtro sigue y el encuadre no cambia.
+    expect(screen.getByText('Palmera datilera: 2 en este parque')).toBeInTheDocument();
+    expect(leaflet.map.fitBounds).not.toHaveBeenCalled();
+    expect(leaflet.map.flyTo).not.toHaveBeenCalled();
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+
+    // Volver a mostrarlos devuelve el contorno sin perder el filtro.
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar parques' }));
+    expect(await screen.findByRole('button', { name: 'Ocultar parques' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Palmera datilera: 2 en este parque')).toBeInTheDocument();
+  });
+
+  it('especie dentro de un parque: con los parques ocultos, quitar el filtro no vuelve a dibujarlos', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    vi.mocked(fetch).mockImplementation(zonePlantsResponse([
+      { id: 1, speciesId: 5, displayName: 'Palmera datilera', latitude: 39.4771, longitude: -0.3881 },
+    ]));
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides&verEspecie=5');
+    expect(await screen.findByText('Palmera datilera: 1 en este parque')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar parques' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mostrar parques' })).toBeInTheDocument());
+    greenAreas.add.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar el filtro de especie' }));
+    expect(screen.queryByText(/en este parque/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mostrar parques' })).toHaveAttribute('aria-pressed', 'false');
+    expect(greenAreas.add).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Descargar zona/ })).not.toBeInTheDocument();
+  });
+
+  it('especie dentro de un parque: avisa si el parque no tiene ejemplares de esa especie', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    vi.mocked(fetch).mockImplementation(zonePlantsResponse([
+      { id: 3, speciesId: 8, displayName: 'Tamarisco', latitude: 39.4776, longitude: -0.3884 },
+    ]));
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides&verEspecie=5');
+    expect(await screen.findByText('No hay ejemplares registrados de esta especie en este parque.')).toBeInTheDocument();
+  });
+
+  it('especie dentro de un parque: avisa si no se pueden cargar los ejemplares', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    vi.mocked(fetch).mockImplementation((async () => { throw new Error('boom'); }) as unknown as typeof fetch);
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides&verEspecie=5');
+    expect(await screen.findByText('No se pudieron cargar los ejemplares de este parque.')).toBeInTheDocument();
+  });
+
+  it('descarga offline: la tarjeta se puede cerrar y el aviso de descargado se puede quitar', async () => {
+    renderMap(<MapPage />, '/mapa?zona=jardin-de-las-hesperides');
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar zona jardin-de-las-hesperides' }));
+    expect(await screen.findByText('Descargado Jardín de las Hespérides')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar aviso' }));
+    expect(screen.queryByText('Descargado Jardín de las Hespérides')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar descarga' }));
+    expect(screen.queryByRole('button', { name: /Descargar zona/ })).not.toBeInTheDocument();
+  });
+
+  it('PA 3011: tocar «Ver zona» en un contorno abre la ficha de esa zona verde', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    render(
+      <MemoryRouter initialEntries={['/mapa']}>
+        <Routes>
+          <Route path="/mapa" element={<MapPage />} />
+          <Route path="/zona/:grupo" element={<p>Ficha de zona</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar parques' }));
+    await waitFor(() => expect(greenAreas.add).toHaveBeenCalled());
+    const options = greenAreas.add.mock.calls[0]![2] as { onOpen: (group: string) => void; text: { open: string } };
+    expect(options.text.open).toBe('Ver zona');
+    act(() => options.onOpen('jardin-de-las-hesperides'));
+    expect(await screen.findByText('Ficha de zona')).toBeInTheDocument();
+  });
+
+  it('avisa si no se pueden cargar las zonas verdes y el mapa sigue funcionando', async () => {
+    geo.getCurrentPosition.mockImplementation(() => {});
+    greenAreas.fetch.mockRejectedValue(new Error('sin red'));
+    renderMap();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar parques' }));
+    expect(await screen.findByText('No se pudieron cargar las zonas verdes.')).toBeInTheDocument();
+    expect(greenAreas.add).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Buscar sitios en el mapa')).toBeInTheDocument();
+    greenAreas.fetch.mockReset();
   });
 });

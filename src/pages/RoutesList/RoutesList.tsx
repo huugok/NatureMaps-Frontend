@@ -1,4 +1,5 @@
 import { Route } from 'lucide-react'
+import { DownloadedZones } from '../../components/OfflineZone'
 import { Page } from '../../components/Page'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useApp } from '../../context/useApp'
@@ -9,6 +10,7 @@ export function RoutesList() {
   return (
     <Page title={t('routes.title')}>
       <EmptyState icon={Route} title={t('routes.empty')} description={t('routes.emptyDesc')} />
+      <DownloadedZones />
     </Page>
   )
 }

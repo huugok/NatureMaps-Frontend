@@ -1,3 +1,5 @@
+import type { SpeciesGreenArea } from '../../types/greenArea';
+
 /**
  * Forma de una especie tal y como la pinta la ficha de planta.
  *
@@ -21,6 +23,8 @@ export interface FichaUbicacion {
   /** Nombre que se muestra: barrio si se conoce y distrito en su defecto. */
   name: string;
   district?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface FichaEspecie {
@@ -45,6 +49,8 @@ export interface FichaEspecie {
   sources?: FichaFuente[];
   /** Ejemplares catalogados en total (solo fichas del backend con ubicaciones). */
   locationTotal?: number;
+  /** Parques y jardines donde hay ejemplares de la especie (NM-08, PA 3013). */
+  greenAreas?: SpeciesGreenArea[];
 }
 
 /** De dónde viene la ficha abierta: una identificación con su confianza. */
