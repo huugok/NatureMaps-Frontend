@@ -3,6 +3,7 @@ import type { Mode } from '../types';
 import { repairTextEncoding } from '../i18n/format';
 import { isUnreachable } from './offlineError';
 import { offlineNearbyTrees } from './offlineRead';
+import { plantCache } from './offlineStorage';
 
 // Plantas cercanas al usuario (GET /trees/nearby del backend).
 // El backend devuelve `distance` en metros (línea recta) y ordena de más
@@ -63,10 +64,33 @@ export function saveNearbyRadius(meters: number): void {
   localStorage.setItem(RADIUS_KEY, String(meters));
 }
 
+// Caché de la carga completa en IndexedDB: al reentrar al mapa se sirve de aquí
+// y Neon no vuelve a transferir el inventario. Las páginas se acumulan en memoria
+// hasta que llega la última y solo entonces se guarda el resultado completo.
+const TREE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const pendingTrees = new Map<string, NearbyPlant[]>();
+
+function treeCacheKey(params: { latitude: number; longitude: number; radius: number; lang: string }): string {
+  return `${params.latitude.toFixed(4)}:${params.longitude.toFixed(4)}:${params.radius}:${params.lang}`;
+}
+
 export async function fetchNearbyTrees(
   params: { latitude: number; longitude: number; radius: number; limit?: number; offset?: number; lang: string },
   signal?: AbortSignal,
 ): Promise<NearbyResponse> {
+  const key = treeCacheKey(params);
+  const offset = params.offset ?? 0;
+  if (offset === 0) {
+    const cached = await plantCache().get(key).catch(() => undefined);
+    if (cached && Date.now() - cached.savedAt < TREE_CACHE_TTL_MS) {
+      const trees = cached.trees as NearbyPlant[];
+      return {
+        center: { latitude: params.latitude, longitude: params.longitude },
+        radius: params.radius, returned: trees.length, total: trees.length,
+        limit: null, language: params.lang, trees,
+      };
+    }
+  }
   const query = new URLSearchParams({
     lat: String(params.latitude),
     lon: String(params.longitude),
@@ -88,7 +112,18 @@ export async function fetchNearbyTrees(
     })),
   });
   try {
-    return repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
+    const response = repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
+    if (params.limit !== undefined) {
+      const accumulated = offset === 0 ? [] : pendingTrees.get(key) ?? [];
+      accumulated.push(...response.trees);
+      if (offset + response.trees.length >= response.total) {
+        pendingTrees.delete(key);
+        void plantCache().put(key, { savedAt: Date.now(), trees: accumulated }).catch(() => undefined);
+      } else {
+        pendingTrees.set(key, accumulated);
+      }
+    }
+    return response;
   } catch (error) {
     // Sin red, las plantas de las zonas descargadas; sin zonas descargadas, el error de siempre.
     const saved = isUnreachable(error) ? await offlineNearbyTrees(params) : null;
