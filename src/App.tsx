@@ -20,6 +20,7 @@ import type { FichaEspecie, IdentificacionFicha } from './pages/FichaPlanta';
 import { ArticlePage, Discover } from './pages/Discover';
 import { GreenAreaPage } from './pages/GreenArea';
 import { Home } from './pages/Home';
+import { FloweringPlants } from './pages/FloweringPlants';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
@@ -355,6 +356,15 @@ export default function App() {
                 }
               />
               <Route path="/rutas" element={<RoutesList />} />
+              <Route path="/floracion" element={<FloweringPlants onSelectSpecies={(item) => {
+                setFicha({ species: conFotoPropia(fichaDesdeItemLista(item, lang)), identification: null });
+                getSpeciesDetail(item.id, lang)
+                  .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+                  .then((species) => setFicha((actual) => actual?.species.id === item.id
+                    ? { ...actual, species: conFotoPropia(species) }
+                    : actual))
+                  .catch(() => undefined);
+              }} />} />
               <Route path="/buscar" element={<Search onSelectSpecies={(item) => {
                 setFicha({ species: fichaDesdeItemLista(item, lang), identification: null });
                 getSpeciesDetail(item.id, lang)

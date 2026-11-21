@@ -1,0 +1,1 @@
+export { FloweringPlants } from './FloweringPlants';
