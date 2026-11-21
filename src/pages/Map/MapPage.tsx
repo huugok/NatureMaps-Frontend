@@ -12,7 +12,7 @@ import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../serv
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea } from '../../services/plantGroups';
 import type { PlantPin } from '../../types/plant';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchGreenAreaPlants, fetchGreenAreas } from '../../services/greenAreas';
 import { addGreenAreasLayer } from './greenAreasLayer';
 import { addOfflineTileLayer } from './offlineTileLayer';
@@ -156,6 +156,7 @@ export interface MapPageProps {
  */
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const { t, lang } = useApp();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   // Ruta pintada: el parámetro `verRuta` manda al iniciarla; si ya no está
   // (el usuario cambió de pestaña), se recupera la última pintada. Solo se
@@ -228,10 +229,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // Área de cada grupo indexada por cualquier miembro (para «Ver en el mapa»).
   const memberAreasRef = useRef<Map<number, GroupArea>>(new Map());
   const currentPositionRef = useRef<Coordinates | null>(null);
-  // Centrar al entrar es puntual: solo si la entrada no trae ya una vista que
-  // manda (ruta, especie o parque). Si no, el primer dato del GPS se adelantaba
-  // a los effects que encuadran ese contenido y el mapa saltaba al usuario.
-  const followUserRef = useRef(!routeVisible && !searchParams.has('verEspecie') && selectedZone === null);
+  // Centrar al entrar es puntual: se omite si la URL trae `verRuta` (la ruta
+  // manda), `verEspecie` (manda el ejemplar) o `zona` (manda el parque).
+  // El navbar y «Ver el mapa» del inicio piden el centrado con centerRequest,
+  // aunque MapPage siga montado o haya una ruta guardada.
+  const followUserRef = useRef(paramRouteId === null && !searchParams.has('verEspecie') && selectedZone === null);
   const keepBothVisibleRef = useRef(false);
   // `onOpenPlant` llega por props y cambia de identidad: se lee por ref para no
   // redibujar las capas (y la ruta) en cada render de App.
@@ -624,6 +626,20 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [updateUserLocation, locationPermission]);
 
+
+  // El navbar y «Ver en el mapa» piden el mismo centrado que al entrar: como
+  // MapPage puede seguir montado (solo cambia la query), el ref no basta.
+  const centerRequest = (location.state as { centerOnUser?: number } | null)?.centerOnUser;
+  useEffect(() => {
+    if (centerRequest === undefined) return;
+    followUserRef.current = true;
+    const current = currentPositionRef.current;
+    const map = mapRef.current;
+    if (current && map) {
+      followUserRef.current = false;
+      map.setView([current.latitude, current.longitude], Math.max(map.getZoom(), 16), { animate: true });
+    }
+  }, [centerRequest]);
 
   // Zonas verdes: se piden una vez por sesión (quedan en caché) aunque la capa
   // esté apagada, porque el mapa las necesita para agrupar las plantas por

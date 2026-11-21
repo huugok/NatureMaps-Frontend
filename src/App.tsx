@@ -321,11 +321,13 @@ export default function App() {
   const handleViewOnMap = (speciesId?: number, neighborhood?: string) => {
     setFicha(null);
     if (speciesId === undefined) {
-      navigate('/mapa');
+      // «Ver el mapa» del inicio: igual que el navbar, centra en el usuario.
+      navigate('/mapa', { state: { centerOnUser: Date.now() } });
       return;
     }
     const params = new URLSearchParams({ verEspecie: String(speciesId) });
     if (neighborhood) params.set('barrio', neighborhood);
+    // «Ver EN el mapa» de una ficha: centra el ejemplar, no al usuario.
     navigate(`/mapa?${params.toString()}`);
   };
 

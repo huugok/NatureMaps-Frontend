@@ -807,6 +807,59 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('«Ver EN el mapa» de una ficha no centra en el usuario, encuadra el ejemplar', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    const detail = {
+      id: 3, scientificName: 'Platanus hispanica',
+      names: [{ name: 'Plátano de sombra', language: 'es' }],
+      profile: null, enrichment: null, image: null,
+      locations: {
+        total: 1, returned: 1, nextAfterId: null,
+        items: [
+          { id: 7, latitude: 39.4795, longitude: -0.3795, district: 'Ciutat Vella', neighborhood: null, source: 'VALENCIA_ARBOLADO', sourceUrl: null },
+        ],
+      },
+    };
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/species/3')
+        ? detail
+        : { nextOffset: null, trees: [] },
+    })) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verEspecie=3');
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+    await waitFor(() => expect(leaflet.map.fitBounds).toHaveBeenCalled());
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('el navbar centra en el usuario aunque no se remonte el mapa', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/mapa', state: { centerOnUser: 1 } }]}>
+        <MapPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).toHaveBeenCalledWith([39.48, -0.38], 16, { animate: true });
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
   it('al entrar con una ruta, el primer dato del GPS no centra en el usuario', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (
       String(url).includes('/routes/7')
