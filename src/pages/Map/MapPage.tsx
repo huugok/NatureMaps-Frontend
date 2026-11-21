@@ -267,8 +267,16 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [areaLoading, setAreaLoading] = useState(false);
   const [poiLoading, setPoiLoading] = useState(false);
   const [areaFailed, setAreaFailed] = useState(false);
+  // «En la zona» alimenta solo su lista: estados propios para no tocar ni las
+  // plantas ni los POIs que se pintan en el mapa.
+  const [zonePlants, setZonePlants] = useState<PlantPin[] | null>(null);
+  const [zonePois, setZonePois] = useState<Array<{id: number; name: string; lat: number; lon: number; distance: number}>>([]);
+  const [zoneLoading, setZoneLoading] = useState(false);
+  const [zonePoiLoading, setZonePoiLoading] = useState(false);
+  const [zoneFailed, setZoneFailed] = useState(false);
   const [poiFicha, setPoiFicha] = useState<{name: string; distance: number} | null>(null);
   const areaRequestRef = useRef<AbortController | null>(null);
+  const zoneRequestRef = useRef<AbortController | null>(null);
   const lastNominatimSearchAt = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
 
@@ -304,12 +312,22 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     setPlantsState(pins);
   }, []);
 
-  const loadArea = useCallback((center: Coordinates, searchRadius = radius) => {
-    areaRequestRef.current?.abort();
+  const loadArea = useCallback((center: Coordinates, searchRadius = radius, target: 'near' | 'zone' = 'near') => {
+    // El mismo cálculo alimenta «Cercanos» o, bajo demanda, «En la zona».
+    // Cada destino tiene su propio estado: la zona nunca sustituye a los datos
+    // que se pintan en el mapa.
+    const isZone = target === 'zone';
+    const requestRef = isZone ? zoneRequestRef : areaRequestRef;
+    const setPlantsForArea = isZone ? setZonePlants : setAreaPlants;
+    const setPoisForArea = isZone ? setZonePois : setPois;
+    const setLoading = isZone ? setZoneLoading : setAreaLoading;
+    const setLoadingPois = isZone ? setZonePoiLoading : setPoiLoading;
+    const setFailed = isZone ? setZoneFailed : setAreaFailed;
+    requestRef.current?.abort();
     const controller = new AbortController();
-    areaRequestRef.current = controller;
-    setAreaLoading(true);
-    setAreaFailed(false);
+    requestRef.current = controller;
+    setLoading(true);
+    setFailed(false);
     fetchNearbyTrees({ latitude: center.latitude, longitude: center.longitude, radius: searchRadius, lang }, controller.signal)
       .then((response) => {
         const found = response.trees.map((plant) => ({
@@ -318,19 +336,17 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           speciesId: plant.speciesId, distance: plant.distance,
           greenAreaId: plant.greenAreaId ?? null,
         }));
-        // El panel de «Explorar cerca» tiene su propio estado: no debe
-        // sustituir a las plantas del mapa.
-        setAreaPlants(found);
+        setPlantsForArea(found);
       })
-      .catch(() => { if (!controller.signal.aborted) { setAreaPlants([]); setAreaFailed(true); } })
-      .finally(() => { if (!controller.signal.aborted) setAreaLoading(false); });
+      .catch(() => { if (!controller.signal.aborted) { setPlantsForArea([]); setFailed(true); } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     const cachedPois = poiAreaCache.get(poiCacheKey(center, searchRadius));
     if (cachedPois && Date.now() - cachedPois.savedAt < POI_CACHE_TTL_MS) {
-      setPois(cachedPois.items);
-      setPoiLoading(false);
+      setPoisForArea(cachedPois.items);
+      setLoadingPois(false);
       return;
     }
-    setPoiLoading(true);
+    setLoadingPois(true);
     const query = `[out:json];(nwr[\"tourism\"~\"museum|attraction|viewpoint\"](around:${searchRadius},${center.latitude},${center.longitude});nwr[\"historic\"](around:${searchRadius},${center.latitude},${center.longitude});nwr[\"amenity\"~\"place_of_worship|fountain\"](around:${searchRadius},${center.latitude},${center.longitude}););out center tags;`;
     const overpassUrl = (endpoint: string) => `${endpoint}?data=${encodeURIComponent(query)}`;
     const fetchOverpass = (endpoint: string) => fetch(overpassUrl(endpoint), { signal: controller.signal }).then((response) => {
@@ -355,10 +371,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         }))
         .filter((item) => Number.isFinite(item.distance) && item.distance <= searchRadius);
         poiAreaCache.set(poiCacheKey(center, searchRadius), { savedAt: Date.now(), items });
-        setPois(items);
-        setPoiLoading(false);
+        setPoisForArea(items);
+        setLoadingPois(false);
       })
-      .catch(() => { if (!controller.signal.aborted) { setPois([]); setPoiLoading(false); } });
+      .catch(() => { if (!controller.signal.aborted) { setPoisForArea([]); setLoadingPois(false); } });
   }, [lang, radius, setPlants]);
 
   useEffect(() => {
@@ -1293,6 +1309,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       .slice(0, 100);
   }, [areaPlants, plantGroups, locatedPosition]);
 
+  // La zona usa su propio estado: solo alimenta esta segunda lista.
+  const zoneExplorePlants = useMemo(() => {
+    if (zonePlants === null) return [];
+    return locatedPosition !== null ? groupNearbyPlants(zonePlants).pins : zonePlants;
+  }, [zonePlants, locatedPosition]);
+
   const locateExploreItem = (point: Coordinates) => {
     const map = mapRef.current;
     if (!map) return;
@@ -1379,6 +1401,36 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
               </article>)}
               {poiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
             </>)}
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="mb-2 text-center text-small font-semibold text-ink">{t('map.zoneTitle')}</p>
+              <div className="mb-2 flex justify-center">
+                <button type="button" disabled={zoneLoading} onClick={() => {
+                  const center = mapRef.current?.getCenter();
+                  if (center) loadArea({ latitude: center.lat, longitude: center.lng }, radius, 'zone');
+                }} className="min-h-11 rounded-control bg-accent-soft px-4 text-small font-semibold text-ink disabled:opacity-60">
+                  {zoneLoading ? t('map.loadingArea') : t('map.chooseArea')}
+                </button>
+              </div>
+              {exploreOpen && (zoneLoading ? <p role="status" className="py-6 text-center text-small text-muted">{t('map.loadingArea')}</p>
+                : zoneFailed ? <p role="status" className="py-6 text-center text-small text-danger">{t('map.areaError')}</p>
+                : zonePlants === null ? <p className="py-6 text-center text-caption text-muted">{t('map.zoneHint')}</p>
+                : <>{zoneExplorePlants.slice().sort((a,b)=>(a.distance ?? 0)-(b.distance ?? 0)).map((plant) => <article key={`zone-plant-${plant.id}`} className="border-b border-line py-2">
+                  <div className="flex items-center gap-2 text-small text-ink"><Leaf size={17} className="shrink-0 text-accent"/><span className="flex-1">{plant.displayName}{plant.count && plant.count > 1 ? ` · ${plant.count}` : ''}</span><span className="tabular-nums text-muted">{formatDistance(plant.distance ?? 0,lang)}</span></div>
+                  <div className="mt-1 flex justify-end gap-2">
+                    <button type="button" onClick={() => onOpenPlant?.(plant)} className="min-h-11 rounded-control px-3 text-caption text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('map.viewFicha')}</button>
+                    <button type="button" onClick={() => locateExploreItem({latitude:plant.latitude,longitude:plant.longitude})} className="flex min-h-11 items-center gap-1 rounded-control px-3 text-caption font-semibold text-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><LocateFixed size={14}/>{t('map.locate')}</button>
+                  </div>
+                </article>)}
+                {zonePois.slice().sort((a, b) => a.distance - b.distance).map((poi)=><article key={`zone-poi-${poi.id}`} className="border-b border-line py-2">
+                  <div className="flex items-center gap-2 text-small text-ink"><Landmark size={17} className="shrink-0 text-warm-strong"/><span className="flex-1">{poi.name}</span><span className="tabular-nums text-muted">{formatDistance(poi.distance,lang)}</span></div>
+                  <div className="mt-1 flex justify-end gap-2">
+                    <button type="button" onClick={() => setPoiFicha({name:poi.name,distance:poi.distance})} className="min-h-11 rounded-control px-3 text-caption text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('map.viewFicha')}</button>
+                    <button type="button" onClick={() => locateExploreItem({latitude:poi.lat,longitude:poi.lon})} className="flex min-h-11 items-center gap-1 rounded-control px-3 text-caption font-semibold text-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><LocateFixed size={14}/>{t('map.locate')}</button>
+                  </div>
+                </article>)}
+                {zonePoiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
+                </>)}
+            </div>
           </div>
         </div>
       </aside>

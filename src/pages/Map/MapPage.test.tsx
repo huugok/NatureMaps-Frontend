@@ -322,6 +322,44 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('«Elegir zona» llena solo la segunda lista, sin cambiar el mapa', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        const inZone = requestUrl.searchParams.get('lat') === '39.45';
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000,
+          returned: 1, total: 1, limit: 20000, language: 'es',
+          trees: inZone
+            ? [{ id: 20, speciesId: 9, displayName: 'Olivo', latitude: 39.45, longitude: -0.36, distance: 10 }]
+            : [{ id: 9, speciesId: 3, displayName: 'Almez', latitude: 39.48, longitude: -0.38, distance: 50 }],
+        }) };
+      }
+      return { ok: true, json: async () => [] };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    fireEvent.click(screen.getByRole('button', { name: /explorar/i }));
+    expect(await screen.findByText('Almez')).toBeInTheDocument();
+    expect(screen.getByText('Plantas y puntos de interés en la zona')).toBeInTheDocument();
+    expect(screen.queryByText('Olivo')).not.toBeInTheDocument();
+
+    const markersBefore = leaflet.markerFactory.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir zona' }));
+    expect(await screen.findByText('Olivo')).toBeInTheDocument();
+    // La lista cercana sigue intacta y el mapa no se vuelve a pintar.
+    expect(screen.getByText('Almez')).toBeInTheDocument();
+    expect(leaflet.markerFactory.mock.calls.length).toBe(markersBefore);
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
   it('muestra las plantas cercanas del backend como marcadores con distancia en el popup', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
