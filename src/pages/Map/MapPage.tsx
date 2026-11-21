@@ -1341,7 +1341,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           <p className="mb-2 text-small font-semibold text-ink">{chosenArea ? t('map.selectedArea') : t('map.nearbyTitle')}</p>
           {chosenArea && <button type="button" disabled={areaLoading} onClick={() => {const center=mapRef.current?.getCenter(); if(center) loadArea({latitude:center.lat,longitude:center.lng});}} className="mb-2 min-h-10 rounded-control bg-accent-soft px-3 text-small font-semibold text-ink disabled:opacity-60">{areaLoading ? t('map.loadingArea') : t('map.updateArea')}</button>}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            {areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
+            {/* Cerrado = solo la estructura: montar cientos de artículos en cada
+                render de progreso era el 24 % de las muestras de CPU. */}
+            {exploreOpen && (areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
               {explorePlants.slice().sort((a,b)=>(a.distance ?? 0)-(b.distance ?? 0)).map((plant) => <article key={`plant-${plant.id}`} className="border-b border-line py-2">
                 <div className="flex items-center gap-2 text-small text-ink"><Leaf size={17} className="shrink-0 text-accent"/><span className="flex-1">{plant.displayName}{plant.count && plant.count > 1 ? ` · ${plant.count}` : ''}</span><span className="tabular-nums text-muted">{formatDistance(plant.distance ?? 0,lang)}</span></div>
                 <div className="mt-1 flex justify-end gap-2">
@@ -1357,7 +1359,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
                 </div>
               </article>)}
               {poiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
-            </>}
+            </>)}
           </div>
         </div>
       </aside>

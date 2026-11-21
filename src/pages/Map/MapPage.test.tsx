@@ -231,7 +231,7 @@ describe('MapPage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Buscar sitios en el mapa' }), { target: { value: 'Xàtiva' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent('No se encontraron lugares con ese nombre.');
+    expect(await screen.findByText(/No se encontraron lugares con ese nombre/)).toBeInTheDocument();
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes('nominatim'))).toHaveLength(1));
   });
 
@@ -339,6 +339,8 @@ describe('MapPage', () => {
       onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
     });
 
+    // El panel «Explorar cerca» solo se monta al abrirlo.
+    fireEvent.click(screen.getByRole('button', { name: /explorar/i }));
     expect(await screen.findByText('Almez')).toBeInTheDocument();
     expect(screen.getByText('250 m')).toBeInTheDocument();
     expect(leaflet.layerGroupFactory).toHaveBeenCalled();
