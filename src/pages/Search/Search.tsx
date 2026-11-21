@@ -1,5 +1,6 @@
 import { ChevronDown, MapPin, Search as SearchIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location'
 import { Page } from '../../components/Page'
 import { Button } from '../../components/ui/Button'
@@ -18,8 +19,9 @@ import { groupBySpecies } from '../../services/plantGroups'
  */
 export function Search() {
   const { t, lang, mode } = useApp()
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const { status, position, allow, deny, retry } = useLocationPermission()
+  const { status, position, allow, deny } = useLocationPermission()
   const [plants, setPlants] = useState<NearbyPlant[] | null>(null)
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export function Search() {
           icon={MapPin}
           title={t('search.locationEmpty')}
           description={t('search.locationEmptyDesc')}
-          action={<Button onClick={retry}>{t('search.activateLocation')}</Button>}
+          action={<Button onClick={() => navigate('/ajustes/permisos')}>{t('search.activateLocation')}</Button>}
         />
       ) : plants === null ? (
         <div className="relative flex-1">

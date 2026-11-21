@@ -11,7 +11,7 @@ import { fetchPlantPins } from '../../services/plants';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea } from '../../services/plantGroups';
 import type { PlantPin } from '../../types/plant';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PLANT_LABEL_MIN_ZOOM, addPlantMarkers } from './plantMarkers';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
@@ -83,6 +83,7 @@ export interface MapPageProps {
  */
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const { t, lang } = useApp();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -128,7 +129,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     position: locatedPosition,
     allow: allowLocation,
     deny: denyLocation,
-    retry: retryLocation,
   } = useLocationPermission();
 
   const setPlants = useCallback((pins: PlantPin[] | null) => {
@@ -851,7 +851,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       {locationPermission === 'denied' && (
         <button
           type="button"
-          onClick={retryLocation}
+          onClick={() => navigate('/ajustes/permisos')}
           aria-label={t('location.retryAria')}
           title={t('location.retryAria')}
           className="absolute right-4 bottom-20 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"

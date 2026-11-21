@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { CameraMode, PermissionStatus, CameraScreenProps, SavedPhoto } from './types';
 import { CameraPermissionPrompt } from './CameraPermissionPrompt';
 import { CameraPermissionDenied } from './CameraPermissionDenied';
@@ -18,6 +19,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   identificationError = null,
 }) => {
   const { t } = useApp();
+  const navigate = useNavigate();
   const [permission, setPermission] = useState<PermissionStatus>(() =>
     isPermissionEnabled('camera') ? 'checking' : 'denied',
   );
@@ -170,7 +172,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
         <CameraPermissionDenied
           mode={mode}
           onModeChange={setMode}
-          onOpenSettings={() => void handleRequestPermission()}
+          onOpenSettings={() => navigate('/ajustes/permisos')}
           onSelectFromGallery={handleOpenGallery}
           onBack={onClose}
         />
