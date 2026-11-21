@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, Landmark, Leaf, LocateFixed, MapPinOff, Search,
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
 import { formatDistance, repairTextEncoding } from '../../i18n/format';
-import { fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
+import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius } from '../../services/nearby';
 import { fetchRouteDetail } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
@@ -155,7 +155,7 @@ export interface MapPageProps {
  * (`MapView`) sigue disponible para incrustar capas de especies.
  */
 export function MapPage({ onOpenPlant }: MapPageProps = {}) {
-  const { t, lang } = useApp();
+  const { t, lang, mode } = useApp();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   // Ruta pintada: el parámetro `verRuta` manda al iniciarla; si ya no está
@@ -282,7 +282,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
   // Plantas del mapa: sin posición conocida se pintan las globales (UT 908);
   // en cuanto hay posición, las cercanas al usuario con parámetros por modo.
-  const [radius] = useState(readNearbyRadius);
+  const [sliderRadius] = useState(readNearbyRadius);
+  // Aventura fija 1 km; paseo usa el valor del deslizador de Ajustes.
+  const radius = effectiveNearbyRadius(mode, sliderRadius);
   const [plants, setPlantsState] = useState<PlantPin[] | null>(null);
   const [plantProgress, setPlantProgress] = useState<{ loaded: number, total: number } | null>(null);
   const [showPlantToast, setShowPlantToast] = useState(false);
@@ -430,11 +432,12 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const loadPlantsRef = useRef<(coords: Coordinates) => void>(() => undefined);
   useEffect(() => {
     // Esperamos a que se resuelva el permiso: mientras `status` es null no se
-    // pinta nada. Con o sin GPS se carga el inventario completo; el círculo
-    // azul decidirá después qué parte se pinta.
+    // pinta nada. Con GPS se pide solo el radio efectivo (1 km en aventura,
+    // el del deslizador en paseo) para no transferir el inventario completo;
+    // sin GPS no hay círculo azul y se cargan todas las plantas.
     if (locationPermission === null) return;
     loadPlantsRef.current = (coords: Coordinates) => {
-      const modeRadius = 10000;
+      const modeRadius = locatedPosition !== null ? radius : 10000;
       // Sin regla de 100 plantas por km: las plantas cercanas se agrupan por
       // especie, así que se piden todas las que entren en el radio.
       const last = lastFetchCenterRef.current;
@@ -591,12 +594,14 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // modo (aventura: radio fijo; resto: radio de Ajustes).
   useEffect(() => {
     if (locationPermission === null) return;
-    // El permiso y la posición llegan por separado: cargar solo una vez con
-    // la primera posición conocida (o Valencia si no hay GPS).
+    // Permiso y posición llegan por separado: esperar a la posición para pedir
+    // una sola vez con el radio definitivo. Pedir antes con 10 km y repetir
+    // después con el radio del círculo duplicaba la transferencia.
+    if (locationPermission === 'granted' && locatedPosition === null) return;
     if (plantsLoadingRef.current || plantsRef.current !== null) return;
     const current = locatedPosition ?? currentPositionRef.current ?? VALENCIA;
     loadPlantsRef.current({ latitude: current.latitude, longitude: current.longitude });
-  }, [locationPermission, locatedPosition]);
+  }, [locationPermission, locatedPosition, radius]);
 
   // El círculo azul y el punto de ubicación solo salen con GPS.
   useEffect(() => {

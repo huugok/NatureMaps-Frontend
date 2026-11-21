@@ -162,12 +162,27 @@ const geo = {
   getCurrentPosition: vi.fn(),
 };
 
+/** El cargador espera a la posición: los tests que cargan plantas la fijan. */
+function withPosition(latitude = 39.48, longitude = -0.38) {
+  geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+    success({ coords: { latitude, longitude, accuracy: 25 } });
+  });
+}
+/** Caso sin GPS: se carga el inventario completo. */
+function withoutGps() {
+  Object.defineProperty(navigator, 'permissions', {
+    configurable: true,
+    value: { query: vi.fn(async () => ({ state: 'denied' })) },
+  });
+}
+
 describe('MapPage', () => {
   beforeEach(() => {
     clearPaintedRoute();
     vi.clearAllMocks();
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: geo });
-    geo.watchPosition.mockReturnValue(7);
+    geo.watchPosition.mockReset().mockReturnValue(7);
+    geo.getCurrentPosition.mockReset();
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (
       String(url).includes('/trees')
         ? { ok: true, json: async () => ({ nextOffset: null, trees: [] }) }
@@ -178,6 +193,7 @@ describe('MapPage', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
   it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', () => {
@@ -256,6 +272,7 @@ describe('MapPage', () => {
   });
 
   it('908: pinta cada planta del inventario con su icono, sin etiqueta de nombre', async () => {
+    withoutGps();
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')
@@ -282,6 +299,7 @@ describe('MapPage', () => {
   });
 
   it('908: avisa si no se pueden cargar las plantas y mantiene el mapa', async () => {
+    withPosition();
     vi.mocked(fetch).mockRejectedValue(new Error('network'));
     renderMap();
 
@@ -351,12 +369,16 @@ describe('MapPage', () => {
     expect(screen.getByText('Plantas y puntos de interés en la zona')).toBeInTheDocument();
     expect(screen.queryByText('Olivo')).not.toBeInTheDocument();
 
-    const markersBefore = leaflet.markerFactory.mock.calls.length;
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.48, -0.38], expect.objectContaining({ title: 'Almez' })));
+    const plantMarkers = () => (leaflet.markerFactory.mock.calls as unknown as Array<[unknown, { title?: string }]>)
+      .filter((call) => call[1]?.title !== undefined).length;
+    const markersBefore = plantMarkers();
     fireEvent.click(screen.getByRole('button', { name: 'Elegir zona' }));
     expect(await screen.findByText('Olivo')).toBeInTheDocument();
     // La lista cercana sigue intacta y el mapa no se vuelve a pintar.
     expect(screen.getByText('Almez')).toBeInTheDocument();
-    expect(leaflet.markerFactory.mock.calls.length).toBe(markersBefore);
+    expect(plantMarkers()).toBe(markersBefore);
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
@@ -664,6 +686,7 @@ describe('MapPage', () => {
   });
 
   it('las plantas se pintan página a página, sin esperar a la última', async () => {
+    withPosition(39.47, -0.37);
     let releaseSecond: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => { releaseSecond = resolve; });
     vi.mocked(fetch).mockImplementation((async (url: string) => {
@@ -746,6 +769,7 @@ describe('MapPage', () => {
   });
 
   it('oculta las plantas de las zonas cuando la capa está activa', async () => {
+    withPosition(39.47, -0.38);
     vi.mocked(fetch).mockImplementation((async (url: string) => {
       const requestUrl = new URL(String(url));
       if (requestUrl.pathname.includes('/trees/nearby')) {
@@ -1092,6 +1116,7 @@ describe('MapPage', () => {
   });
 
   it('agrupa en un marcador las plantas que están dentro de un parque', async () => {
+    withoutGps();
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')
@@ -1117,6 +1142,7 @@ describe('MapPage', () => {
   });
 
   it('al acercarse al parque se ven sus plantas una a una', async () => {
+    withPosition();
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')
