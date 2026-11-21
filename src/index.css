@@ -578,3 +578,18 @@
 .plants-tiny .park-pin {
   transform: scale(0.55);
 }
+
+/* Cada planta "salta" suavemente al aparecer en el render progresivo. */
+@keyframes plant-pin-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.plant-pin-pop .plant-pin__icon {
+  animation: plant-pin-pop 260ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plant-pin-pop .plant-pin__icon { animation: none; }
+}

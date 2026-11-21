@@ -54,6 +54,42 @@ export function createPlantIcon(pin: PlantPin): L.DivIcon {
  * añadir un popup por marcador (vía cercanas: nombre y distancia) y
  * `onOpenPlant` responde al toque de un marcador: abre su ficha (F03.1) y, en
  * los grupos RF2, pinta además el área que ocupan. */
+/** Pinta los marcadores en tandas de 20 por frame: con 150 iconos SVG, crearlos
+ * todos en el mismo tick bloquea el hilo. Devuelve la capa ya añadida y una
+ * función para cancelar los frames pendientes si se repinta antes de acabar. */
+export function addPlantMarkersProgressively(
+  map: L.Map,
+  pins: PlantPin[],
+  popupFor?: (pin: PlantPin) => string | undefined,
+  onOpenPlant?: (pin: PlantPin) => boolean,
+): { layer: L.LayerGroup, cancel: () => void } {
+  const layer = L.layerGroup().addTo(map);
+  let index = 0
+  let frame = 0
+  let cancelled = false
+  const batch = () => {
+    if (cancelled) return
+    for (const pin of pins.slice(index, index + 4)) {
+      const marker = L.marker([pin.latitude, pin.longitude], {
+        icon: createPlantIcon(pin), title: pin.displayName, alt: pin.displayName,
+      });
+      const popup = popupFor?.(pin);
+      if (popup) marker.bindPopup(popup, { closeButton: false, autoPan: false });
+      if (onOpenPlant) marker.on('click', () => {
+        const hasFicha = onOpenPlant(pin);
+        if (!hasFicha && popup) marker.bindPopup(popup, { closeButton: false, autoPan: false }).openPopup();
+      });
+      marker.addTo(layer);
+      // Pop suave: la hoja aparece al terminar su frame.
+      marker.getElement()?.classList.add('plant-pin-pop');
+      index++;
+    }
+    if (index < pins.length) frame = requestAnimationFrame(batch);
+  };
+  frame = requestAnimationFrame(batch);
+  return { layer, cancel: () => { cancelled = true; cancelAnimationFrame(frame); } };
+}
+
 export function addPlantMarkers(
   map: L.Map,
   pins: PlantPin[],

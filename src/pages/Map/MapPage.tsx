@@ -20,7 +20,7 @@ import { OfflineSavedToast, OfflineZoneCard } from '../../components/OfflineZone
 import type { GreenAreasLayer } from './greenAreasLayer';
 import { addParkMarkers, clusterPlantsByPark } from './parkClusters';
 import type { GreenArea } from '../../types/greenArea';
-import { addPlantMarkers } from './plantMarkers';
+import { addPlantMarkersProgressively } from './plantMarkers';
 import { addRouteOverlay, fitRouteBounds, routeStopToPlantPin } from './routeOverlay';
 
 const VALENCIA: Coordinates = { latitude: 39.4699, longitude: -0.3763 };
@@ -211,6 +211,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const searchAreaCircleRef = useRef<L.Circle | null>(null);
   const searchedPlaceMarkerRef = useRef<L.Marker | null>(null);
   const plantsLayerRef = useRef<L.LayerGroup | null>(null);
+  const cancelPlantFramesRef = useRef<(() => void) | null>(null);
   const selectedSpeciesLayerRef = useRef<L.LayerGroup | null>(null);
   const poisLayerRef = useRef<L.LayerGroup | null>(null);
   const locatedItemRef = useRef<L.Circle | null>(null);
@@ -876,12 +877,15 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       }
       return onOpenPlant?.(pin) ?? false;
     };
-    plantsLayerRef.current = addPlantMarkers(
+    cancelPlantFramesRef.current?.();
+    const progressive = addPlantMarkersProgressively(
       map,
       hiddenSpeciesId === null ? pins : pins.filter((pin) => pin.speciesId !== hiddenSpeciesId),
       popupFor,
       handlePlantClick,
     );
+    plantsLayerRef.current = progressive.layer;
+    cancelPlantFramesRef.current = progressive.cancel;
     };
     repaintPlantsRef.current = paint;
     paint();
