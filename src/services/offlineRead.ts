@@ -74,6 +74,7 @@ export async function offlineNearbyTrees(params: {
   longitude: number;
   radius: number;
   limit?: number;
+  offset?: number;
   lang: string;
 }): Promise<NearbyResponse | null> {
   const zones = await safeAll();
@@ -90,8 +91,9 @@ export async function offlineNearbyTrees(params: {
     }
   }
   trees.sort((a, b) => a.distance - b.distance);
-  const page = trees.slice(0, limit);
+  const page = trees.slice(params.offset ?? 0, (params.offset ?? 0) + limit);
   return {
+    total: trees.length,
     center: { latitude: params.latitude, longitude: params.longitude },
     radius: params.radius,
     returned: page.length,
