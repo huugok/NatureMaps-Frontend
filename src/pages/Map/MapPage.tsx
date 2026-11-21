@@ -472,7 +472,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           );
           if (controller.signal.aborted) return;
           total = response.total;
-          fromCache = response.limit === null;
+          fromCache = response.cached === true;
           allTrees.push(...response.trees);
           found.push(...response.trees.map((plant) => ({
             id: plant.id,

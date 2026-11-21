@@ -33,7 +33,10 @@ export interface NearbyResponse {
   limit: number | null;
   language: string;
   trees: NearbyPlant[];
+  /** true cuando el contenido sale de la caché de IndexedDB, no de Neon. */
+  cached?: boolean;
 }
+
 
 // Radio de búsqueda configurable en Ajustes. Va en su propia clave de
 // localStorage para no tocar `naturemaps:prefs`, que solo guarda el modo.
@@ -65,9 +68,10 @@ export function saveNearbyRadius(meters: number): void {
 }
 
 // Caché de la carga completa en IndexedDB: al reentrar al mapa se sirve de aquí
-// y Neon no vuelve a transferir el inventario. Las páginas se acumulan en memoria
-// hasta que llega la última y solo entonces se guarda el resultado completo.
-const TREE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// y Neon no vuelve a transferir el inventario. La caducidad corta (1 h) la mantiene
+// como caché de sesión: nota de datos guardados a propósito por el usuario (zonas,
+// rutas) viven en otros stores y no se tocan.
+const TREE_CACHE_TTL_MS = 60 * 60 * 1000;
 
 function treeCacheKey(params: { latitude: number; longitude: number; radius: number; lang: string }): string {
   return `${params.latitude.toFixed(4)}:${params.longitude.toFixed(4)}:${params.radius}:${params.lang}`;
@@ -78,17 +82,20 @@ export async function fetchNearbyTrees(
   signal?: AbortSignal,
 ): Promise<NearbyResponse> {
   const key = treeCacheKey(params);
-  const fromCache = (trees: NearbyPlant[]): NearbyResponse => ({
-    center: { latitude: params.latitude, longitude: params.longitude },
-    radius: params.radius, returned: trees.length, total: trees.length,
-    limit: null, language: params.lang, trees,
-  });
   const offset = params.offset ?? 0;
-  if (offset === 0) {
-    const cached = await plantCache().get(key).catch(() => undefined);
-    if (cached && Date.now() - cached.savedAt < TREE_CACHE_TTL_MS) {
-      return fromCache(cached.trees as NearbyPlant[]);
-    }
+  // Servir en páginas, igual que Neon: así el cargador sigue publicando cada
+  // tanda y el render progresivo no agrupa las 67k de golpe.
+  const fromCache = (all: NearbyPlant[]): NearbyResponse => {
+    const trees = params.limit !== undefined ? all.slice(offset, offset + params.limit) : all;
+    return {
+      center: { latitude: params.latitude, longitude: params.longitude },
+      radius: params.radius, returned: trees.length, total: all.length,
+      limit: params.limit ?? null, language: params.lang, trees, cached: true,
+    };
+  };
+  const cached = await plantCache().get(key).catch(() => undefined);
+  if (cached && Date.now() - cached.savedAt < TREE_CACHE_TTL_MS) {
+    return fromCache(cached.trees as NearbyPlant[]);
   }
   const query = new URLSearchParams({
     lat: String(params.latitude),

@@ -52,6 +52,25 @@ describe('caché de plantas en IndexedDB', () => {
     expect(await offlineStorage().store.get('jardin-del-turia')).toBeDefined()
   })
 
+  it('sirve la caché en páginas para mantener la carga progresiva', async () => {
+    const plants = createMemoryPlantCache()
+    setPlantCache(plants)
+    const base = { latitude: 39.47, longitude: -0.37, radius: 2500, lang: 'es' }
+    await plants.put('39.4700:-0.3700:2500:es', {
+      savedAt: Date.now(),
+      trees: [1, 2, 3, 4].map((id) => ({ ...response.trees[0], id })),
+    })
+
+    const first = await fetchNearbyTrees({ ...base, limit: 2, offset: 0 })
+    const second = await fetchNearbyTrees({ ...base, limit: 2, offset: 2 })
+
+    expect(first.trees).toHaveLength(2)
+    expect(first.total).toBe(4)
+    expect(first.cached).toBe(true)
+    expect(second.trees).toHaveLength(2)
+    expect(second.trees[0].id).toBe(3)
+  })
+
   it('una clave distinta (otro radio) no reutiliza la caché', async () => {
     setPlantCache(createMemoryPlantCache())
     api.get.mockResolvedValue(structuredClone(response))
