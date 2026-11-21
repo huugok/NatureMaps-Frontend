@@ -69,7 +69,7 @@ export function addPlantMarkersProgressively(
   let cancelled = false
   const batch = () => {
     if (cancelled) return
-    for (const pin of pins.slice(index, index + 4)) {
+    for (const pin of pins.slice(index, index + 1)) {
       const marker = L.marker([pin.latitude, pin.longitude], {
         icon: createPlantIcon(pin), title: pin.displayName, alt: pin.displayName,
       });
