@@ -296,7 +296,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     position: locatedPosition,
     allow: allowLocation,
     deny: denyLocation,
-    retry: retryLocation,
   } = useLocationPermission();
 
   const setPlants = useCallback((pins: PlantPin[] | null) => {
@@ -1554,7 +1553,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       {locationPermission === 'denied' && (
         <button
           type="button"
-          onClick={retryLocation}
+          onClick={() => navigate('/ajustes/permisos')}
           aria-label={t('location.retryAria')}
           title={t('location.retryAria')}
           className="absolute right-4 bottom-36 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
