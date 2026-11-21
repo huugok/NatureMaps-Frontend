@@ -1,4 +1,4 @@
-import { Languages, Palette, RefreshCw } from 'lucide-react'
+import { Languages, Palette, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Page } from '../../components/Page'
 import { List } from '../../components/ui/List'
@@ -53,6 +53,7 @@ export function Settings({ language, onBack }: SettingsProps) {
           to="/modo"
         />
         <ListItem icon={Palette} title={t('settings.components')} to="/componentes" />
+        <ListItem icon={ShieldCheck} title={t('settings.permissions')} to="/ajustes/permisos" />
       </List>
       <SectionLabel>{t('settings.mapSection')}</SectionLabel>
       <div className="rounded-card bg-surface p-4 shadow-raised">

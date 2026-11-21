@@ -1,5 +1,6 @@
 import { Search as SearchIcon, Sprout } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLocationPermission } from '../../components/Location'
 import { Page } from '../../components/Page'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -55,8 +56,9 @@ function normalizeSearch(value: string) {
 /** Búsqueda del catálogo por nombre común o científico. */
 export function Search({ onSelectSpecies }: SearchProps) {
   const { t, lang } = useApp()
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const { status: locationStatus, position, allow, deny, retry } = useLocationPermission()
+  const { status: locationStatus, position, allow, deny } = useLocationPermission()
   const [catalog, setCatalog] = useState<FichaListItem[] | null>(null)
   const [catalogFailed, setCatalogFailed] = useState(false)
   const [nearestDistanceBySpecies, setNearestDistanceBySpecies] = useState<Record<number, number>>({})
@@ -123,7 +125,7 @@ export function Search({ onSelectSpecies }: SearchProps) {
         </section>
       )}
       {locationStatus === 'denied' && (
-        <button type="button" onClick={retry} className="mt-3 text-left text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('search.locationRetry')}</button>
+        <button type="button" onClick={() => navigate('/ajustes/permisos')} className="mt-3 text-left text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('search.locationRetry')}</button>
       )}
 
       {normalizedQuery && (
