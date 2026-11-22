@@ -1328,6 +1328,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // 67k plantas de nuevo en cada render era lo que congelaba la interfaz) y
   // muestra solo los primeros 100; el mapa es la vista completa.
   const explorePlants = useMemo(() => {
+    if (!exploreOpen) return [];
     if (areaPlants !== null) {
       return locatedPosition !== null ? groupNearbyPlants(areaPlants).pins : areaPlants;
     }
@@ -1336,13 +1337,13 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return [...groups]
       .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
       .slice(0, 100);
-  }, [areaPlants, plantGroups, locatedPosition]);
+  }, [areaPlants, plantGroups, locatedPosition, exploreOpen]);
 
   // La zona usa su propio estado: solo alimenta esta segunda lista.
   const zoneExplorePlants = useMemo(() => {
-    if (zonePlants === null) return [];
+    if (!exploreOpen || zonePlants === null) return [];
     return locatedPosition !== null ? groupNearbyPlants(zonePlants).pins : zonePlants;
-  }, [zonePlants, locatedPosition]);
+  }, [zonePlants, locatedPosition, exploreOpen]);
 
   const locateExploreItem = (point: Coordinates) => {
     const map = mapRef.current;
