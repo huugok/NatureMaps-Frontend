@@ -492,6 +492,11 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           // agrupar y pintar las 67k de golpe al final. El filtro por radio y
           // por zonas hace que cada render trabaje con muchas menos plantas.
           if (found.length > 0) setPlants([...found]);
+          // Desde caché no hay latencia de red: espaciar las páginas reparte
+          // los re-renders y evita el tirón al publicar las 67k seguidas.
+          if (response.cached && more) {
+            await new Promise((resolve) => setTimeout(resolve, 120));
+          }
         } while (more);
         if (!controller.signal.aborted && allTrees.length > 0) {
           // Guardar solo la carga completa: así la próxima entrada al mapa
