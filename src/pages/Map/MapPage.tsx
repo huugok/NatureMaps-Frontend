@@ -10,7 +10,8 @@ import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius, saveNearbyTr
 import { fetchRouteDetail } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
-import type { GroupArea } from '../../services/plantGroups';
+import type { GroupArea, GroupedPlants } from '../../services/plantGroups';
+import { groupOffThread } from './groupOffThread';
 import type { PlantPin } from '../../types/plant';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchGreenAreaPlants, fetchGreenAreas } from '../../services/greenAreas';
@@ -286,6 +287,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // Aventura fija 1 km; paseo usa el valor del deslizador de Ajustes.
   const radius = effectiveNearbyRadius(mode, sliderRadius);
   const [plants, setPlantsState] = useState<PlantPin[] | null>(null);
+  // Áreas de los grupos calculados en el cargador (el render no vuelve a agrupar).
+  const [groupAreas, setGroupAreas] = useState<{
+    byId: Map<number, GroupArea>; byMember: Map<number, GroupArea>;
+  }>({ byId: new Map(), byMember: new Map() });
   const [plantProgress, setPlantProgress] = useState<{ loaded: number, total: number } | null>(null);
   const [showPlantToast, setShowPlantToast] = useState(false);
   const [toastExiting, setToastExiting] = useState(false);
@@ -463,6 +468,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         let more = true;
         let fromCache = false;
         const found: PlantPin[] = [];
+        const groupedAreas = new Map<number, GroupArea>();
+        const memberAreas = new Map<number, GroupArea>();
         const allTrees: Array<Parameters<typeof saveNearbyTreesCache>[1][number]> = [];
         do {
           const response = await fetchNearbyTrees(
@@ -474,7 +481,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           total = response.total;
           fromCache = response.cached === true;
           allTrees.push(...response.trees);
-          found.push(...response.trees.map((plant) => ({
+          const pagePins: PlantPin[] = response.trees.map((plant) => ({
             id: plant.id,
             displayName: plant.displayName,
             scientificName: plant.scientificName ?? plant.reportedScientificName,
@@ -484,14 +491,28 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             speciesId: plant.speciesId,
             distance: plant.distance,
             greenAreaId: plant.greenAreaId ?? null,
-          })));
+          }));
+          // Agrupar en el worker (o directamente si no está disponible) evita
+          // que el hilo principal procese los 20k de cada página.
+          let grouped: GroupedPlants;
+          try {
+            grouped = await groupOffThread(pagePins);
+          } catch {
+            grouped = groupNearbyPlants(pagePins);
+          }
+          found.push(...grouped.pins);
+          for (const [id, area] of grouped.areasById) groupedAreas.set(id, area);
+          for (const [id, area] of grouped.areaByMemberId) memberAreas.set(id, area);
           offset += response.trees.length;
           more = response.trees.length > 0 && offset < total && total > 0;
           setPlantProgress({ loaded: found.length, total });
           // Publicación progresiva: cada página entra en cuanto llega, para no
           // agrupar y pintar las 67k de golpe al final. El filtro por radio y
           // por zonas hace que cada render trabaje con muchas menos plantas.
-          if (found.length > 0) setPlants([...found]);
+          if (found.length > 0) {
+            setPlants([...found]);
+            setGroupAreas({ byId: new Map(groupedAreas), byMember: new Map(memberAreas) });
+          }
           // Desde caché no hay latencia de red: espaciar las páginas reparte
           // los re-renders y evita el tirón al publicar las 67k seguidas.
           if (response.cached && more) {
@@ -851,9 +872,14 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       membersByGroup: parks?.membersByGroup ?? new Map<string, PlantPin[]>(),
       parkGroups,
       loose: parks ? parks.loose : source,
-      groups: groupNearbyPlants(parks ? parks.loose : source),
+      // `plants` ya llega agrupado del cargador: solo se filtra aquí.
+      groups: {
+        pins: parks ? parks.loose : source,
+        areasById: groupAreas.byId,
+        areaByMemberId: groupAreas.byMember,
+      },
     };
-  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas, greenAreasOn, locatedPosition, radius]);
+  }, [plants, zoneSpecies, zoneSpeciesId, greenAreas, greenAreasOn, locatedPosition, radius, groupAreas]);
 
   // Capa de marcadores de plantas: en cada movimiento solo se filtran al viewport
   // los grupos ya calculados y se cogen los más numerosos (muestreo barato).
