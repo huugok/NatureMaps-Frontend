@@ -132,6 +132,7 @@ const es = {
   'routes.stopsList': 'Paradas del recorrido',
   'routes.stopPlant': 'planta',
   'routes.stopPoi': 'POI cultural',
+  'routes.stopSponsor': 'Comercio patrocinado',
 
   'settings.title': 'Ajustes',
   'settings.language': 'Idioma',
@@ -544,6 +545,7 @@ const va: Dict = {
   'routes.stopsList': 'Parades del recorregut',
   'routes.stopPlant': 'planta',
   'routes.stopPoi': 'POI cultural',
+  'routes.stopSponsor': 'Comerç patrocinat',
 
   'settings.title': 'Ajustos',
   'settings.language': 'Idioma',
@@ -953,6 +955,7 @@ const en: Dict = {
   'routes.stopsList': 'Route stops',
   'routes.stopPlant': 'plant',
   'routes.stopPoi': 'cultural POI',
+  'routes.stopSponsor': 'sponsored shop',
 
   'settings.title': 'Settings',
   'settings.language': 'Language',

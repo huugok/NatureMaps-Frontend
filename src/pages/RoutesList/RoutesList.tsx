@@ -30,7 +30,9 @@ function ThemeBadge({ theme }: { theme: RouteTheme }) {
     ? t('routes.theme.botanica')
     : theme === 'cultural'
       ? t('routes.theme.cultural')
-      : t('routes.theme.mixta');
+      : theme === 'sponsor'
+        ? t('routes.theme.sponsor')
+        : t('routes.theme.mixta');
   return <Badge>{label}</Badge>;
 }
 

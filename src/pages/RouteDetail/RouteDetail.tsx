@@ -99,7 +99,9 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
     ? t('routes.theme.botanica')
     : route.theme === 'cultural'
       ? t('routes.theme.cultural')
-      : t('routes.theme.mixta');
+      : route.theme === 'sponsor'
+        ? t('routes.theme.sponsor')
+        : t('routes.theme.mixta');
   const shape = route.shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal');
 
   return (
@@ -167,7 +169,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
                 <>
                   <span
                     className="grid size-6 shrink-0 place-items-center rounded-full text-caption font-bold text-on-accent"
-                    style={{ backgroundColor: stop.kind === 'planta' ? 'var(--color-accent)' : 'var(--color-place)' }}
+                    style={{ backgroundColor: stop.kind === 'planta' ? 'var(--color-accent)' : stop.kind === 'sponsor' ? 'var(--color-sponsor)' : 'var(--color-place)' }}
                     aria-hidden
                   >
                     {index + 1}
@@ -175,7 +177,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
                   <span className="min-w-0 flex-1 text-balance break-words">
                     {stop.name}
                     <span className="ml-2 text-caption text-muted">
-                      {stop.kind === 'planta' ? t('routes.stopPlant') : t('routes.stopPoi')}
+                      {stop.kind === 'planta' ? t('routes.stopPlant') : stop.kind === 'sponsor' ? t('routes.stopSponsor') : t('routes.stopPoi')}
                     </span>
                   </span>
                 </>
