@@ -340,7 +340,7 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('«Elegir zona» llena solo la segunda lista, sin cambiar el mapa', async () => {
+  it('la pestaña «En la zona» llena solo su lista, sin cambiar el mapa', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
@@ -366,19 +366,21 @@ describe('MapPage', () => {
     renderMap();
     fireEvent.click(screen.getByRole('button', { name: /explorar/i }));
     expect(await screen.findByText('Almez')).toBeInTheDocument();
-    expect(screen.getByText('Plantas y puntos de interés en la zona')).toBeInTheDocument();
     expect(screen.queryByText('Olivo')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Cercanos' })).toHaveAttribute('aria-selected', 'true');
 
     await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
       [39.48, -0.38], expect.objectContaining({ title: 'Almez' })));
     const plantMarkers = () => (leaflet.markerFactory.mock.calls as unknown as Array<[unknown, { title?: string }]>)
       .filter((call) => call[1]?.title !== undefined).length;
     const markersBefore = plantMarkers();
-    fireEvent.click(screen.getByRole('button', { name: 'Elegir zona' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'En la zona' }));
+    expect(await screen.findByText('Plantas y puntos de interés en la zona')).toBeInTheDocument();
     expect(await screen.findByText('Olivo')).toBeInTheDocument();
-    // La lista cercana sigue intacta y el mapa no se vuelve a pintar.
-    expect(screen.getByText('Almez')).toBeInTheDocument();
+    // El mapa no se vuelve a pintar y la otra pestaña sigue intacta.
     expect(plantMarkers()).toBe(markersBefore);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cercanos' }));
+    expect(await screen.findByText('Almez')).toBeInTheDocument();
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 

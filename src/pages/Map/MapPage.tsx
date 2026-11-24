@@ -267,6 +267,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const [zoneSpecies, setZoneSpecies] = useState<{ name: string; pins: PlantPin[] } | null>(null);
   const [zoneSpeciesFailed, setZoneSpeciesFailed] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
+  const [exploreTab, setExploreTab] = useState<'near' | 'zone'>('near');
   const [pois, setPois] = useState<Array<{id: number; name: string; lat: number; lon: number; distance: number}>>([]);
   const [sponsors, setSponsors] = useState<Array<{id: number; businessName: string; sponsorLocation: string; latitude: number; longitude: number}>>([]);
   const [areaLoading, setAreaLoading] = useState(false);
@@ -1031,12 +1032,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     if (!map) return;
     const paint = () => {
       sponsorsLayerRef.current?.remove();
-      const bounds = map.getBounds();
       const layer = L.layerGroup();
-      sponsors.filter((sponsor) => bounds.contains([sponsor.latitude, sponsor.longitude]))
-        .filter((sponsor) => locatedPosition === null
-          || metersBetween(locatedPosition, sponsor) <= radius)
-        .forEach((sponsor) => {
+      // Igual que los POIs: los comercios están siempre dibujados en el mapa.
+      sponsors.forEach((sponsor) => {
           const point = { latitude: sponsor.latitude, longitude: sponsor.longitude };
           const distance = locatedPosition !== null ? metersBetween(locatedPosition, point) : null;
           const label = distance === null
@@ -1486,11 +1484,31 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           >
             <span className="h-1.5 w-12 rounded-full bg-line-strong" aria-hidden="true" />
           </button>
-          <p className="mb-2 text-center text-small font-semibold text-ink">{t('map.nearbyTitle')}</p>
+          <div role="tablist" aria-label={t('map.explorePanel')} className="mb-2 flex gap-2">
+            <button type="button" role="tab" aria-selected={exploreTab === 'near'}
+              onClick={() => setExploreTab('near')}
+              className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${exploreTab === 'near' ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>
+              {t('map.tabNear')}
+            </button>
+            <button type="button" role="tab" aria-selected={exploreTab === 'zone'}
+              onClick={() => {
+                setExploreTab('zone');
+                if (zonePlants === null) {
+                  const center = mapRef.current?.getCenter();
+                  if (center) loadArea({ latitude: center.lat, longitude: center.lng }, radius, 'zone');
+                }
+              }}
+              className={`min-h-11 flex-1 rounded-control px-3 text-small font-semibold ${exploreTab === 'zone' ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink'}`}>
+              {t('map.tabZone')}
+            </button>
+          </div>
+          <p className="mb-2 text-center text-small font-semibold text-ink">
+            {exploreTab === 'near' ? t('map.nearbyTitle') : t('map.zoneTitle')}
+          </p>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {/* Cerrado = solo la estructura: montar cientos de artículos en cada
                 render de progreso era el 24 % de las muestras de CPU. */}
-            {exploreOpen && (areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
+            {exploreOpen && exploreTab === 'near' && (areaLoading ? <p role="status" className="py-8 text-center text-small text-muted">{t('map.loadingArea')}</p> : areaFailed ? <p role="status" className="py-8 text-center text-small text-danger">{t('map.areaError')}</p> : explorePlants.length === 0 && pois.length === 0 && !poiLoading ? <p className="py-8 text-center text-small text-muted">{t('map.emptyArea')}</p> : <>
               {explorePlants.slice().sort((a,b)=>(a.distance ?? 0)-(b.distance ?? 0)).map((plant) => <article key={`plant-${plant.id}`} className="border-b border-line py-2">
                 <div className="flex items-center gap-2 text-small text-ink"><Leaf size={17} className="shrink-0 text-accent"/><span className="flex-1">{plant.displayName}{plant.count && plant.count > 1 ? ` · ${plant.count}` : ''}</span><span className="tabular-nums text-muted">{formatDistance(plant.distance ?? 0,lang)}</span></div>
                 <div className="mt-1 flex justify-end gap-2">
@@ -1507,17 +1525,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
               </article>)}
               {poiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
             </>)}
-            <div className="mt-4 border-t border-line pt-4">
-              <p className="mb-2 text-center text-small font-semibold text-ink">{t('map.zoneTitle')}</p>
-              <div className="mb-2 flex justify-center">
-                <button type="button" disabled={zoneLoading} onClick={() => {
-                  const center = mapRef.current?.getCenter();
-                  if (center) loadArea({ latitude: center.lat, longitude: center.lng }, radius, 'zone');
-                }} className="min-h-11 rounded-control bg-accent-soft px-4 text-small font-semibold text-ink disabled:opacity-60">
-                  {zoneLoading ? t('map.loadingArea') : t('map.chooseArea')}
-                </button>
-              </div>
-              {exploreOpen && (zoneLoading ? <p role="status" className="py-6 text-center text-small text-muted">{t('map.loadingArea')}</p>
+            {exploreOpen && exploreTab === 'zone' && (zoneLoading ? <p role="status" className="py-6 text-center text-small text-muted">{t('map.loadingArea')}</p>
                 : zoneFailed ? <p role="status" className="py-6 text-center text-small text-danger">{t('map.areaError')}</p>
                 : zonePlants === null ? <p className="py-6 text-center text-caption text-muted">{t('map.zoneHint')}</p>
                 : <>{zoneExplorePlants.slice().sort((a,b)=>(a.distance ?? 0)-(b.distance ?? 0)).map((plant) => <article key={`zone-plant-${plant.id}`} className="border-b border-line py-2">
@@ -1536,7 +1544,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
                 </article>)}
                 {zonePoiLoading && <p role="status" className="py-3 text-center text-caption text-muted">{t('map.loadingArea')}</p>}
                 </>)}
-            </div>
           </div>
         </div>
       </aside>
