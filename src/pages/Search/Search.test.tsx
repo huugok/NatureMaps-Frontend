@@ -38,6 +38,8 @@ vi.mock('../../services/ficha', async (importOriginal) => {
   return {
     ...actual,
     getAllSpeciesList: vi.fn().mockResolvedValue(speciesCatalog),
+    getFloweringSpecies: vi.fn().mockImplementation((month: number) => Promise.resolve(month === 2 ? [speciesCatalog[0]] : [])),
+    getFloweringSpeciesInRange: vi.fn().mockResolvedValue([speciesCatalog[0]]),
   }
 })
 
@@ -80,6 +82,17 @@ describe('Search', () => {
     fireEvent.change(input, { target: { value: 'limónero' } })
     expect(screen.getByRole('button', { name: /Limonero.*Citrus limon/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Olivo.*Olea europaea/i })).not.toBeInTheDocument()
+  })
+
+  it('filtra el catálogo por un intervalo de meses de floración', async () => {
+    renderWithProviders(<Search />)
+    await screen.findByRole('button', { name: /Naranjo.*Citrus × aurantium/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros de búsqueda' }))
+    fireEvent.change(screen.getByRole('slider', { name: 'Desde' }), { target: { value: '2' } })
+    fireEvent.change(screen.getByRole('slider', { name: 'Hasta' }), { target: { value: '2' } })
+
+    expect(await screen.findByRole('button', { name: /Naranjo.*Citrus × aurantium/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Limonero.*Citrus limon/i })).not.toBeInTheDocument()
   })
 
   it('muestra un mensaje explícito cuando la búsqueda no encuentra especies', async () => {

@@ -1,10 +1,10 @@
-import { CloudDownload, CloudOff, Trash2, X } from 'lucide-react';
+import { CloudDownload, CloudOff, Trash2, TriangleAlert, X } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { useApp } from '../../context/useApp';
 import { useOfflineZone } from '../../hooks/useOfflineZone';
 import { formatBytes, formatCount, formatDate, formatPercent } from '../../i18n/format';
-import type { StringKey } from '../../i18n/strings';
+import { ERROR_TEXT, PHASE_TEXT } from './messages';
 import type { Bbox, OfflineZoneRecord } from '../../types/offline';
 
 export interface OfflineZoneCardProps {
@@ -14,6 +14,8 @@ export interface OfflineZoneCardProps {
   bbox: Bbox;
   /** Ejemplares de la zona, solo para estimar el peso antes de descargar. */
   plantCount?: number;
+  /** Nombre de la zona, para nombrar la descarga en Rutas mientras llega la ficha. */
+  name?: string;
   /**
    * Versión para flotar sobre el mapa: compacta, con botón para cerrarla y sin
    * contenido una vez descargada (el mapa queda limpio; el aviso lo da `onSaved`).
@@ -25,29 +27,14 @@ export interface OfflineZoneCardProps {
   onClose?: () => void;
 }
 
-const PHASE_TEXT: Record<'detail' | 'plants' | 'tiles' | 'saving', StringKey> = {
-  detail: 'offline.phase.detail',
-  plants: 'offline.phase.plants',
-  tiles: 'offline.phase.tiles',
-  saving: 'offline.phase.saving',
-};
-
-const ERROR_TEXT: Record<string, StringKey> = {
-  network: 'offline.error.network',
-  'storage-full': 'offline.error.storage',
-  'too-large': 'offline.error.tooLarge',
-  unsupported: 'offline.error.unsupported',
-  generic: 'offline.error.generic',
-};
-
 /**
  * Descarga una zona verde para consultarla sin conexión: estima el peso, enseña
  * el progreso (con cancelar) y, una vez guardada, permite borrarla. Se usa en la
  * ficha de la zona y sobre el mapa. La gestión de todas las descargas es NM-17.
  */
-export function OfflineZoneCard({ groupSlug, bbox, plantCount = 0, floating = false, onSaved, onClose }: OfflineZoneCardProps) {
+export function OfflineZoneCard({ groupSlug, bbox, plantCount = 0, name, floating = false, onSaved, onClose }: OfflineZoneCardProps) {
   const { t, lang } = useApp();
-  const { state, estimate, download, cancel, remove } = useOfflineZone(groupSlug, lang, bbox, plantCount, onSaved);
+  const { state, estimate, storage, download, cancel, remove } = useOfflineZone(groupSlug, lang, bbox, plantCount, onSaved, name);
   const frame = floating ? 'rounded-card bg-surface p-3 shadow-float' : 'mt-3 rounded-card bg-surface-2 p-4';
 
   if (state.status === 'checking') return null;
@@ -83,7 +70,19 @@ export function OfflineZoneCard({ groupSlug, bbox, plantCount = 0, floating = fa
           ) : (
             <>
               {!floating && <p className="mt-1 text-small text-ink-2">{t('offline.estimate', { size: formatBytes(estimate.bytes, lang) })}</p>}
-              <Button className="mt-2" block size={floating ? 'sm' : 'md'} icon={CloudDownload} onClick={() => void download()}>
+              {storage.level === 'insufficient' && storage.free !== null && (
+                <p role="alert" className="mt-2 flex items-start gap-1.5 text-small text-danger">
+                  <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  {t('offline.warn.insufficient', { need: formatBytes(storage.needed, lang), size: formatBytes(storage.free, lang) })}
+                </p>
+              )}
+              {storage.level === 'low' && storage.free !== null && (
+                <p role="status" className="mt-2 flex items-start gap-1.5 text-small text-ink-2">
+                  <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  {t('offline.warn.low', { size: formatBytes(storage.free, lang) })}
+                </p>
+              )}
+              <Button className="mt-2" block size={floating ? 'sm' : 'md'} icon={CloudDownload} disabled={storage.level === 'insufficient'} onClick={() => void download()}>
                 {floating ? `${t('offline.download')} · ${formatBytes(estimate.bytes, lang)}` : t('offline.download')}
               </Button>
             </>

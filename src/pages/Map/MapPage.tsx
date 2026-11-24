@@ -311,7 +311,6 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     position: locatedPosition,
     allow: allowLocation,
     deny: denyLocation,
-    retry: retryLocation,
   } = useLocationPermission();
 
   const setPlants = useCallback((pins: PlantPin[] | null) => {
@@ -1046,7 +1045,9 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         const matchingLocations = neighborhood
           ? locations.filter((location) => normalizeLocationName(location.neighborhood ?? location.district ?? '') === normalizeLocationName(neighborhood))
           : locations;
-        const locationPins: PlantPin[] = matchingLocations.map((location) => ({
+        const locationPins: PlantPin[] = matchingLocations
+          .filter((location) => Number.isFinite(location.latitude) && Number.isFinite(location.longitude))
+          .map((location) => ({
           id: location.id, speciesId, displayName: name, scientificName: species.scientificName,
           latitude: location.latitude, longitude: location.longitude, identified: true,
         }));
@@ -1068,7 +1069,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         map.fitBounds(L.latLngBounds(locationPins.map((pin): L.LatLngTuple => [pin.latitude, pin.longitude])), { padding: [56, 56], maxZoom: 17 });
         setFocusLoading(false);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error(`No se han podido mostrar las ubicaciones de la especie ${speciesId}`, error);
         if (requestId === speciesFocusRequestRef.current) {
           setFocusMessage(t('map.speciesLocationsError'));
           setFocusLoading(false);
@@ -1662,7 +1664,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       {locationPermission === 'denied' && (
         <button
           type="button"
-          onClick={retryLocation}
+          onClick={() => navigate('/ajustes/permisos')}
           aria-label={t('location.retryAria')}
           title={t('location.retryAria')}
           className="absolute right-4 bottom-36 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-surface text-ink shadow-float transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"

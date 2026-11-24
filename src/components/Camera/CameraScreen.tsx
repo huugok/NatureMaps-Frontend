@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { CameraMode, PermissionStatus, CameraScreenProps, SavedPhoto } from './types';
 import { CameraPermissionPrompt } from './CameraPermissionPrompt';
 import { CameraPermissionDenied } from './CameraPermissionDenied';
 import { useApp } from '../../context/useApp';
 import { CameraActive } from './CameraActive';
+import { isPermissionEnabled } from '../../services/permissionPreferences';
 
 export const CameraScreen: React.FC<CameraScreenProps> = ({
   onClose,
@@ -17,7 +19,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   identificationError = null,
 }) => {
   const { t } = useApp();
-  const [permission, setPermission] = useState<PermissionStatus>('checking');
+  const navigate = useNavigate();
+  const [permission, setPermission] = useState<PermissionStatus>(() =>
+    isPermissionEnabled('camera') ? 'checking' : 'denied',
+  );
   const [mode, setMode] = useState<CameraMode>(initialMode);
   /**
    * Foto activa del escaneo. Vive aquí y no en `CameraActive` para que la
@@ -29,6 +34,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   // Comprobar si el navegador ya concedió permisos previamente
   useEffect(() => {
+    if (!isPermissionEnabled('camera')) return;
     let isMounted = true;
 
     async function checkExistingPermission() {
@@ -70,6 +76,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   // Solicitar permiso de cámara
   const handleRequestPermission = async () => {
+    if (!isPermissionEnabled('camera')) {
+      setPermission('denied');
+      return;
+    }
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -162,7 +172,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
         <CameraPermissionDenied
           mode={mode}
           onModeChange={setMode}
-          onOpenSettings={() => void handleRequestPermission()}
+          onOpenSettings={() => navigate('/ajustes/permisos')}
           onSelectFromGallery={handleOpenGallery}
           onBack={onClose}
         />
