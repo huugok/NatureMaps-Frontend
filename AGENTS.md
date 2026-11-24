@@ -439,6 +439,21 @@ el PMTiles local en la ficha y en el mapa principal; no descarga teselas OSM.
 La prueba de navegador requiere `NATUREMAPS_TEST_MAP` apuntando al PMTiles real.
 Los archivos cartográficos y las capturas permanecen fuera de Git.
 
+#### Consulta offline (NM-15)
+
+- `fetchRouteList` guarda el catálogo ligero en `localStorage`
+  (`naturemaps:route-catalog:v1`) y lo combina con las rutas descargadas al fallar
+  la red. Así el listado sigue mostrando todas las rutas, no solo las guardadas.
+- Las tarjetas marcan «Disponible sin conexión» y, sin red, una ruta no descargada
+  muestra un aviso sin navegar a una pantalla de error.
+- Ajustes → Descargas (`/ajustes/descargas`) lista las rutas guardadas y abre su
+  ficha. La descarga y el borrado siguen perteneciendo a NM-14/NM-17.
+- La ficha de ruta abre la ficha guardada de POIs y plantas sin especie enlazada;
+  las plantas enlazadas conservan el overlay de especie con `savedSpecies`.
+- Ni `RouteDetail` ni `MapPage` recargan una ruta abierta al perder la conexión:
+  geometría, paradas y mapa montado se mantienen. Si no hay mapa de fondo, los
+  marcadores y el recorrido siguen visibles sobre `surface-2`.
+
 ### Issue tracker
 
 GitHub Issues vía `gh` (repo inferido del remote). See `docs/agents/issue-tracker.md`.

@@ -9,9 +9,9 @@ import { createPlantIcon } from './plantMarkers';
 // pinta la polilínea y sus paradas.
 //
 // Las paradas de planta usan el mismo icono que el mapa (hoja + nombre) y son
-// pulsables: abren la ficha de la planta. Las de POI se pintan como un punto
-// sin interacción —su ficha llegará más adelante— pero con su nombre en el
-// atributo `title` del marcador, que el navegador muestra al pasar por encima.
+// pulsables: abren la ficha de la planta. Los POIs se pintan como un punto; en
+// la ficha de ruta también son pulsables cuando hay una ficha guardada, mientras
+// que en el mapa principal siguen siendo solo visuales.
 
 export const ROUTE_LINE_COLOR = '#3b7ddd';
 
@@ -20,8 +20,8 @@ export function createPoiStopIcon(): L.DivIcon {
   return L.divIcon({
     className: 'route-stop-icon',
     html: '<span aria-hidden="true"></span>',
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
@@ -30,8 +30,8 @@ export function createSponsorStopIcon(): L.DivIcon {
   return L.divIcon({
     className: 'route-stop-icon--sponsor',
     html: '<span aria-hidden="true"></span>',
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
@@ -60,8 +60,8 @@ export function createNumberedStopIcon(stop: RouteStop, index: number): L.DivIco
   return L.divIcon({
     className: `route-stop-${stop.kind}`,
     html: root,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
@@ -90,6 +90,8 @@ export function routeStopToPlantPin(stop: RouteStop): PlantPin {
 export interface RouteOverlayOptions {
   /** Responde al toque de una parada de planta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
+  /** En la ficha de ruta, los POIs descargados también abren su ficha guardada. */
+  openPoiStops?: boolean;
 }
 
 /**
@@ -118,19 +120,22 @@ export function addRouteOverlay(
 
   for (const [index, stop] of route.stops.entries()) {
     const label = `${index + 1}. ${stop.name}`;
+    const poiInteractive = stop.kind === 'poi' && options.openPoiStops === true && options.onOpenStop !== undefined;
     const marker = L.marker([stop.latitude, stop.longitude], {
       icon: createNumberedStopIcon(stop, index),
       title: label,
       alt: label,
-      keyboard: stop.kind !== 'poi',
-      interactive: stop.kind !== 'poi',
+      keyboard: stop.kind !== 'poi' || poiInteractive,
+      interactive: stop.kind !== 'poi' || poiInteractive,
     }).bindTooltip(label, { direction: 'top' });
     if (stop.kind === 'planta' && options.onOpenStop) {
       marker.on('click', () => options.onOpenStop?.(stop));
     }
-    // En móvil el toque (y el gesto largo) abre la etiqueta, igual que el
-    // hover en escritorio: no hay ficha, solo el nombre del comercio.
-    if (stop.kind === 'poi' || stop.kind === 'sponsor') {
+    if (poiInteractive) {
+      marker.on('click', () => options.onOpenStop?.(stop));
+    } else if (stop.kind === 'poi' || stop.kind === 'sponsor') {
+      // En móvil el toque (y el gesto largo) abre la etiqueta, igual que el
+      // hover en escritorio: no hay ficha, solo el nombre del comercio.
       marker.on('click', () => marker.openTooltip());
     }
     marker.addTo(layer);

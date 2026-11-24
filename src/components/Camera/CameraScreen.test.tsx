@@ -1,8 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
+import '@testing-library/jest-dom/vitest';
+import { AppProvider } from '../../context/AppContext';
 import { CameraScreen } from './CameraScreen';
+
+function renderCamera(ui: React.ReactNode) {
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <MemoryRouter>
+        <AppProvider>{children}</AppProvider>
+      </MemoryRouter>
+    ),
+  });
+}
 
 describe('CameraScreen Component', () => {
   beforeEach(() => {
@@ -14,7 +25,7 @@ describe('CameraScreen Component', () => {
   });
 
   it('renders the initial permission request prompt', () => {
-    render(<MemoryRouter><CameraScreen onClose={vi.fn()} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={vi.fn()} />);
 
     expect(
       screen.getByText(/necesitamos tu cámara para reconocer plantas/i)
@@ -31,7 +42,7 @@ describe('CameraScreen Component', () => {
   });
 
   it('shows permission denied screen with explanation when user rejects permission', async () => {
-    render(<MemoryRouter><CameraScreen onClose={vi.fn()} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={vi.fn()} />);
 
     const denyButton = await screen.findByRole('button', { name: /^no permitir cámara$/i });
     fireEvent.click(denyButton);
@@ -46,7 +57,7 @@ describe('CameraScreen Component', () => {
   });
 
   it('allows toggling between Planta and Monumento o calle in the denied state', async () => {
-    render(<MemoryRouter><CameraScreen onClose={vi.fn()} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={vi.fn()} />);
 
     fireEvent.click(await screen.findByRole('button', { name: /^no permitir cámara$/i }));
 
@@ -71,7 +82,7 @@ describe('CameraScreen Component', () => {
       configurable: true,
     });
 
-    render(<MemoryRouter><CameraScreen onClose={vi.fn()} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={vi.fn()} />);
 
     const allowButton = screen.getByRole('button', { name: /^permitir cámara$/i });
     fireEvent.click(allowButton);
@@ -99,7 +110,7 @@ describe('CameraScreen Component', () => {
       configurable: true,
     });
 
-    render(<MemoryRouter><CameraScreen onClose={vi.fn()} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /^permitir cámara$/i }));
 
@@ -116,7 +127,7 @@ describe('CameraScreen Component', () => {
 
   it('calls onClose when close button is clicked in prompt', () => {
     const handleClose = vi.fn();
-    render(<MemoryRouter><CameraScreen onClose={handleClose} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={handleClose} />);
 
     const backBtn = screen.getByRole('button', { name: /volver/i });
     fireEvent.click(backBtn);
@@ -144,7 +155,7 @@ describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
 
   it('una foto de la galería se ve en la vista previa y se puede identificar', async () => {
     const onIdentifyPhoto = vi.fn();
-    render(<MemoryRouter><CameraScreen onClose={vi.fn()} onIdentifyPhoto={onIdentifyPhoto} /></MemoryRouter>);
+    renderCamera(<CameraScreen onClose={vi.fn()} onIdentifyPhoto={onIdentifyPhoto} />);
 
     elegirDeGaleria();
 
@@ -160,7 +171,7 @@ describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
   });
 
   it('tras identificar la foto de la galería muestra las especies alternativas', async () => {
-    const { rerender } = render(<MemoryRouter><CameraScreen onClose={vi.fn()} /></MemoryRouter>);
+    const { rerender } = renderCamera(<CameraScreen onClose={vi.fn()} />);
 
     elegirDeGaleria('planta.jpg');
     await waitFor(() =>
@@ -168,13 +179,11 @@ describe('CameraScreen — escaneo desde la galería (UT F05)', () => {
     );
 
     rerender(
-      <MemoryRouter>
-        <CameraScreen
-          onClose={vi.fn()}
-          identificationStatus="completed"
-          identificationResults={bajaConfianza}
-        />
-      </MemoryRouter>,
+      <CameraScreen
+        onClose={vi.fn()}
+        identificationStatus="completed"
+        identificationResults={bajaConfianza}
+      />,
     );
 
     expect(screen.getByText('Especie más probable')).toBeInTheDocument();

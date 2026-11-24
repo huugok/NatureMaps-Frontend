@@ -275,6 +275,7 @@
   place-items: center;
   width: 30px;
   height: 30px;
+  margin: 7px;
 }
 
 .route-stop__number {

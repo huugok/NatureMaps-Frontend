@@ -1,11 +1,22 @@
+import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useApp } from '../../context/useApp';
+import { Button } from '../ui/Button';
 import { routeStore } from '../../services/offlineRouteStorage';
 import type { OfflineRouteRecord } from '../../types/offlineRoute';
 
+export interface SavedStopCardsProps {
+  routeId: number;
+  /** Muestra solo esta parada (su ficha se abre desde la lista o el mapa). */
+  activeIndex?: number;
+  /** Por defecto se listan todas las fichas guardadas. */
+  showList?: boolean;
+  onClose?: () => void;
+}
+
 /** También los POIs y las plantas sin especie enlazada se pueden consultar
  * dentro de la ruta. Las URLs blob se liberan al cambiar/borrar la descarga. */
-export function SavedStopCards({ routeId }: { routeId: number }) {
+export function SavedStopCards({ routeId, activeIndex, showList = true, onClose }: SavedStopCardsProps) {
   const { t } = useApp();
   const [saved, setSaved] = useState<{ record: OfflineRouteRecord; images: Record<string, string> }>();
   useEffect(() => {
@@ -28,10 +39,22 @@ export function SavedStopCards({ routeId }: { routeId: number }) {
     return () => { active = false; release(); window.removeEventListener('naturemaps-route-downloads', refresh); };
   }, [routeId]);
   if (!saved) return null;
+  if (!showList && activeIndex === undefined) return null;
   const { record, images } = saved;
+  const indices = activeIndex === undefined
+    ? record.packet.stops.map((_, index) => index)
+    : activeIndex >= 0 && activeIndex < record.packet.stops.length ? [activeIndex] : [];
+  if (indices.length === 0) return null;
   return <section aria-label={t('routeOffline.cards')}>
-    <h2 className="font-display text-heading">{t('routeOffline.cards')}</h2>
-    <ol className="mt-2 flex flex-col gap-3">{record.packet.stops.map((stop, index) => {
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="font-display text-heading">{t('routeOffline.cards')}</h2>
+      {activeIndex !== undefined && onClose && (
+        <Button variant="ghost" size="sm" icon={X} onClick={onClose}>{t('routeOffline.closeCard')}</Button>
+      )}
+    </div>
+    <ol className={showList ? 'mt-2 flex flex-col gap-3' : 'mt-2'}>{indices.map((index) => {
+      const stop = record.packet.stops[index];
+      if (!stop) return null;
       const species = record.packet.species.find((item) => item.id === stop.plant?.speciesId);
       const name = record.packet.route.stops[index]?.name ?? stop.poi?.name ?? stop.plant?.displayName;
       const image = stop.poi?.image ?? species?.image;
@@ -40,7 +63,7 @@ export function SavedStopCards({ routeId }: { routeId: number }) {
       const sourceUrl = stop.poi?.profile?.sourceUrl ?? stop.poi?.sourceUrl ?? stop.plant?.sourceUrl;
       const dataSource = stop.poi?.dataSource ?? stop.plant?.dataSource;
       return <li key={`${index}-${stop.kind}-${stop.id}`} className="rounded-card bg-surface p-4">
-        <details>
+        <details open={activeIndex !== undefined}>
           <summary className="min-h-12 cursor-pointer font-display text-body">{index + 1}. {name}</summary>
           {image && images[image.url] && <figure className="my-2">
             <img src={images[image.url]} alt={name ?? ''} className="max-h-64 w-full rounded-card object-cover" />

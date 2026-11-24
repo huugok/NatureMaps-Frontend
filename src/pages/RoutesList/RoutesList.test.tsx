@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '../../test/renderWithProviders'
 import { RoutesList } from './RoutesList'
 import type { RouteSummary } from '../../services/routes'
+import { createMemoryRouteStore, setOfflineRouteStore } from '../../services/offlineRouteStorage'
+import { savedRoute } from '../../test/routeOfflineFixtures'
 
 // El listado habla con GET /routes a través de services/routes; se simula el
 // servicio (el contrato HTTP lo cubren los tests del backend).
@@ -19,6 +21,11 @@ vi.mock('../../services/routes', async (importOriginal) => {
 import { fetchRouteList } from '../../services/routes'
 
 const mockFetchRouteList = vi.mocked(fetchRouteList)
+
+afterEach(() => {
+  setOfflineRouteStore()
+  vi.restoreAllMocks()
+})
 
 function route(overrides: Partial<RouteSummary> = {}): RouteSummary {
   return {
@@ -93,7 +100,45 @@ describe('RoutesList', () => {
       </MemoryRouter>,
     )
 
-    await user.click(await screen.findByRole('button', { name: 'Azahar y sombra del Carmen' }))
+    await user.click(await screen.findByRole('button', { name: /Azahar y sombra del Carmen/i }))
     expect(screen.getByText('Ficha de ruta')).toBeInTheDocument()
+  })
+
+  it('marca solo la ruta descargada como disponible sin conexión', async () => {
+    const store = createMemoryRouteStore()
+    setOfflineRouteStore(store)
+    await store.put(savedRoute(1))
+    mockFetchRouteList.mockResolvedValue([
+      route(),
+      route({ id: 2, name: 'Monumentos del casco antiguo' }),
+    ])
+
+    renderWithProviders(<RoutesList />, { route: '/rutas' })
+
+    const downloaded = await screen.findByRole('button', { name: /Azahar y sombra del Carmen.*Disponible sin conexión/i })
+    expect(within(downloaded).getByText('Disponible sin conexión')).toBeInTheDocument()
+    const onlineOnly = screen.getByRole('button', { name: 'Monumentos del casco antiguo' })
+    expect(within(onlineOnly).queryByText('Disponible sin conexión')).not.toBeInTheDocument()
+  })
+
+  it('sin red avisa al pulsar una ruta que no está descargada y no navega', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    mockFetchRouteList.mockResolvedValue([
+      route(),
+      route({ id: 2, name: 'Monumentos del casco antiguo' }),
+    ])
+    render(
+      <MemoryRouter initialEntries={['/rutas']}>
+        <Routes>
+          <Route path="/rutas" element={<RoutesList />} />
+          <Route path="/rutas/:id" element={<p>Ficha de ruta</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Monumentos del casco antiguo' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Esta ruta no está disponible sin conexión.')
+    expect(screen.queryByText('Ficha de ruta')).not.toBeInTheDocument()
   })
 })

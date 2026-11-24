@@ -33,7 +33,7 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
     mapRef.current = map;
     addOfflineTileLayer(map);
 
-    const layer = addRouteOverlay(map, route, { onOpenStop });
+    const layer = addRouteOverlay(map, route, { onOpenStop, openPoiStops: true });
     layerRef.current = layer;
     fitRouteBounds(map, route);
 
@@ -45,5 +45,5 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
     };
   }, [route, onOpenStop]);
 
-  return <div ref={mapElementRef} className="h-full w-full" role="img" aria-label={route.name} />;
+  return <div ref={mapElementRef} className="h-full w-full bg-surface-2" role="img" aria-label={route.name} />;
 }

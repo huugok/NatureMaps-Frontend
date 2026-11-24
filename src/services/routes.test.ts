@@ -4,7 +4,11 @@ import { createMemoryRouteStore, setOfflineRouteStore } from './offlineRouteStor
 import { fetchRouteDetail, fetchRouteList } from './routes';
 import { getSpeciesDetail } from './ficha';
 
-afterEach(() => { vi.unstubAllGlobals(); setOfflineRouteStore(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setOfflineRouteStore();
+  localStorage.clear();
+});
 
 describe('lectura de rutas y fichas guardadas', () => {
   async function prepare() {
@@ -20,6 +24,20 @@ describe('lectura de rutas y fichas guardadas', () => {
     expect((await fetchRouteList())[0]!.id).toBe(7);
     expect((await fetchRouteDetail(7)).path).toHaveLength(2);
     expect((await getSpeciesDetail(5, 'es')).content).toBe('Ficha del naranjo.');
+  });
+
+  it('conserva el catálogo completo para mostrar también rutas no descargadas sin red', async () => {
+    const downloaded = savedRoute(7).packet.route;
+    const onlineOnly = { ...savedRoute(8).packet.route, distanceMeters: 3000 };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      total: 2,
+      routes: [onlineOnly, downloaded],
+    }))));
+
+    expect(await fetchRouteList()).toEqual([onlineOnly, downloaded]);
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+    expect((await fetchRouteList()).map((route) => route.id)).toEqual([7, 8]);
   });
 
   it('un 5xx permite leer la copia, un 404 sigue siendo un error', async () => {

@@ -19,6 +19,7 @@ describe('Settings', () => {
     renderWithProviders(<Settings language="es" onBack={onBack} />)
     expect(screen.getByRole('link', { name: /cambiar de modo/i })).toHaveAttribute('href', '/modo')
     expect(screen.getByRole('link', { name: /catálogo de componentes/i })).toHaveAttribute('href', '/componentes')
+    expect(screen.getByRole('link', { name: /descargas/i })).toHaveAttribute('href', '/ajustes/descargas')
     await screen.findByText('Conectado')
   })
 

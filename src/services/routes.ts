@@ -58,16 +58,57 @@ export interface RouteDetail extends RouteSummary {
   path: RoutePoint[];
 }
 
+const ROUTE_CATALOG_KEY = 'naturemaps:route-catalog:v1';
+
+/** El catálogo es ligero y no cambia con la descarga de una ruta. Guardarlo
+ * permite seguir viendo todas las rutas sin red y avisar cuando una concreta
+ * no está descargada, en lugar de reducir el listado a las copias guardadas. */
+function readCachedRouteList(): RouteSummary[] {
+  try {
+    const raw = localStorage.getItem(ROUTE_CATALOG_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as RouteSummary[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function cacheRouteList(routes: RouteSummary[]): void {
+  try {
+    localStorage.setItem(ROUTE_CATALOG_KEY, JSON.stringify(routes));
+  } catch {
+    // El catálogo sigue disponible online aunque el navegador rechace localStorage.
+  }
+}
+
+function mergeRoutes(...lists: RouteSummary[][]): RouteSummary[] {
+  const byId = new Map<number, RouteSummary>();
+  for (const list of lists) {
+    for (const route of list) byId.set(route.id, route);
+  }
+  return [...byId.values()].sort((a, b) => a.distanceMeters - b.distanceMeters);
+}
+
 /** Listado del catálogo, ordenado por distancia (corta → larga). */
 export async function fetchRouteList(signal?: AbortSignal): Promise<RouteSummary[]> {
   try {
     const data = await apiGet<{ total: number; routes: RouteSummary[] }>('/routes', signal);
+    cacheRouteList(data.routes);
     return data.routes;
   } catch (error) {
     if (!isUnreachable(error)) throw error;
-    const records = await routeStore().all();
-    if (records.length === 0) throw error;
-    return records.map((record) => record.packet.route).sort((a, b) => a.distanceMeters - b.distanceMeters);
+    const cached = readCachedRouteList();
+    let downloaded: RouteSummary[] = [];
+    try {
+      const records = await routeStore().all();
+      downloaded = records.map((record) => record.packet.route);
+    } catch {
+      // Un fallo de IndexedDB no debe ocultar el catálogo ligero ya cacheado.
+    }
+    const routes = mergeRoutes(cached, downloaded);
+    if (routes.length === 0) throw error;
+    return routes;
   }
 }
 

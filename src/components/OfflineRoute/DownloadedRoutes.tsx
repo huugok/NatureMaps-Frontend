@@ -4,8 +4,14 @@ import { Button } from '../ui/Button';
 import { formatBytes, formatDate } from '../../i18n/format';
 import { notifyRouteDownloads, routeStore } from '../../services/offlineRouteStorage';
 import type { OfflineRouteRecord } from '../../types/offlineRoute';
+import type { StringKey } from '../../i18n/strings';
 
-export function DownloadedRoutes() {
+export interface DownloadedRoutesProps {
+  /** Si se pasa, la sección también se muestra cuando no hay descargas. */
+  emptyMessage?: StringKey;
+}
+
+export function DownloadedRoutes({ emptyMessage }: DownloadedRoutesProps) {
   const { t, lang } = useApp();
   const [records, setRecords] = useState<OfflineRouteRecord[]>([]);
   const [error, setError] = useState(false);
@@ -26,10 +32,13 @@ export function DownloadedRoutes() {
     catch { setError(true); }
     finally { setRemoving(undefined); }
   };
-  if (!records.length && !error) return null;
+  if (!records.length && !error && !emptyMessage) return null;
   return <section className="mt-4" aria-label={t('routeOffline.downloads')}>
     <h2 className="font-display text-heading">{t('routeOffline.downloads')}</h2>
     {error && <p role="alert" className="text-small text-danger">{t('routeOffline.error')}</p>}
+    {!records.length && !error && emptyMessage && (
+      <p className="mt-2 text-small text-muted">{t(emptyMessage)}</p>
+    )}
     <ul className="mt-2 flex flex-col gap-3">{records.map((record) => <li key={record.routeId} className="rounded-card bg-surface p-4">
       <h3 className="font-display text-body">{record.packet.route.name}</h3>
       <p className="my-2 text-small text-muted">{t('routeOffline.saved', { size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang })}</p>

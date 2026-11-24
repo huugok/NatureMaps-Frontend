@@ -6,6 +6,8 @@ import { AppProvider } from '../../context/AppContext'
 import { RouteDetail } from './RouteDetail'
 import { fetchRouteDetail } from '../../services/routes'
 import type { RouteDetail as RouteDetailData } from '../../services/routes'
+import { createMemoryRouteStore, setOfflineRouteStore } from '../../services/offlineRouteStorage'
+import { savedRoute } from '../../test/routeOfflineFixtures'
 
 // La ficha habla con GET /routes/:id a través de services/routes; se simula el
 // servicio (el contrato HTTP lo cubren los tests del backend).
@@ -136,6 +138,8 @@ describe('RouteDetail', () => {
 
   afterEach(() => {
     cleanup()
+    setOfflineRouteStore()
+    vi.restoreAllMocks()
   })
 
   it('pinta los datos de la ficha y el recorrido en el mapa', async () => {
@@ -177,10 +181,10 @@ describe('RouteDetail', () => {
     expect(stops[1]).toHaveTextContent('Torres de Serranos')
     expect(stops[1]).toHaveTextContent('POI cultural')
 
-    // La parada de planta abre su ficha; la de POI no (su ficha llega luego).
+    // La parada de planta abre su ficha; la de POI abre su ficha guardada.
     await user.click(within(stops[0]).getByRole('button'))
     expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta', name: 'Naranjo de la plaza' }))
-    expect(within(stops[1]).queryByRole('button')).toBeNull()
+    expect(within(stops[1]).getByRole('button')).toHaveTextContent('Torres de Serranos')
   })
 
   it('el toque de una parada en el mapa también abre su ficha', async () => {
@@ -224,6 +228,44 @@ describe('RouteDetail', () => {
     renderDetail('abc')
     expect(screen.getByRole('alert')).toHaveTextContent('Esta ruta no existe o ya no está disponible.')
     expect(mockFetchRouteDetail).not.toHaveBeenCalled()
+  })
+
+  it('abre la ficha guardada de un POI desde su parada', async () => {
+    const user = userEvent.setup()
+    const store = createMemoryRouteStore()
+    setOfflineRouteStore(store)
+    const record = savedRoute(7)
+    await store.put(record)
+    mockFetchRouteDetail.mockResolvedValue(record.packet.route)
+    renderDetail()
+
+    await user.click(await screen.findByRole('button', { name: /Torre/ }))
+    expect(await screen.findByText('Una torre histórica.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cerrar ficha' })).toBeInTheDocument()
+  })
+
+  it('sin red y sin descarga muestra un aviso concreto y permite volver a rutas', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    mockFetchRouteDetail.mockRejectedValueOnce(new TypeError('offline'))
+    renderDetail()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esta ruta no está disponible sin conexión.')
+    expect(screen.getByRole('button', { name: 'Volver a rutas' })).toBeInTheDocument()
+  })
+
+  it('una ruta abierta online se conserva al perder la conexión', async () => {
+    mockFetchRouteDetail.mockResolvedValue(route)
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Historia bajo los árboles' })
+
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    expect(screen.getByRole('heading', { name: 'Historia bajo los árboles' })).toBeInTheDocument()
+    expect(screen.getByText('Naranjo de la plaza')).toBeInTheDocument()
+    expect(screen.getByText('Torres de Serranos')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(leaflet.polylineFactory).toHaveBeenCalledTimes(1)
   })
 
   it('404 y fallo de red son estados distintos', async () => {

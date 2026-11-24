@@ -28,7 +28,7 @@ import { RouteDetail } from './pages/RouteDetail';
 import { routeStopToPlantPin } from './pages/Map/routeOverlay';
 import type { RouteStop } from './services/routes';
 import { Search } from './pages/Search';
-import { LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
+import { DownloadsSettings, LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
 import {
   findSpeciesIndexByScientificName,
@@ -416,6 +416,10 @@ export default function App() {
                     onSave={handleSaveLanguage}
                   />
                 }
+              />
+              <Route
+                path="/ajustes/descargas"
+                element={<DownloadsSettings onBack={() => navigate('/ajustes')} />}
               />
               <Route
                 path="/ajustes/permisos"

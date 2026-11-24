@@ -1,4 +1,5 @@
 export { Settings } from './Settings'
+export { DownloadsSettings } from './DownloadsSettings'
 export { PermissionsSettings } from './PermissionsSettings'
 export { LanguageSettings } from './LanguageSettings'
 export { LanguagePage } from './LanguagePage'

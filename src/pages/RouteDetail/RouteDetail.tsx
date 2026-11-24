@@ -4,6 +4,7 @@ import { Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
 import { OfflineRouteCard, SavedStopCards } from '../../components/OfflineRoute';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteDetail } from '../../services/routes';
@@ -19,6 +20,7 @@ type DetailState =
   | { status: 'loading' }
   | { status: 'ready'; route: RouteDetailData }
   | { status: 'notFound' }
+  | { status: 'offlineMissing' }
   | { status: 'error' };
 
 export interface RouteDetailProps {
@@ -32,6 +34,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const { id } = useParams();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [activeSavedStop, setActiveSavedStop] = useState<{ routeId: number; index: number }>();
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 
@@ -44,7 +47,14 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState({ status: error && typeof error === 'object' && (error as { status?: number }).status === 404 ? 'notFound' : 'error' });
+          const status = error && typeof error === 'object' ? (error as { status?: number }).status : undefined;
+          if (status === 404) {
+            setState({ status: 'notFound' });
+          } else if (navigator.onLine === false || error instanceof TypeError) {
+            setState({ status: 'offlineMissing' });
+          } else {
+            setState({ status: 'error' });
+          }
         }
       });
     return () => {
@@ -72,23 +82,34 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
     );
   }
 
-  if (state.status === 'notFound' || state.status === 'error') {
+  if (state.status === 'notFound' || state.status === 'error' || state.status === 'offlineMissing') {
+    const message = state.status === 'notFound'
+      ? t('routes.notFound')
+      : state.status === 'offlineMissing'
+        ? t('routeOffline.unavailable')
+        : t('routes.error');
     return (
       <Page title={t('routes.title')} back>
         <div className="flex flex-col items-start gap-3">
           <p role="alert" className="text-small text-muted">
-            {state.status === 'notFound' ? t('routes.notFound') : t('routes.error')}
+            {message}
           </p>
-          <button
-            type="button"
-            className="rounded-full bg-accent px-4 py-2 text-small font-bold text-on-accent"
-            onClick={() => {
-              setState({ status: 'loading' });
-              setAttempt((attempts) => attempts + 1);
-            }}
-          >
-            {t('routes.retry')}
-          </button>
+          {state.status === 'offlineMissing' ? (
+            <Button variant="secondary" onClick={() => navigate('/rutas')}>
+              {t('routeOffline.backToRoutes')}
+            </Button>
+          ) : (
+            <button
+              type="button"
+              className="rounded-full bg-accent px-4 py-2 text-small font-bold text-on-accent"
+              onClick={() => {
+                setState({ status: 'loading' });
+                setAttempt((attempts) => attempts + 1);
+              }}
+            >
+              {t('routes.retry')}
+            </button>
+          )}
         </div>
       </Page>
     );
@@ -104,6 +125,18 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
         : t('routes.theme.mixta');
   const shape = route.shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal');
 
+  /** Las plantas enlazadas abren su ficha completa. Los POIs y las plantas
+   * sin especie enlazada consultan la ficha guardada de la parada. */
+  const openStop = (stop: RouteStop, index: number) => {
+    if (stop.kind === 'planta' && stop.speciesId !== null && onOpenStop) {
+      onOpenStop(stop);
+      return;
+    }
+    if (routeId !== null) setActiveSavedStop({ routeId, index });
+  };
+
+  const activeSavedStopIndex = activeSavedStop?.routeId === routeId ? activeSavedStop.index : undefined;
+
   return (
     <Page
       title={route.name}
@@ -112,7 +145,13 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       flush
     >
       <div className="h-64 shrink-0 border-y border-line">
-        <RouteMap route={route} onOpenStop={onOpenStop} />
+        <RouteMap
+          route={route}
+          onOpenStop={(stop) => {
+            const index = route.stops.findIndex((item) => item.kind === stop.kind && item.id === stop.id);
+            if (index >= 0) openStop(stop, index);
+          }}
+        />
       </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">
@@ -168,29 +207,27 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
                   </span>
                 </>
               );
-              // Solo las plantas tienen ficha: las de POI quedan como texto.
-              if (stop.kind === 'planta' && onOpenStop) {
-                return (
-                  <li key={`${stop.kind}-${stop.id}`}>
-                    <button
-                      type="button"
-                      onClick={() => onOpenStop(stop)}
-                      className="flex w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                      {label}
-                    </button>
-                  </li>
-                );
-              }
               return (
-                <li key={`${stop.kind}-${stop.id}`} className="flex items-center gap-3 px-2 py-2 text-small">
-                  {label}
+                <li key={`${stop.kind}-${stop.id}`}>
+                  <button
+                    type="button"
+                    onClick={() => openStop(stop, index)}
+                    className="flex w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {label}
+                  </button>
                 </li>
               );
             })}
           </ol>
         </section>
-        <SavedStopCards key={`saved-${route.id}`} routeId={route.id} />
+        <SavedStopCards
+          key={`saved-${route.id}`}
+          routeId={route.id}
+          activeIndex={activeSavedStopIndex}
+          showList={false}
+          onClose={() => setActiveSavedStop(undefined)}
+        />
       </div>
     </Page>
   );

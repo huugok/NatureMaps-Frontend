@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
+import { CheckCircle2, Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -10,6 +10,7 @@ import { fetchRouteList } from '../../services/routes';
 import type { RouteShape, RouteSummary, RouteTheme } from '../../services/routes';
 import { DownloadedZones } from '../../components/OfflineZone'
 import { DownloadedRoutes } from '../../components/OfflineRoute';
+import { routeStore } from '../../services/offlineRouteStorage';
 
 /** Rutas: catálogo predefinido del backend (GET /routes). Cada tarjeta lleva
  * nombre, tema, longitud, duración y número de paradas; la ficha abre en
@@ -42,22 +43,28 @@ function ShapeBadge({ shape }: { shape: RouteShape }) {
   return <Badge>{shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal')}</Badge>;
 }
 
-function RouteCard({ route, onOpen }: { route: RouteSummary, onOpen: (route: RouteSummary) => void }) {
+function RouteCard({ route, downloaded, onOpen }: { route: RouteSummary, downloaded: boolean, onOpen: (route: RouteSummary) => void }) {
   const { t, lang } = useApp();
   return (
     <button
       type="button"
       className="w-full rounded-card bg-surface p-4 text-left shadow-raised transition-transform active:scale-[0.99]"
       onClick={() => onOpen(route)}
-      aria-label={route.name}
+      aria-label={downloaded ? `${route.name}. ${t('routeOffline.available')}` : route.name}
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-display text-body font-bold text-balance break-words">{route.name}</h2>
         <ShapeBadge shape={route.shape} />
       </div>
       <p className="mt-1.5 text-small text-muted text-pretty break-words">{route.description}</p>
-      <div className="mt-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <ThemeBadge theme={route.theme} />
+        {downloaded && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-caption font-bold text-accent">
+            <CheckCircle2 size={14} aria-hidden="true" />
+            {t('routeOffline.available')}
+          </span>
+        )}
       </div>
       <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted">
         <li className="flex items-center gap-1.5">
@@ -82,10 +89,47 @@ export function RoutesList() {
   const navigate = useNavigate();
   const [state, setState] = useState<ListState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [downloadedIds, setDownloadedIds] = useState<Set<number>>(new Set());
+  const [offlineWarning, setOfflineWarning] = useState(false);
   const listRef = useRef<HTMLUListElement | null>(null);
 
-  /** Abre la ficha de una ruta guardando dónde estaba la lista. */
-  const openRoute = (route: RouteSummary) => {
+  useEffect(() => {
+    let active = true;
+    const refresh = () => {
+      void routeStore().all().then((records) => {
+        if (active) setDownloadedIds(new Set(records.map((record) => record.routeId)));
+      }).catch(() => {
+        if (active) setDownloadedIds(new Set());
+      });
+    };
+    refresh();
+    window.addEventListener('naturemaps-route-downloads', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('naturemaps-route-downloads', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
+
+  /** Abre la ficha de una ruta guardando dónde estaba la lista. Sin red, una
+   * ruta sin copia local se avisa aquí y no navega a una pantalla de error. */
+  const openRoute = async (route: RouteSummary) => {
+    setOfflineWarning(false);
+    if (navigator.onLine === false) {
+      let saved = downloadedIds.has(route.id);
+      if (!saved) {
+        try {
+          saved = Boolean(await routeStore().get(route.id));
+        } catch {
+          saved = false;
+        }
+      }
+      if (!saved) {
+        setOfflineWarning(true);
+        return;
+      }
+    }
     // El contenedor con scroll es el <main> de TabLayout.
     const scroller = listRef.current?.closest('main');
     savedScrollTop = scroller?.scrollTop ?? 0;
@@ -118,6 +162,11 @@ export function RoutesList() {
 
   return (
     <Page title={t('routes.title')} subtitle={t('routes.subtitle')}>
+      {offlineWarning && (
+        <p role="alert" className="mb-3 rounded-card bg-surface p-3 text-small text-danger shadow-raised">
+          {t('routeOffline.unavailable')}
+        </p>
+      )}
       {state.status === 'loading' && (
         <p role="status" className="text-small text-muted">
           {t('routes.loading')}
@@ -147,7 +196,7 @@ export function RoutesList() {
         <ul ref={listRef} className="flex flex-col gap-3" aria-label={t('routes.title')}>
           {state.routes.map((route) => (
             <li key={route.id}>
-              <RouteCard route={route} onOpen={openRoute} />
+              <RouteCard route={route} downloaded={downloadedIds.has(route.id)} onOpen={openRoute} />
             </li>
           ))}
         </ul>
