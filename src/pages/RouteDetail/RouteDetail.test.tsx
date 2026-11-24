@@ -189,12 +189,17 @@ describe('RouteDetail', () => {
     renderDetail('7', onOpenStop)
 
     await screen.findByRole('heading', { name: 'Historia bajo los árboles' })
-    // Solo la parada de planta lleva manejador de clic (la de POI no).
+    // Plantas abren ficha; POIs y patrocinadores también responden al toque
+    // para mostrar su etiqueta. Se busca el handler que llama a onOpenStop.
     const withClick = leaflet.created.filter((instance) => instance.on.mock.calls.length > 0)
-    expect(withClick).toHaveLength(1)
-    const clickHandler = withClick[0]?.on.mock.calls[0]?.[1] as (() => void) | undefined
+    expect(withClick.length).toBeGreaterThanOrEqual(1)
+    const handlers = withClick.flatMap((instance) => instance.on.mock.calls.map((call) => call[1] as () => void))
+    const clickHandler = handlers.find((handler) => {
+      onOpenStop.mockClear()
+      handler()
+      return onOpenStop.mock.calls.length > 0
+    })
     expect(clickHandler).toBeTypeOf('function')
-    clickHandler?.()
     expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta' }))
   })
 

@@ -127,7 +127,6 @@ export default function App() {
   const [fichaDetail, setFichaDetail] = useState<FichaDetailState>({ status: 'loading' });
   const [fichaDetailAttempt, setFichaDetailAttempt] = useState(0);
   const [ficha, setFicha] = useState<FichaAbierta | null>(null);
-  const [sponsorFicha, setSponsorFicha] = useState<{ name: string; location: string } | null>(null);
 
   // Catálogo que alimenta la ficha y su navegación. Se recarga al cambiar idioma.
   useEffect(() => {
@@ -312,13 +311,6 @@ export default function App() {
    * quedan para la UT de fichas de POI; mientras tanto no hacen nada. */
   const handleOpenRouteStop = useCallback(
     (stop: RouteStop) => {
-      if (stop.kind === 'sponsor') {
-        setSponsorFicha({
-          name: stop.businessName ?? stop.name,
-          location: stop.sponsorLocation ?? '',
-        });
-        return;
-      }
       if (stop.kind !== 'planta') return;
       handleOpenPlant(routeStopToPlantPin(stop), 'ruta');
     },
@@ -380,7 +372,7 @@ export default function App() {
                 path="/mapa"
                 element={
                   <Suspense fallback={<MapFallback />}>
-                    <MapPage onOpenPlant={handleOpenPlantFromMap} onOpenSponsor={handleOpenRouteStop} />
+                    <MapPage onOpenPlant={handleOpenPlantFromMap} />
                   </Suspense>
                 }
               />
@@ -394,7 +386,7 @@ export default function App() {
                     : actual))
                   .catch(() => undefined);
               }} />} />
-              <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} onOpenSponsor={handleOpenRouteStop} />} />
+              <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} />} />
               <Route path="/buscar" element={<Search onSelectSpecies={(item) => {
                 setFicha({ species: fichaDesdeItemLista(item, lang), identification: null });
                 getSpeciesDetail(item.id, lang)
@@ -489,23 +481,6 @@ export default function App() {
           </div>
         )}
 
-        {sponsorFicha && (
-          <div className="absolute inset-0 z-[1250] grid place-items-center bg-ink/30 p-4" role="presentation">
-            <section role="dialog" aria-modal="true" aria-labelledby="sponsor-ficha-title"
-              className="w-full max-w-sm rounded-card bg-surface p-5 shadow-float">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-caption uppercase tracking-wider text-muted">{t('map.sponsor')}</p>
-                  <h2 id="sponsor-ficha-title" className="mt-1 font-display text-heading font-semibold text-ink">{sponsorFicha.name}</h2>
-                </div>
-                <button type="button" onClick={() => setSponsorFicha(null)} aria-label={t('map.close')}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-full text-2xl text-muted hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">×</button>
-              </div>
-              <p className="mt-3 text-small text-muted">{t('map.sponsorLocation')}</p>
-              <p className="mt-1 text-body text-ink">{sponsorFicha.location}</p>
-            </section>
-          </div>
-        )}
       </div>
     </div>
   );

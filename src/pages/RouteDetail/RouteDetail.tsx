@@ -23,10 +23,9 @@ type DetailState =
 export interface RouteDetailProps {
   /** Responde al toque de una parada de la ruta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
-  onOpenSponsor?: (stop: RouteStop) => void;
 }
 
-export function RouteDetail({ onOpenStop, onOpenSponsor }: RouteDetailProps = {}) {
+export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const { t, lang } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -111,7 +110,7 @@ export function RouteDetail({ onOpenStop, onOpenSponsor }: RouteDetailProps = {}
       flush
     >
       <div className="h-64 shrink-0 border-y border-line">
-        <RouteMap route={route} onOpenStop={onOpenStop} onOpenSponsor={onOpenSponsor} />
+        <RouteMap route={route} onOpenStop={onOpenStop} />
       </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">

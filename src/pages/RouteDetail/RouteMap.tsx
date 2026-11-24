@@ -14,10 +14,9 @@ export interface RouteMapProps {
   route: RouteDetail;
   /** Responde al toque de una parada (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
-  onOpenSponsor?: (stop: RouteStop) => void;
 }
 
-export function RouteMap({ route, onOpenStop, onOpenSponsor }: RouteMapProps) {
+export function RouteMap({ route, onOpenStop }: RouteMapProps) {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -36,7 +35,7 @@ export function RouteMap({ route, onOpenStop, onOpenSponsor }: RouteMapProps) {
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
-    const layer = addRouteOverlay(map, route, { onOpenStop, onOpenSponsor });
+    const layer = addRouteOverlay(map, route, { onOpenStop });
     layerRef.current = layer;
     fitRouteBounds(map, route);
 

@@ -25,13 +25,23 @@ export function createPoiStopIcon(): L.DivIcon {
   });
 }
 
+/** Icono de una parada patrocinada: mismo punto que el POI pero en rosa/morado. */
+export function createSponsorStopIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'route-stop-icon--sponsor',
+    html: '<span aria-hidden="true"></span>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
 /** Icono numerado de una parada: superpone el número al icono base sin tapar
  *  la hoja ni el distintivo de patrocinio. El número entra en la secuencia
  *  global de la ruta, también para las paradas publicitarias (PA 2856/2858). */
 export function createNumberedStopIcon(stop: RouteStop, index: number): L.DivIcon {
   const base = stop.kind === 'planta'
     ? createPlantIcon(routeStopToPlantPin(stop))
-    : createPoiStopIcon();
+    : stop.kind === 'sponsor' ? createSponsorStopIcon() : createPoiStopIcon();
   const root = document.createElement('span');
   root.className = `route-stop route-stop--${stop.kind}`;
   const html = base.options?.html;
@@ -80,8 +90,6 @@ export function routeStopToPlantPin(stop: RouteStop): PlantPin {
 export interface RouteOverlayOptions {
   /** Responde al toque de una parada de planta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
-  /** Abre la tarjeta de una parada publicitaria patrocinada. */
-  onOpenSponsor?: (stop: RouteStop) => void;
 }
 
 /**
@@ -120,8 +128,10 @@ export function addRouteOverlay(
     if (stop.kind === 'planta' && options.onOpenStop) {
       marker.on('click', () => options.onOpenStop?.(stop));
     }
-    if (stop.kind === 'sponsor' && options.onOpenSponsor) {
-      marker.on('click', () => options.onOpenSponsor?.(stop));
+    // En móvil el toque (y el gesto largo) abre la etiqueta, igual que el
+    // hover en escritorio: no hay ficha, solo el nombre del comercio.
+    if (stop.kind === 'poi' || stop.kind === 'sponsor') {
+      marker.on('click', () => marker.openTooltip());
     }
     marker.addTo(layer);
   }
