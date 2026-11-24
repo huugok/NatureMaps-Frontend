@@ -293,6 +293,18 @@
   line-height: 1;
 }
 
+/* El icono base del POI se clona dentro de `.route-stop`, así que la regla
+   `.route-stop-icon span` ya no alcanza: se reaplica aquí con los mismos
+   colores que el mapa principal. */
+.route-stop--poi > span:first-child {
+  position: absolute;
+  inset: 4px;
+  border: 2px solid #8b5e20;
+  border-radius: 9999px;
+  background: #c58a31;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 35%);
+}
+
 .route-stop__sponsor {
   position: absolute;
   bottom: -5px;
