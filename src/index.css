@@ -322,9 +322,6 @@
   border-radius: 9999px;
   background: var(--color-sponsor);
   box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
-  color: var(--color-surface);
-  font-size: 13px;
-  line-height: 1;
 }
 
 .route-stop--sponsor > span:first-child {
