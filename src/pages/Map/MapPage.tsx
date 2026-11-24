@@ -1041,7 +1041,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             ? sponsor.businessName
             : `${sponsor.businessName} · ${escapeHtml(formatDistance(distance, lang))}`;
           const marker = L.marker([sponsor.latitude, sponsor.longitude], {
-            icon: createSponsorStopIcon(), title: label, alt: label,
+            icon: createSponsorStopIcon(), title: label, alt: label, zIndexOffset: 1000,
           }).bindTooltip(label, { direction: 'top', offset: L.point(0, -8), className: 'poi-distance-label' });
           marker.on('click', () => marker.openTooltip());
           marker.addTo(layer);

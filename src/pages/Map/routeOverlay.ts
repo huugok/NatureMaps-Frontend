@@ -29,9 +29,9 @@ export function createPoiStopIcon(): L.DivIcon {
 export function createSponsorStopIcon(): L.DivIcon {
   return L.divIcon({
     className: 'route-stop-icon--sponsor',
-    html: '<span aria-hidden="true"></span>',
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    html: '<span aria-hidden="true">★</span>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
   });
 }
 
