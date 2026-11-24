@@ -25,6 +25,36 @@ export function createPoiStopIcon(): L.DivIcon {
   });
 }
 
+/** Icono numerado de una parada: superpone el número al icono base sin tapar
+ *  la hoja ni el distintivo de patrocinio. El número entra en la secuencia
+ *  global de la ruta, también para las paradas publicitarias (PA 2856/2858). */
+export function createNumberedStopIcon(stop: RouteStop, index: number): L.DivIcon {
+  const base = stop.kind === 'planta'
+    ? createPlantIcon(routeStopToPlantPin(stop))
+    : createPoiStopIcon();
+  const root = document.createElement('span');
+  root.className = `route-stop route-stop--${stop.kind}`;
+  const html = base.options?.html;
+  if (typeof html === 'string') root.innerHTML = html;
+  else if (html instanceof HTMLElement) root.append(html.cloneNode(true));
+  const number = document.createElement('span');
+  number.className = 'route-stop__number';
+  number.textContent = String(index + 1);
+  root.append(number);
+  if (stop.kind === 'sponsor') {
+    const badge = document.createElement('span');
+    badge.className = 'route-stop__sponsor';
+    badge.textContent = '★';
+    root.append(badge);
+  }
+  return L.divIcon({
+    className: `route-stop-${stop.kind}`,
+    html: root,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
 /** Icono del punto de partida: círculo de marca. */
 export function createRouteStartIcon(): L.DivIcon {
   return L.divIcon({
@@ -50,6 +80,8 @@ export function routeStopToPlantPin(stop: RouteStop): PlantPin {
 export interface RouteOverlayOptions {
   /** Responde al toque de una parada de planta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
+  /** Abre la tarjeta de una parada publicitaria patrocinada. */
+  onOpenSponsor?: (stop: RouteStop) => void;
 }
 
 /**
@@ -76,32 +108,22 @@ export function addRouteOverlay(
     interactive: false,
   }).addTo(layer);
 
-  for (const stop of route.stops) {
-    if (stop.kind === 'planta') {
-      const marker = L.marker([stop.latitude, stop.longitude], {
-        icon: createPlantIcon(routeStopToPlantPin(stop)),
-        title: stop.name,
-        alt: stop.name,
-      });
-      // El nombre también como tooltip: en el mapa pequeño de la ficha las
-      // etiquetas de las plantas solo se ven a partir de cierto zoom.
-      marker.bindTooltip(stop.name, { direction: 'top' });
-      if (options.onOpenStop) marker.on('click', () => options.onOpenStop?.(stop));
-      marker.addTo(layer);
-      continue;
+  for (const [index, stop] of route.stops.entries()) {
+    const label = `${index + 1}. ${stop.name}`;
+    const marker = L.marker([stop.latitude, stop.longitude], {
+      icon: createNumberedStopIcon(stop, index),
+      title: label,
+      alt: label,
+      keyboard: stop.kind !== 'poi',
+      interactive: stop.kind !== 'poi',
+    }).bindTooltip(label, { direction: 'top' });
+    if (stop.kind === 'planta' && options.onOpenStop) {
+      marker.on('click', () => options.onOpenStop?.(stop));
     }
-    // Punto de POI: visible, con su nombre al tocarlo o pasar por encima
-    // (tooltip, no popup), pero sin ficha todavía —la de POI llega en una UT
-    // posterior—.
-    L.marker([stop.latitude, stop.longitude], {
-      icon: createPoiStopIcon(),
-      title: stop.name,
-      alt: stop.name,
-      keyboard: false,
-      interactive: false,
-    })
-      .bindTooltip(stop.name, { direction: 'top' })
-      .addTo(layer);
+    if (stop.kind === 'sponsor' && options.onOpenSponsor) {
+      marker.on('click', () => options.onOpenSponsor?.(stop));
+    }
+    marker.addTo(layer);
   }
 
   layer.addTo(map);

@@ -264,6 +264,51 @@
   background: var(--color-location);
 }
 
+/* Numeración secuencial de las paradas de una ruta (PA 2856/2858). El número
+   va en una esquina y el distintivo de patrocinio en la opuesta para no taparlo. */
+.route-stop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+
+.route-stop__number {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border: 2px solid var(--color-surface);
+  border-radius: 9999px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.route-stop__sponsor {
+  position: absolute;
+  bottom: -5px;
+  left: -5px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--color-surface);
+  border-radius: 9999px;
+  background: var(--color-warm-strong);
+  color: var(--color-surface);
+  font-size: 9px;
+  line-height: 1;
+}
+
 /* Plantas del mapa (F03.1): hoja + nombre, distintas de la ubicación y del lugar buscado. */
 .plant-icon {
   background: transparent;

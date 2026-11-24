@@ -8,6 +8,7 @@ import { LocationPermissionPrompt, useLocationPermission } from '../../component
 import { formatDistance, repairTextEncoding } from '../../i18n/format';
 import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius, saveNearbyTreesCache } from '../../services/nearby';
 import { fetchRouteDetail } from '../../services/routes';
+import type { RouteStop } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea, GroupedPlants } from '../../services/plantGroups';
@@ -148,6 +149,8 @@ export interface MapPageProps {
   /** Abre la ficha de la planta tocada (F03.1). App la pinta como overlay para
    * que el mapa siga montado y conserve centro y zoom al volver (PA 691). */
   onOpenPlant?: (plant: PlantPin) => boolean;
+  /** Abre la tarjeta de una parada publicitaria patrocinada. */
+  onOpenSponsor?: (stop: RouteStop) => void;
 }
 
 /**
@@ -155,7 +158,7 @@ export interface MapPageProps {
  * usuario y búsqueda de lugares (Nominatim). El mapa base anterior
  * (`MapView`) sigue disponible para incrustar capas de especies.
  */
-export function MapPage({ onOpenPlant }: MapPageProps = {}) {
+export function MapPage({ onOpenPlant, onOpenSponsor }: MapPageProps = {}) {
   const { t, lang, mode } = useApp();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -242,6 +245,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   useEffect(() => {
     onOpenPlantRef.current = onOpenPlant;
   }, [onOpenPlant]);
+  const onOpenSponsorRef = useRef(onOpenSponsor);
+  useEffect(() => {
+    onOpenSponsorRef.current = onOpenSponsor;
+  }, [onOpenSponsor]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [searchError, setSearchError] = useState('');
@@ -1164,6 +1171,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
         if (!map) return;
         // Mismo dibujado que la ficha de ruta: polilínea, inicio y paradas.
         const layer = addRouteOverlay(map, route, {
+          onOpenSponsor: (stop) => onOpenSponsorRef.current?.(stop),
           onOpenStop: (stop) => {
             if (stop.kind !== 'planta') return;
             onOpenPlantRef.current?.(routeStopToPlantPin(stop));

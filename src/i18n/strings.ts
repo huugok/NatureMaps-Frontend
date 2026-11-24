@@ -77,6 +77,8 @@ const es = {
   'map.poiDetails': 'Información del punto de interés',
   'map.poiSource': 'Datos de OpenStreetMap',
   'map.close': 'Cerrar',
+  'map.sponsor': 'Patrocinador',
+  'map.sponsorLocation': 'Ubicación del patrocinador',
 
   'search.title': 'Buscar',
   'search.placeholder': 'Buscar una planta…',
@@ -486,6 +488,8 @@ const va: Dict = {
   'map.poiDetails': 'Informació del punt d’interés',
   'map.poiSource': 'Dades d’OpenStreetMap',
   'map.close': 'Tancar',
+  'map.sponsor': 'Patrocinador',
+  'map.sponsorLocation': 'Ubicació del patrocinador',
 
   'search.title': 'Buscar',
   'search.placeholder': 'Busca una planta…',
@@ -892,6 +896,8 @@ const en: Dict = {
   'map.poiDetails': 'Point of interest details',
   'map.poiSource': 'OpenStreetMap data',
   'map.close': 'Close',
+  'map.sponsor': 'Sponsor',
+  'map.sponsorLocation': "Sponsor's location",
 
   'search.title': 'Search',
   'search.placeholder': 'Search for a plant…',

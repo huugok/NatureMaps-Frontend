@@ -14,7 +14,7 @@ export type RouteShape = 'circular' | 'lineal';
 /** Categoría de longitud: corta 1–3 km, media 4–7 km, larga 8+ km. */
 export type RouteLengthCategory = 'corta' | 'media' | 'larga';
 
-export type RouteStopKind = 'planta' | 'poi';
+export type RouteStopKind = 'planta' | 'poi' | 'sponsor';
 
 /** Parada del recorrido: planta del inventario o POI cultural. */
 export interface RouteStop {
@@ -26,6 +26,9 @@ export interface RouteStop {
   /** Especie del catálogo si la parada es una planta identificada; null en POIs
    * y plantas sin enlazar. Permite abrir su ficha real desde el mapa. */
   speciesId: number | null;
+  /** Nombre comercial y ubicación básica del patrocinador (solo `sponsor`). */
+  businessName?: string;
+  sponsorLocation?: string;
 }
 
 export interface RoutePoint {
