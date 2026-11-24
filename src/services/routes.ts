@@ -5,7 +5,7 @@ import { apiGet } from './api';
 // tal cual, sin segundas peticiones ni motores de rutas en vivo.
 
 /** Contenido de las paradas de una ruta. */
-export type RouteTheme = 'botanica' | 'cultural' | 'mixta';
+export type RouteTheme = 'botanica' | 'cultural' | 'mixta' | 'sponsor';
 
 /** Forma que quedó el recorrido: anillo cerrado o línea si la zona no daba
  * para cerrarlo (el generador mantiene la longitud objetivo igualmente). */
