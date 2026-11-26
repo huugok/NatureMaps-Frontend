@@ -34,7 +34,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState('');
   const [access, setAccess] = useState<RouteAccess | null>(null);
-  const { status: locationStatus, position } = useLocationPermission();
+  const { position } = useLocationPermission();
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 
@@ -58,13 +58,16 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   // Como en Google Maps: al abrir la ficha se calcula distancia y tiempo al
   // inicio. El seguimiento en tiempo real empieza al pulsar «Ir a la ruta».
   useEffect(() => {
-    if (state.status !== 'ready' || locationStatus !== 'granted' || !position) return;
+    if (state.status !== 'ready') return;
+    // Sin posición (escritorio sin GPS) se calcula desde Valencia para que el
+    // botón «Ir a la ruta» siga disponible; con GPS se usa la ubicación real.
+    const from = position ?? { latitude: 39.4699, longitude: -0.3763 };
     let cancelled = false;
-    fetchRouteAccess(state.route.id, position)
+    fetchRouteAccess(state.route.id, from)
       .then((data) => { if (!cancelled) setAccess(data); })
       .catch(() => { if (!cancelled) setAccess(null); });
     return () => { cancelled = true; };
-  }, [state, locationStatus, position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (routeId === null) {
     return (

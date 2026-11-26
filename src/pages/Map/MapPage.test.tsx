@@ -9,7 +9,8 @@ import { AppContext } from '../../context/state';
 import type { AppState } from '../../context/state';
 import { dictionaries } from '../../i18n/strings';
 import type { Mode } from '../../types';
-import { clearPaintedRoute, MapPage } from './MapPage';
+import { MapPage } from './MapPage';
+import { clearPaintedRoute } from './paintedRoute';
 
 /** MapPage usa useSearchParams («Ver en el mapa»): todo render lleva router. */
 function renderMap(ui: React.ReactNode = <MapPage />, route = '/mapa') {

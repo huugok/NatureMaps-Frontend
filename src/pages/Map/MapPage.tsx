@@ -13,6 +13,7 @@ import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../serv
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea, GroupedPlants } from '../../services/plantGroups';
 import { groupOffThread } from './groupOffThread';
+import { clearPaintedRoute, getPaintedRoute, setPaintedRoute } from './paintedRoute';
 import type { PlantPin } from '../../types/plant';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchGreenAreaPlants, fetchGreenAreas } from '../../services/greenAreas';
@@ -35,8 +36,6 @@ const NEARBY_PAGE_SIZE = 20000;
 const MAX_PLANT_MARKERS = 150;
 // Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
 // localStorage: al recargar la página se pierde, igual que el resto de la vista.
-let paintedRouteId: number | null = null;
-export function clearPaintedRoute() { paintedRouteId = null; }
 const LOCATION_COLOR = '#3b7ddd';
 
 interface Coordinates {
@@ -168,7 +167,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // borra con «Limpiar mapa» o al iniciar otra.
   const verRutaRaw = searchParams.get('verRuta');
   const paramRouteId = verRutaRaw !== null && /^\d+$/.test(verRutaRaw) ? Number(verRutaRaw) : null;
-  const [savedRouteId, setSavedRouteId] = useState<number | null>(paintedRouteId);
+  const [savedRouteId, setSavedRouteId] = useState<number | null>(getPaintedRoute());
   const routeId = paramRouteId ?? savedRouteId;
   const routeVisible = routeId !== null;
   const accessActive = searchParams.has('irAlInicio');
@@ -1031,6 +1030,21 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return () => { repaintPoisRef.current = () => undefined; poisLayerRef.current?.remove(); };
   }, [pois, t, lang, locatedPosition, radius]);
 
+  // Permiso concedido pero sin posición (p. ej. escritorio sin GPS): no dejar
+  // el mapa vacío esperando indefinidamente. Tras 4 s se carga el inventario
+  // completo desde Valencia, igual que en el caso sin GPS.
+  useEffect(() => {
+    // Aventura usa un radio fijo de 1 km: sin posición no hay nada que cargar.
+    if (mode === 'aventura') return;
+    if (locationPermission !== 'granted' || locatedPosition !== null) return;
+    if (plantsLoadingRef.current || plantsRef.current !== null) return;
+    const timer = setTimeout(() => {
+      if (plantsLoadingRef.current || plantsRef.current !== null) return;
+      loadPlantsRef.current({ latitude: VALENCIA.latitude, longitude: VALENCIA.longitude });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [locationPermission, locatedPosition, mode]);
+
   // Comercios patrocinadores: se piden una vez (viven en las rutas) y se pintan
   // como los POIs, pero en rosa/morado y sin ficha: solo su etiqueta al tocar.
   useEffect(() => {
@@ -1210,7 +1224,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     // usuario al pintarla (el usuario sí puede arrastrar el mapa después).
     followUserRef.current = false;
     keepBothVisibleRef.current = false;
-    paintedRouteId = routeId;
+    setPaintedRoute(routeId);
     const controller = new AbortController();
     routeAbortRef.current = controller;
     fetchRouteDetail(routeId, controller.signal)
@@ -1783,7 +1797,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
 
       {accessInfo && (
         <div className="absolute inset-x-4 top-20 z-[1060] flex flex-col gap-2">
-          <div className="flex items-center gap-2 rounded-full bg-surface px-3 py-2 shadow-raised">
+          <div className="flex w-full items-center justify-between gap-2 rounded-full bg-surface px-3 py-2 shadow-raised">
             <span className="text-small font-semibold text-ink">
               {t('map.accessInfo', {
                 distance: formatDistance(accessRemaining ?? 0, lang),
