@@ -36,6 +36,14 @@ export interface RoutePoint {
   longitude: number;
 }
 
+/** Tramo de acceso calculado por el backend desde la ubicación al inicio. */
+export interface RouteAccess {
+  path: RoutePoint[];
+  distanceMeters: number;
+  durationSeconds: number;
+  start: RoutePoint;
+}
+
 /** Datos del listado: lo que pinta una tarjeta, sin la geometría. */
 export interface RouteSummary {
   id: number;
@@ -65,4 +73,10 @@ export async function fetchRouteList(signal?: AbortSignal): Promise<RouteSummary
 /** Ficha completa de una ruta, con paradas y recorrido. */
 export async function fetchRouteDetail(id: number, signal?: AbortSignal): Promise<RouteDetail> {
   return apiGet<RouteDetail>(`/routes/${id}`, signal);
+}
+
+/** Cómo llegar al inicio: distancia, tiempo y polilínea de acceso. */
+export async function fetchRouteAccess(id: number, from: RoutePoint, signal?: AbortSignal): Promise<RouteAccess> {
+  const query = new URLSearchParams({ lat: String(from.latitude), lon: String(from.longitude) });
+  return apiGet<RouteAccess>(`/routes/${id}/directions?${query.toString()}`, signal);
 }

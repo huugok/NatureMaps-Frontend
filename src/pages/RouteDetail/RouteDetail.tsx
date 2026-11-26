@@ -4,9 +4,10 @@ import { Download, Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
 import { useApp } from '../../context/useApp';
+import { useLocationPermission } from '../../components/Location';
 import { formatDistance, formatDuration } from '../../i18n/format';
-import { fetchRouteDetail } from '../../services/routes';
-import type { RouteDetail as RouteDetailData, RouteStop } from '../../services/routes';
+import { fetchRouteAccess, fetchRouteDetail } from '../../services/routes';
+import type { RouteAccess, RouteDetail as RouteDetailData, RouteStop } from '../../services/routes';
 import { RouteMap } from './RouteMap';
 
 /** Ficha de una ruta del catálogo (/rutas/:id): mapa del recorrido, datos
@@ -32,6 +33,8 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState('');
+  const [access, setAccess] = useState<RouteAccess | null>(null);
+  const { status: locationStatus, position } = useLocationPermission();
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 
@@ -51,6 +54,17 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       cancelled = true;
     };
   }, [routeId, attempt]);
+
+  // Como en Google Maps: al abrir la ficha se calcula distancia y tiempo al
+  // inicio. El seguimiento en tiempo real empieza al pulsar «Ir a la ruta».
+  useEffect(() => {
+    if (state.status !== 'ready' || locationStatus !== 'granted' || !position) return;
+    let cancelled = false;
+    fetchRouteAccess(state.route.id, position)
+      .then((data) => { if (!cancelled) setAccess(data); })
+      .catch(() => { if (!cancelled) setAccess(null); });
+    return () => { cancelled = true; };
+  }, [state, locationStatus, position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (routeId === null) {
     return (
@@ -119,6 +133,18 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
           <Badge>{theme}</Badge>
           <Badge>{shape}</Badge>
         </div>
+        {access && (
+          <div className="rounded-card bg-surface-2 p-3 text-small text-ink">
+            <p>{t('routes.accessInfo', {
+              distance: formatDistance(access.distanceMeters, lang),
+              duration: formatDuration(access.durationSeconds, lang),
+            })}</p>
+            <button type="button" onClick={() => navigate(`/mapa?verRuta=${route.id}&irAlInicio=1`)}
+              className="mt-2 min-h-11 rounded-full bg-accent px-4 text-small font-bold text-on-accent">
+              {t('routes.goToRoute')}
+            </button>
+          </div>
+        )}
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted">
           <li className="flex items-center gap-1.5">
             <RouteIcon aria-hidden className="size-3.5" />
