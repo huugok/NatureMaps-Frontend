@@ -89,7 +89,7 @@ const route: RouteDetailData = {
   durationSeconds: 1980,
   start: { latitude: 39.4699, longitude: -0.3763 },
   description: 'Plantas del inventario y patrimonio histórico alternados.',
-  stopsCount: 2,
+  stopsCount: 2, userId: 1, origin: 'Predeterminado',
   stops: [
     { kind: 'planta', id: 11, name: 'Naranjo de la plaza', latitude: 39.4705, longitude: -0.3755, speciesId: 3 },
     { kind: 'poi', id: 22, name: 'Torres de Serranos', latitude: 39.4792, longitude: -0.3762, speciesId: null },

@@ -1,4 +1,4 @@
-import { apiGet } from './api';
+import { apiGet, apiSend } from './api';
 
 // Catálogo de rutas botánico-culturales predefinidas (GET /routes del backend).
 // El catálogo ya viene calculado y guardado en BD: la ficha pinta el `path`
@@ -48,12 +48,32 @@ export interface RouteSummary {
   start: RoutePoint;
   description: string;
   stopsCount: number;
+  /** 1 hasta que exista login; las rutas del catálogo pertenecen al usuario 1. */
+  userId: number;
+  /** «Predeterminado» para el catálogo, «Administración» para rutas propias. */
+  origin: 'Predeterminado' | 'Administración';
 }
 
 /** Ficha completa: añade paradas en orden y la geometría del recorrido. */
 export interface RouteDetail extends RouteSummary {
   stops: RouteStop[];
   path: RoutePoint[];
+}
+
+/** Datos editables de una ruta propia (la forma no se toca). */
+export interface RouteEdit {
+  name: string;
+  theme: RouteTheme;
+  description: string;
+  stops: RouteStop[];
+}
+
+export async function saveRoute(id: number, changes: RouteEdit): Promise<RouteDetail> {
+  return apiSend<RouteDetail>('PUT', `/routes/${id}`, changes) as Promise<RouteDetail>
+}
+
+export async function removeRoute(id: number): Promise<void> {
+  await apiSend<null>('DELETE', `/routes/${id}`);
 }
 
 /** Listado del catálogo, ordenado por distancia (corta → larga). */

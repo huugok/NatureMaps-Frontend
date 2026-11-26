@@ -15,6 +15,22 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
   return res.json() as Promise<T>
 }
 
+/** Escritura genérica (PUT/DELETE) con el mismo contrato de error que apiGet. */
+export async function apiSend<T>(method: 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T | null> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const error = new Error(`${method} ${path} → ${res.status}`) as Error & { status?: number }
+    error.status = res.status
+    throw error
+  }
+  if (res.status === 204) return null;
+  return res.json() as Promise<T>
+}
+
 /** GET /health — único endpoint que usa hoy el frontend. */
 export async function checkHealth(signal?: AbortSignal): Promise<boolean> {
   try {
