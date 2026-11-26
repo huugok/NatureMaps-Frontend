@@ -32,7 +32,7 @@ export function DownloadedRoutes() {
     {error && <p role="alert" className="text-small text-danger">{t('routeOffline.error')}</p>}
     <ul className="mt-2 flex flex-col gap-3">{records.map((record) => <li key={record.routeId} className="rounded-card bg-surface p-4">
       <h3 className="font-display text-body">{record.packet.route.name}</h3>
-      <p className="my-2 text-small text-muted">{t('routeOffline.saved', { size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang })}</p>
+      <p className="my-2 text-small text-muted">{t(record.tiles ? 'routeOffline.saved' : 'routeOffline.legacy', { size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang })}</p>
       <div className="flex flex-wrap gap-2">
         <Button to={`/rutas/${record.routeId}`} size="sm">{t('routes.downloadsFicha')}</Button>
         <Button variant="ghost" size="sm" disabled={removing !== undefined} aria-label={t('routeOffline.removeNamed', { name: record.packet.route.name })} onClick={() => void remove(record.routeId)}>{t('offline.remove')}</Button>

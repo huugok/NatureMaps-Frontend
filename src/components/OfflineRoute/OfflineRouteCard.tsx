@@ -63,11 +63,11 @@ export function OfflineRouteCard({ routeId }: { routeId: number }) {
     <section aria-label={t('offline.title')} className="rounded-card bg-surface-2 p-4">
       {!supported ? <p className="text-small text-muted">{t('routeOffline.unsupported')}</p> : <>
         {error && <p role="alert" className="mb-2 text-small text-danger">{t(error)}</p>}
-        {record && <p className="mb-2 text-small text-accent">{t(record.map ? 'routeOffline.saved' : 'routeOffline.legacy', {
+        {record && <p className="mb-2 text-small text-accent">{t(record.tiles ? 'routeOffline.saved' : 'routeOffline.legacy', {
           size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang,
         })}</p>}
         {progress ? <>
-          <p role="status" className="text-small">{t(phaseKeys[progress.phase])} {progress.phase === 'images' && `${progress.done}/${progress.total}`}</p>
+          <p role="status" className="text-small">{t(phaseKeys[progress.phase])} {(progress.phase === 'images' || progress.phase === 'map') && `${progress.done}/${progress.total}`}</p>
           <progress className="mt-2 w-full accent-accent" aria-label={t('offline.progressAria')} value={progress.fraction} max={1} />
           <div className="mt-2 flex items-center justify-between">
             <span className="text-small tabular-nums">{formatPercent(progress.fraction, lang)}</span>

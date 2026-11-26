@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stripTypeScriptTypes } from 'node:module'
-import { createHash } from 'node:crypto'
 import { preview } from 'vite'
 
 const fixture = stripTypeScriptTypes(await readFile(new URL('../src/test/routeOfflineFixtures.ts', import.meta.url), 'utf8'))
@@ -47,49 +46,22 @@ const previewServer = await preview({
 const server = previewServer.httpServer
 const origin = `http://127.0.0.1:${server.address().port}`
 const packet = structuredClone(routePacket)
-const mapFile = process.env.NATUREMAPS_TEST_MAP
-if (!mapFile) throw new Error('Indica NATUREMAPS_TEST_MAP con el archivo real valencia.pmtiles')
-const mapBytes = await readFile(mapFile)
-packet.map = { ...packet.map, bytes: mapBytes.length, sha256: createHash('sha256').update(mapBytes).digest('hex') }
-packet.map.url = `/offline-maps/valencia/${packet.map.sha256}.pmtiles`
 packet.images[0].url = `${origin}/photo.png`
 packet.species[0].image = packet.images[0]
 let offline = false
-let mapDownloads = 0
+let tileDownloads = 0
 const browser = await chromium.launch({ channel: process.env.NATUREMAPS_BROWSER ?? 'msedge', headless: true })
 try {
   const context = await browser.newContext({ viewport: { width: 402, height: 874 } })
   const page = await context.newPage()
-  await context.addInitScript(() => {
-    window.mapLabels = []
-    const draw = CanvasRenderingContext2D.prototype.fillText
-    CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
-      if (window.mapLabels.length < 500) window.mapLabels.push(String(text))
-      return draw.call(this, text, ...args)
-    }
-  })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.stack ?? error.message))
-  await page.route('http://localhost:3000/**', async (request) => {
+  await context.route('http://localhost:3000/**', async (request) => {
     if (offline) { await request.abort('internetdisconnected'); return }
     const url = new URL(request.request().url())
-    if (url.pathname.endsWith('.pmtiles')) {
-      const range = /^bytes=(\d+)-(\d*)$/.exec(request.request().headers().range ?? '')
-      if (range) {
-        const start = Number(range[1]); const end = range[2] ? Math.min(Number(range[2]), mapBytes.length - 1) : mapBytes.length - 1
-        await request.fulfill({ status: 206, body: mapBytes.subarray(start, end + 1), contentType: 'application/vnd.pmtiles',
-          headers: { 'content-range': `bytes ${start}-${end}/${mapBytes.length}`, 'accept-ranges': 'bytes', etag: `"${packet.map.sha256}"`,
-            'access-control-expose-headers': 'Content-Range, ETag' } })
-      } else {
-        mapDownloads++
-        await request.fulfill({ body: mapBytes, contentType: 'application/vnd.pmtiles' })
-      }
-      return
-    }
     let data = {}
     if (url.pathname === '/routes/7/offline') data = packet
     else if (url.pathname === '/routes/8/offline') data = { ...packet, route: { ...packet.route, id: 8, name: 'Segunda ruta' } }
-    else if (url.pathname === '/offline-maps/valencia') data = packet.map
     else if (url.pathname === '/routes/7') data = packet.route
     else if (url.pathname === '/routes/8') data = { ...packet.route, id: 8, name: 'Segunda ruta' }
     else if (url.pathname === '/routes') data = { total: 1, routes: [packet.route] }
@@ -98,10 +70,16 @@ try {
     else if (url.pathname === '/green-areas') data = { areas: [], sources: [] }
     await request.fulfill({ json: data })
   })
-  await page.route('https://tile.openstreetmap.org/**', (request) => request.abort())
-  // Simula una descarga creada por la versión anterior, antes de añadir mapas.
+  // No se descargan teselas públicas en la prueba: se simula el proveedor.
+  await context.route('https://tile.openstreetmap.org/**', async (request) => {
+    if (offline) { await request.abort('internetdisconnected'); return }
+    tileDownloads++
+    await request.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#e8eadc"/><path d="M0 80H256M80 0V256" stroke="#fff" stroke-width="12"/><path d="M0 140L256 190" stroke="#afc7db" stroke-width="20"/><text x="90" y="70" font-size="12">Tesela de prueba</text></svg>' })
+  })
+  // Simula IndexedDB v2 con un PMTiles antiguo; se conservan fichas e imágenes.
   await page.goto(`${origin}/_storage`)
   await page.evaluate(async () => {
+    await (await caches.open('naturemaps-tiles-v1')).put('https://example.test/park-sentinel.png', new Response('saved park tile'))
     await navigator.serviceWorker.register('/sw.js')
     await navigator.serviceWorker.ready
     if (!navigator.serviceWorker.controller) await new Promise((done) => navigator.serviceWorker.addEventListener('controllerchange', done, { once: true }))
@@ -109,14 +87,15 @@ try {
   legacyWorker = false
   await page.evaluate(async (route) => {
     const database = await new Promise((done) => {
-      const request = indexedDB.open('naturemaps-offline-routes', 1)
-      request.onupgradeneeded = () => request.result.createObjectStore('routes', { keyPath: 'routeId' })
+      const request = indexedDB.open('naturemaps-offline-routes', 2)
+      request.onupgradeneeded = () => { request.result.createObjectStore('routes', { keyPath: 'routeId' }); request.result.createObjectStore('maps', { keyPath: 'sha256' }) }
       request.onsuccess = () => done(request.result)
     })
     await new Promise((done) => {
-      const transaction = database.transaction('routes', 'readwrite')
+      const transaction = database.transaction(['routes', 'maps'], 'readwrite')
       transaction.objectStore('routes').put({ routeId: 7, lang: 'es', downloadedAt: '2026-11-19T10:00:00Z', bytes: 100,
-        packet: { ...route, schemaVersion: 1, map: undefined }, images: [] })
+        packet: { ...route, schemaVersion: 2 }, map: { sha256: 'legacy' }, images: [{ url: route.images[0].url, blob: new Blob(['previous photo'], { type: 'image/png' }) }] })
+      transaction.objectStore('maps').put({ sha256: 'legacy', blob: new Blob(['legacy archive']) })
       transaction.oncomplete = done
     })
     database.close()
@@ -125,16 +104,19 @@ try {
   const scriptUrl = await page.locator('script[type=module]').getAttribute('src')
   const scriptResponse = await context.request.get(new URL(scriptUrl, origin).href)
   assert.match(scriptResponse.headers().vary ?? '', /Origin/i, 'se comprueba el Vary real de Vite preview')
-  await page.getByText('Descarga anterior sin mapa. Vuelve a descargar para incluirlo.').waitFor()
+  await page.getByText('Descarga anterior: vuelve a descargar para guardar el mapa por teselas.').waitFor()
   imageDelay = 1800
   await page.getByRole('button', { name: 'Volver a descargar', exact: true }).click()
   await page.getByRole('progressbar').waitFor()
   await page.getByRole('button', { name: 'Cancelar descarga' }).click()
   await page.getByRole('button', { name: 'Volver a descargar', exact: true }).waitFor()
-  assert.equal(await page.evaluate(async () => {
-    const database = await new Promise((done) => { const request = indexedDB.open('naturemaps-offline-routes', 2); request.onsuccess = () => done(request.result) })
-    return new Promise((done) => { const request = database.transaction('routes').objectStore('routes').count(); request.onsuccess = () => { done(request.result); database.close() } })
-  }), 1, 'cancelar conserva la descarga anterior durante la actualización de IndexedDB')
+  assert.deepEqual(await page.evaluate(async () => {
+    const database = await new Promise((done) => { const request = indexedDB.open('naturemaps-offline-routes', 3); request.onsuccess = () => done(request.result) })
+    const stores = [...database.objectStoreNames]
+    const rows = await new Promise((done) => { const request = database.transaction('routes').objectStore('routes').getAll(); request.onsuccess = () => done(request.result) })
+    database.close()
+    return { count: rows.length, images: rows[0].images.length, stores }
+  }), { count: 1, images: 1, stores: ['routes'] }, 'la migración y la cancelación conservan fichas y fotos; se retira el PMTiles antiguo')
   imageDelay = 0
   await page.getByRole('button', { name: 'Volver a descargar', exact: true }).click()
   await page.getByText(/Disponible sin conexión/).waitFor()
@@ -152,7 +134,7 @@ try {
   await page.goto(`${origin}/rutas/8`)
   await page.getByRole('button', { name: 'Descargar ruta', exact: true }).click()
   await page.getByText(/Disponible sin conexión/).waitFor()
-  assert.equal(mapDownloads, 1, 'la segunda ruta reutiliza el mapa sin descargarlo otra vez')
+  assert.ok(tileDownloads > 0, 'el proveedor simulado sirve teselas')
   await page.goto(`${origin}/rutas/7`)
   offline = true
   await context.setOffline(true)
@@ -164,19 +146,12 @@ try {
   await page.setViewportSize({ width: 402, height: 874 })
   assert.equal(await page.locator('.app-frame').evaluate(frame => getComputedStyle(frame).borderTopWidth), '0px', 'en móvil se aprovecha toda la pantalla')
   assert.ok(await page.locator('.leaflet-overlay-pane svg path').count() > 0, 'la geometría sigue dibujada sin red')
-  await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-tile-pane canvas')].some((canvas) => {
-    const ctx = canvas.getContext('2d'); if (!ctx) return false
-    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-    const colors = new Set()
-    for (let i = 0; i < pixels.length; i += 64) if (pixels[i + 3]) colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`)
-    return colors.size > 12
-  }))
-  await page.waitForFunction(() => window.mapLabels.some((label) => label.length > 5))
+  await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-tile-pane img')].some(image => image.src.startsWith('blob:') && image.naturalWidth === 256))
   await page.getByRole('img', { name: packet.route.name }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: resolve(root, 'offline-map.png'), fullPage: true })
   await page.getByRole('button', { name: 'Iniciar ruta', exact: true }).click()
   await page.waitForURL('**/mapa?verRuta=7')
-  await page.waitForFunction(() => document.querySelectorAll('.leaflet-tile-pane canvas').length > 0)
+  await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-tile-pane img')].some(image => image.src.startsWith('blob:') && image.naturalWidth === 256))
   await page.goBack()
   await page.getByRole('heading', { name: packet.route.name, exact: true }).waitFor()
   await page.getByRole('region', { name: 'Paradas del recorrido', exact: true }).getByRole('button', { name: /Naranjo/ }).click()
@@ -202,15 +177,14 @@ try {
   await reopened.reload()
   await reopened.getByRole('alert').filter({ hasText: 'No se pudieron cargar las rutas.' }).waitFor()
   await reopened.getByRole('tab', { name: 'Ver Rutas botánicas y culturales', exact: true }).click()
-  await reopened.getByRole('button', { name: 'Eliminar la descarga de Segunda ruta', exact: true }).click()
-  await reopened.waitForFunction(async () => {
-    const database = await new Promise((done) => { const request = indexedDB.open('naturemaps-offline-routes', 2); request.onsuccess = () => done(request.result) })
-    const count = await new Promise((done) => { const request = database.transaction('maps').objectStore('maps').count(); request.onsuccess = () => done(request.result) })
-    database.close()
-    return count === 0
-  })
+  await reopened.getByRole('link', { name: 'Ver ficha', exact: true }).click()
+  await reopened.getByRole('heading', { name: 'Segunda ruta', exact: true }).waitFor()
+  await reopened.waitForFunction(() => [...document.querySelectorAll('.leaflet-tile-pane img')].some(image => image.src.startsWith('blob:') && image.naturalWidth === 256))
+  await reopened.getByRole('button', { name: 'Eliminar descarga', exact: true }).click()
+  await reopened.waitForFunction(async () => !(await caches.keys()).some(name => name.startsWith('naturemaps-route-tiles-v1-')))
+  assert.equal(await reopened.evaluate(async () => (await (await caches.open('naturemaps-tiles-v1')).match('https://example.test/park-sentinel.png')).text()), 'saved park tile', 'borrar todas las rutas conserva la caché de parques')
   assert.deepEqual(errors, [])
-  console.log('PASS: mapa real Protomaps y rótulos sin red, cancelación, IndexedDB, imágenes, reapertura y eliminación')
+  console.log('PASS: teselas simuladas en Cache API, recarga offline, cancelación, migración IDB, fichas, imágenes, reapertura y eliminación')
 } finally {
   await browser.close()
   await new Promise((done) => server.close(done))

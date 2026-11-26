@@ -1,8 +1,8 @@
 import L from 'leaflet';
 import { getCachedTile } from '../../services/offlineRead';
 import { TILE_URL_TEMPLATE } from '../../services/offlineTiles';
-import { fetchMapMetadata, savedBasemap } from '../../services/offlineMap';
-import { API_URL } from '../../services/api';
+import { getRouteCachedTile } from '../../services/offlineRouteRead';
+import { routeStore } from '../../services/offlineRouteStorage';
 
 /**
  * Capa de teselas de OpenStreetMap que mira primero en las teselas guardadas
@@ -15,7 +15,7 @@ import { API_URL } from '../../services/api';
 export function createOfflineTileLayer(): L.TileLayer {
   const layer = L.tileLayer(TILE_URL_TEMPLATE, {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
   });
   // `createTile` es protegido en los tipos de Leaflet, pero es el punto de extensión documentado.
   (layer as unknown as { createTile: (this: L.TileLayer, coords: L.Coords, done: L.DoneCallback) => HTMLElement }).createTile = function createTile(this: L.TileLayer, coords: L.Coords, done: L.DoneCallback): HTMLElement {
@@ -36,7 +36,7 @@ export function createOfflineTileLayer(): L.TileLayer {
       release();
       done(new Error(`tile ${url}`), tile);
     };
-    void getCachedTile(url).then((blob) => {
+    void getCachedTile(url).then(async (saved) => saved ?? await getRouteCachedTile(url)).then((blob) => {
       if (blob) {
         objectUrl = URL.createObjectURL(blob);
         tile.src = objectUrl;
@@ -49,50 +49,37 @@ export function createOfflineTileLayer(): L.TileLayer {
   return layer;
 }
 
-/** Podrá usar PMTiles local incluso tras reabrir la app sin conexión. OSM es
- * únicamente el fallback de visualización cuando no hay paquete disponible. */
-export function addOfflineTileLayer(map: L.Map): L.LayerGroup {
-  const group = L.layerGroup();
-  group.addTo(map);
+
+/** La misma capa raster que las zonas, con lectura adicional de las rutas. */
+export function addOfflineTileLayer(map: L.Map): L.TileLayer {
+  const layer = createOfflineTileLayer().addTo(map);
   let closed = false;
-  let generation = 0;
-  let activeLayer: L.Layer | undefined;
-  const controller = new AbortController();
   const refresh = async () => {
-    const job = ++generation;
     try {
-      const local = await savedBasemap();
-      const metadata = local?.metadata ?? await fetchMapMetadata(controller.signal);
-      if (!metadata?.sha256 || !Array.isArray(metadata.bounds)) throw new Error('Mapa no preparado');
-      // El renderer se carga bajo demanda; las reglas y fuentes son locales.
-      const [{ leafletLayer }, { PMTiles, FileSource }] = await Promise.all([import('protomaps-leaflet'), import('pmtiles')]);
-      if (closed || job !== generation) return;
-      (window as Window & { L?: typeof L }).L ??= L;
-      const archive = new PMTiles(local
-        ? new FileSource(new File([local.blob], `${metadata.sha256}.pmtiles`))
-        : `${API_URL}${metadata.url}`);
-      await archive.getHeader();
-      if (closed || job !== generation) return;
-      const next = leafletLayer({ url: archive, flavor: 'light', lang: 'es', maxDataZoom: metadata.maxZoom,
-        maxZoom: 19, noWrap: true, bounds: [[metadata.bounds[1], metadata.bounds[0]], [metadata.bounds[3], metadata.bounds[2]]],
-        attribution: '<a href="https://protomaps.com">Protomaps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }) as unknown as L.Layer;
-      if (activeLayer) group.removeLayer(activeLayer);
-      activeLayer = next;
-      next.addTo(group);
-    } catch {
-      if (!closed && job === generation) {
-        // El proveedor público solo se usa al visualizar online, nunca al descargar.
-        if (activeLayer) group.removeLayer(activeLayer);
-        activeLayer = createOfflineTileLayer();
-        activeLayer.addTo(group);
+      const records = await routeStore().all();
+      if (closed) return;
+      const maps = records.flatMap((record) => record.tiles ? [record.tiles] : []);
+      // Fuera del zoom guardado se amplía la tesela disponible. La red online
+      // conserva su detalle habitual; offline no se inventan niveles ausentes.
+      if (navigator.onLine === false && maps.length) {
+        layer.options.minNativeZoom = Math.min(...maps.map((tiles) => tiles.minZoom));
+        layer.options.maxNativeZoom = Math.min(...maps.map((tiles) => tiles.maxZoom));
+      } else {
+        delete layer.options.minNativeZoom;
+        delete layer.options.maxNativeZoom;
       }
-    }
+      layer.redraw();
+    } catch { /* La falta de IndexedDB no impide el mapa online. */ }
   };
   void refresh();
   window.addEventListener('naturemaps-route-downloads', refresh);
+  window.addEventListener('online', refresh);
+  window.addEventListener('offline', refresh);
   map.on('unload', () => {
-    closed = true; controller.abort();
+    closed = true;
     window.removeEventListener('naturemaps-route-downloads', refresh);
+    window.removeEventListener('online', refresh);
+    window.removeEventListener('offline', refresh);
   });
-  return group;
+  return layer;
 }

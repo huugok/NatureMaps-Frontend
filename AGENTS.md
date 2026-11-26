@@ -430,14 +430,19 @@ Usa Vite preview real (incluido `Vary: Origin`) y comprueba el marco de escritor
 antes y después de recargar sin red. Para los archivos estáticos del build, el
 worker busca con `ignoreVary: true`: los módulos envían Origin, pero el precache
 no, aunque la URL y el contenido sean idénticos. No aplicar esta excepción a API.
-El contrato actual es `schemaVersion: 2`, con `map` (URL, SHA-256, cobertura y
-tamaño). La descarga verifica el archivo antes del commit. IndexedDB v2 añade
-el store `maps`: una copia por hash, compartida entre rutas y retirada al borrar
-la última referencia, en la misma transacción. Las descargas v1 se conservan
-y piden volver a descargar para incorporar el mapa. `protomaps-leaflet` dibuja
-el PMTiles local en la ficha y en el mapa principal; no descarga teselas OSM.
-La prueba de navegador requiere `NATUREMAPS_TEST_MAP` apuntando al PMTiles real.
-Los archivos cartográficos y las capturas permanecen fuera de Git.
+El contrato actual es `schemaVersion: 3`, solo contenido. El navegador usa el
+planificador de teselas de las zonas (zoom 13–17, hasta 2000, dos peticiones).
+IndexedDB v3 conserva datos y fotos de v1/v2 y retira el store PMTiles antiguo;
+esas descargas piden actualizar el mapa. Las teselas se guardan con Cache API
+en cachés `naturemaps-route-tiles-v1-*`, propias de cada descarga. El registro
+solo se confirma al final; al cancelar o fallar se retira la caché temporal.
+Actualizar conserva la versión anterior hasta confirmar la nueva. Borrar una
+ruta elimina su caché sin tocar parques ni otras rutas. Las pruebas de navegador
+simulan el proveedor de teselas y no requieren un archivo regional.
+**Rama educativa:** tile.openstreetmap.org prohíbe esta precarga offline. La
+limitación se documenta en README y requiere otro proveedor antes de publicar;
+Geoapify queda como alternativa pendiente, sin integración ni clave.
+Las capturas y archivos temporales permanecen fuera de Git.
 
 ### Issue tracker
 

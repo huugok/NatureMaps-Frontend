@@ -1,3 +1,4 @@
+import { routeTileCache } from './routeTileCache';
 import type { Language } from '../types/language';
 import type { FichaDetail } from './ficha';
 import { routeStore } from './offlineRouteStorage';
@@ -19,5 +20,18 @@ export async function savedSpecies(id: number, lang: Language): Promise<FichaDet
     });
     return { ...species, image: { ...species.image, url: dataUrl } };
   }
+  return undefined;
+}
+
+
+/** Lee solo cachés de descargas completas, sin abrir conexiones al proveedor. */
+export async function getRouteCachedTile(url: string): Promise<Blob | undefined> {
+  try {
+    for (const record of await routeStore().all()) {
+      if (!record.tiles?.keys.includes(url)) continue;
+      const blob = await routeTileCache(record.tiles.cacheName).get(url);
+      if (blob) return blob;
+    }
+  } catch { /* El mapa sigue pudiendo consultar las zonas descargadas o la red. */ }
   return undefined;
 }
