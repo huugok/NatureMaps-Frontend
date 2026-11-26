@@ -5,13 +5,15 @@ import 'leaflet/dist/leaflet.css';
 import { ChevronDown, ChevronUp, Landmark, Leaf, LocateFixed, MapPinOff, Search, Trash2, Trees, X } from 'lucide-react';
 import { useApp } from '../../context/useApp';
 import { LocationPermissionPrompt, useLocationPermission } from '../../components/Location';
-import { formatDistance, repairTextEncoding } from '../../i18n/format';
+import { formatDistance, formatDuration, repairTextEncoding } from '../../i18n/format';
 import { effectiveNearbyRadius, fetchNearbyTrees, readNearbyRadius, saveNearbyTreesCache } from '../../services/nearby';
-import { fetchRouteDetail } from '../../services/routes';
+import { fetchRouteAccess, fetchRouteDetail } from '../../services/routes';
+import type { RouteAccess, RouteStop } from '../../services/routes';
 import { commonNameFor, getSpeciesLocations, getSpeciesDetail } from '../../services/ficha';
 import { groupNearbyPlants, metersBetween } from '../../services/plantGroups';
 import type { GroupArea, GroupedPlants } from '../../services/plantGroups';
 import { groupOffThread } from './groupOffThread';
+import { clearPaintedRoute, getPaintedRoute, setPaintedRoute } from './paintedRoute';
 import type { PlantPin } from '../../types/plant';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchGreenAreaPlants, fetchGreenAreas } from '../../services/greenAreas';
@@ -34,8 +36,6 @@ const NEARBY_PAGE_SIZE = 20000;
 const MAX_PLANT_MARKERS = 150;
 // Memoria del mapa: sobrevive a entrar y salir de la pestaña. No se guarda en
 // localStorage: al recargar la página se pierde, igual que el resto de la vista.
-let paintedRouteId: number | null = null;
-export function clearPaintedRoute() { paintedRouteId = null; }
 const LOCATION_COLOR = '#3b7ddd';
 
 interface Coordinates {
@@ -79,6 +79,8 @@ const NEARBY_REFRESH_METERS = 200;
 // Círculo mínimo pintado al ir a un ejemplar suelto («Ver en el mapa»), para
 // que el punto sea localizable a simple vista.
 const POI_CACHE_TTL_MS = 5 * 60 * 1000;
+// Radio propuesto para considerar que se ha llegado al inicio de la ruta.
+const ARRIVAL_RADIUS_M = 50;
 
 const poiAreaCache = new Map<string, { savedAt: number; items: Array<{id: number; name: string; lat: number; lon: number; distance: number}> }>();
 
@@ -165,9 +167,17 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   // borra con «Limpiar mapa» o al iniciar otra.
   const verRutaRaw = searchParams.get('verRuta');
   const paramRouteId = verRutaRaw !== null && /^\d+$/.test(verRutaRaw) ? Number(verRutaRaw) : null;
-  const [savedRouteId, setSavedRouteId] = useState<number | null>(paintedRouteId);
+  const [savedRouteId, setSavedRouteId] = useState<number | null>(getPaintedRoute());
   const routeId = paramRouteId ?? savedRouteId;
   const routeVisible = routeId !== null;
+  const accessActive = searchParams.has('irAlInicio');
+  const [accessInfo, setAccessInfo] = useState<RouteAccess | null>(null);
+  const [arrivedNotice, setArrivedNotice] = useState(false);
+  const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
+  const [activeRoute, setActiveRoute] = useState<{
+    routeId: number; startedAt: number; currentStop: number;
+  } | null>(null);
+  const [activeStops, setActiveStops] = useState<RouteStop[]>([]);
   const navigate = useNavigate();
   // Zonas verdes (NM-08, PA 3011): capa apagada por defecto para no cargar el
   // mapa; `?zona=<grupo>` la enciende, resalta ese parque y lo encuadra.
@@ -221,6 +231,8 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
   const locatedItemRef = useRef<L.Circle | null>(null);
   const groupAreaRef = useRef<L.Circle | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const accessLayerRef = useRef<L.LayerGroup | null>(null);
+  const accessRequestedRef = useRef(false);
   const routeAbortRef = useRef<AbortController | null>(null);
   // Repintado de la capa de plantas: lo llama Leaflet en `moveend` sin pasar
   // por React (un setState aquí rerenderiza el panel y vuelve a agrupar 67k
@@ -573,6 +585,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       longitude: position.coords.longitude,
     };
     currentPositionRef.current = coords;
+    setUserCoords(coords);
     const point: L.LatLngExpression = [coords.latitude, coords.longitude];
     const map = mapRef.current;
 
@@ -1017,6 +1030,21 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     return () => { repaintPoisRef.current = () => undefined; poisLayerRef.current?.remove(); };
   }, [pois, t, lang, locatedPosition, radius]);
 
+  // Permiso concedido pero sin posición (p. ej. escritorio sin GPS): no dejar
+  // el mapa vacío esperando indefinidamente. Tras 4 s se carga el inventario
+  // completo desde Valencia, igual que en el caso sin GPS.
+  useEffect(() => {
+    // Aventura usa un radio fijo de 1 km: sin posición no hay nada que cargar.
+    if (mode === 'aventura') return;
+    if (locationPermission !== 'granted' || locatedPosition !== null) return;
+    if (plantsLoadingRef.current || plantsRef.current !== null) return;
+    const timer = setTimeout(() => {
+      if (plantsLoadingRef.current || plantsRef.current !== null) return;
+      loadPlantsRef.current({ latitude: VALENCIA.latitude, longitude: VALENCIA.longitude });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [locationPermission, locatedPosition, mode]);
+
   // Comercios patrocinadores: se piden una vez (viven en las rutas) y se pintan
   // como los POIs, pero en rosa/morado y sin ficha: solo su etiqueta al tocar.
   useEffect(() => {
@@ -1196,7 +1224,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     // usuario al pintarla (el usuario sí puede arrastrar el mapa después).
     followUserRef.current = false;
     keepBothVisibleRef.current = false;
-    paintedRouteId = routeId;
+    setPaintedRoute(routeId);
     const controller = new AbortController();
     routeAbortRef.current = controller;
     fetchRouteDetail(routeId, controller.signal)
@@ -1226,6 +1254,90 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       }
     };
   }, [routeId]);
+
+  // «Cómo llegar al inicio»: se pide el tramo una sola vez al activarlo; la
+  // distancia y el tiempo restantes se recalculan localmente con cada posición.
+  useEffect(() => {
+    accessLayerRef.current?.remove();
+    accessLayerRef.current = null;
+    setAccessInfo(null);
+    const from = userCoords ?? locatedPosition;
+    if (!accessActive || routeId === null || from === null) return;
+    if (accessRequestedRef.current) return;
+    accessRequestedRef.current = true;
+    let cancelled = false;
+    fetchRouteAccess(routeId, from)
+      .then((info) => {
+        if (cancelled) return;
+        setAccessInfo(info);
+        const map = mapRef.current;
+        if (!map) return;
+        const layer = L.layerGroup();
+        L.polyline(info.path.map((point) => [point.latitude, point.longitude]), {
+          color: '#c58a31', weight: 4, dashArray: '6 6', interactive: false,
+        }).addTo(layer);
+        accessLayerRef.current = layer.addTo(map);
+      })
+      .catch(() => { if (!cancelled) setAccessInfo(null); });
+    return () => {
+      cancelled = true;
+      accessLayerRef.current?.remove();
+      accessLayerRef.current = null;
+    };
+  }, [accessActive, routeId, userCoords !== null || locatedPosition !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const livePosition = userCoords ?? locatedPosition;
+  const accessRemaining = accessInfo && livePosition
+    ? metersBetween(livePosition, accessInfo.start)
+    : accessInfo?.distanceMeters ?? null;
+  const accessRemainingSeconds = accessInfo && accessRemaining !== null
+    ? Math.round(accessInfo.durationSeconds * accessRemaining / Math.max(accessInfo.distanceMeters, 1))
+    : null;
+  const arrived = accessRemaining !== null && accessRemaining <= ARRIVAL_RADIUS_M;
+
+  // La tarjeta de llegada se muestra 8 s y desaparece sola (o al iniciar).
+  useEffect(() => {
+    if (!arrived || !accessInfo) { setArrivedNotice(false); return; }
+    setArrivedNotice(true);
+    const timer = setTimeout(() => setArrivedNotice(false), 8000);
+    return () => clearTimeout(timer);
+  }, [arrived, accessInfo]);
+
+  function cancelAccess() {
+    accessRequestedRef.current = false;
+    accessLayerRef.current?.remove();
+    accessLayerRef.current = null;
+    setAccessInfo(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('irAlInicio');
+    setSearchParams(next, { replace: true });
+  }
+
+  function startRoute() {
+    if (routeId === null) return;
+    accessRequestedRef.current = false;
+    try {
+      localStorage.setItem('naturemaps:activeRoute', JSON.stringify({
+        routeId, startedAt: Date.now(), currentStop: 0,
+      }));
+      setActiveRoute({ routeId, startedAt: Date.now(), currentStop: 0 });
+    } catch { /* modo privado: el estado vive solo en esta sesión */ }
+    setArrivedNotice(false);
+    const next = new URLSearchParams(searchParams);
+    next.delete('irAlInicio');
+    setSearchParams(next, { replace: true });
+  }
+
+  // Estado inicial de la ruta iniciada: nombre de la primera parada como
+  // «Siguiente» y el resto pendientes. NM-20 hará el seguimiento posterior.
+  useEffect(() => {
+    if (activeRoute === null || activeRoute.routeId !== routeId) return;
+    let cancelled = false;
+    fetchRouteDetail(routeId)
+      .then((route) => { if (!cancelled) setActiveStops(route.stops); })
+      .catch(() => { if (!cancelled) setActiveStops([]); });
+    return () => { cancelled = true; };
+  }, [activeRoute, routeId]);
 
   const clearRoute = () => {
     clearPaintedRoute();
@@ -1682,6 +1794,47 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
           )}
         </div>
       </div>
+
+      {accessInfo && (
+        <div className="absolute inset-x-4 top-20 z-[1060] flex flex-col gap-2">
+          <div className="flex w-full items-center justify-between gap-2 rounded-full bg-surface px-3 py-2 shadow-raised">
+            <span className="text-small font-semibold text-ink">
+              {t('map.accessInfo', {
+                distance: formatDistance(accessRemaining ?? 0, lang),
+                duration: formatDuration(accessRemainingSeconds ?? 0, lang),
+              })}
+            </span>
+            <button type="button" onClick={cancelAccess}
+              className="min-h-11 rounded-full px-3 text-caption font-bold text-danger">
+              {t('map.cancelAccess')}
+            </button>
+          </div>
+          {arrivedNotice && (
+            <div className="rounded-card bg-accent p-3 shadow-float">
+              <p className="text-small font-semibold text-on-accent">{t('map.arrivedAtStart')}</p>
+              <button type="button" onClick={startRoute}
+                className="mt-2 min-h-11 rounded-full bg-surface px-4 text-small font-bold text-accent">
+                {t('routes.start')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeRoute !== null && activeRoute.routeId === routeId && (
+        <div className="absolute inset-x-4 top-20 z-[1055] rounded-card bg-surface p-3 shadow-raised">
+          <p className="text-small font-bold text-ink">{t('map.routeProgress', { percent: 0 })}</p>
+          <p className="mt-1 text-caption text-ink">
+            {t('map.nextStop')}: {activeStops[0]?.name ?? '—'}
+          </p>
+          <p className="text-caption text-muted">
+            {t('map.pendingStops', { n: Math.max(0, activeStops.length - 1) })}
+          </p>
+          <p className="text-caption text-muted">
+            {t('map.startedAt')}: {new Date(activeRoute.startedAt).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+      )}
 
       {routeVisible && (
         <button
