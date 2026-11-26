@@ -138,6 +138,7 @@ describe('RouteDetail', () => {
 
   afterEach(() => {
     cleanup()
+    localStorage.clear()
     setOfflineRouteStore()
     vi.restoreAllMocks()
   })
@@ -164,6 +165,10 @@ describe('RouteDetail', () => {
       expect.anything(),
     );
     expect(leaflet.markerFactory).toHaveBeenCalledTimes(3);
+    expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [route.stops[1].latitude, route.stops[1].longitude],
+      expect.objectContaining({ interactive: false, keyboard: false }),
+    );
     expect(leaflet.map.fitBounds).toHaveBeenCalled();
   })
 
@@ -181,22 +186,31 @@ describe('RouteDetail', () => {
     expect(stops[1]).toHaveTextContent('Torres de Serranos')
     expect(stops[1]).toHaveTextContent('POI cultural')
 
-    // La parada de planta abre su ficha; la de POI abre su ficha guardada.
+    // La parada de planta abre su ficha; sin descarga, el POI no ofrece un
+    // control que no pueda responder.
     await user.click(within(stops[0]).getByRole('button'))
     expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta', name: 'Naranjo de la plaza' }))
-    expect(within(stops[1]).getByRole('button')).toHaveTextContent('Torres de Serranos')
+    expect(within(stops[1]).queryByRole('button')).not.toBeInTheDocument()
+    expect(stops[1]).toHaveTextContent('Torres de Serranos')
   })
 
   it('el toque de una parada en el mapa también abre su ficha', async () => {
     const onOpenStop = vi.fn()
+    const store = createMemoryRouteStore()
+    setOfflineRouteStore(store)
+    await store.put(savedRoute(7))
     mockFetchRouteDetail.mockResolvedValue(route)
     renderDetail('7', onOpenStop)
 
     await screen.findByRole('heading', { name: 'Historia bajo los árboles' })
-    // Plantas abren ficha; POIs y patrocinadores también responden al toque
-    // para mostrar su etiqueta. Se busca el handler que llama a onOpenStop.
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledTimes(3))
+    // Planta y POI llevan manejador de clic en la ficha de ruta.
     const withClick = leaflet.created.filter((instance) => instance.on.mock.calls.length > 0)
-    expect(withClick.length).toBeGreaterThanOrEqual(1)
+    expect(withClick).toHaveLength(2)
+    expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [route.stops[1].latitude, route.stops[1].longitude],
+      expect.objectContaining({ interactive: true, keyboard: true }),
+    )
     const handlers = withClick.flatMap((instance) => instance.on.mock.calls.map((call) => call[1] as () => void))
     const clickHandler = handlers.find((handler) => {
       onOpenStop.mockClear()
@@ -239,9 +253,13 @@ describe('RouteDetail', () => {
     mockFetchRouteDetail.mockResolvedValue(record.packet.route)
     renderDetail()
 
-    await user.click(await screen.findByRole('button', { name: /Torre/ }))
+    const poiButton = await screen.findByRole('button', { name: /Torre/ })
+    const mapCreationsBefore = leaflet.mapFactory.mock.calls.length
+    await user.click(poiButton)
     expect(await screen.findByText('Una torre histórica.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cerrar ficha' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Fichas guardadas de las paradas' })).toHaveFocus())
+    expect(leaflet.mapFactory).toHaveBeenCalledTimes(mapCreationsBefore)
   })
 
   it('sin red y sin descarga muestra un aviso concreto y permite volver a rutas', async () => {

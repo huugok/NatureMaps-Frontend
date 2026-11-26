@@ -13,7 +13,12 @@ const phaseKeys: Record<RouteDownloadProgress['phase'], StringKey> = {
   content: 'routeOffline.content', images: 'routeOffline.images', map: 'routeOffline.map', saving: 'offline.phase.saving',
 };
 
-export function OfflineRouteCard({ routeId }: { routeId: number }) {
+export interface OfflineRouteCardProps {
+  /** Ruta cuyo paquete offline se descarga, actualiza o elimina. */
+  routeId: number;
+}
+
+export function OfflineRouteCard({ routeId }: OfflineRouteCardProps) {
   const { t, lang } = useApp();
   const [record, setRecord] = useState<OfflineRouteRecord>();
   const [progress, setProgress] = useState<RouteDownloadProgress>();
@@ -60,24 +65,24 @@ export function OfflineRouteCard({ routeId }: { routeId: number }) {
   };
 
   return (
-    <section aria-label={t('offline.title')} className="rounded-card bg-surface-2 p-4">
-      {!supported ? <p className="text-small text-muted">{t('routeOffline.unsupported')}</p> : <>
-        {error && <p role="alert" className="mb-2 text-small text-danger">{t(error)}</p>}
-        {record && <p className="mb-2 text-small text-accent">{t(record.map ? 'routeOffline.saved' : 'routeOffline.legacy', {
+    <section aria-label={t('offline.title')} className="rounded-card bg-surface-2 p-4 shadow-raised">
+      {!supported ? <p className="text-small text-muted text-pretty">{t('routeOffline.unsupported')}</p> : <>
+        {error && <p role="alert" className="mb-2 text-small text-danger text-pretty">{t(error)}</p>}
+        {record && <p className="mb-2 text-small text-accent text-pretty">{t(record.map ? 'routeOffline.saved' : 'routeOffline.legacy', {
           size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang,
         })}</p>}
         {progress ? <>
-          <p role="status" className="text-small">{t(phaseKeys[progress.phase])} {progress.phase === 'images' && `${progress.done}/${progress.total}`}</p>
+          <p role="status" className="text-small text-pretty">{t(phaseKeys[progress.phase])} {progress.phase === 'images' && <span className="tabular-nums">{progress.done}/{progress.total}</span>}</p>
           <progress className="mt-2 w-full accent-accent" aria-label={t('offline.progressAria')} value={progress.fraction} max={1} />
           <div className="mt-2 flex items-center justify-between">
             <span className="text-small tabular-nums">{formatPercent(progress.fraction, lang)}</span>
-            <Button size="sm" variant="ghost" icon={X} disabled={progress.phase === 'saving'} onClick={() => controller.current?.abort()}>{t('offline.cancel')}</Button>
+            <Button size="sm" className="min-h-11" variant="ghost" icon={X} disabled={progress.phase === 'saving'} onClick={() => controller.current?.abort()}>{t('offline.cancel')}</Button>
           </div>
         </> : <div className="flex flex-wrap gap-2">
           <Button icon={Download} disabled={checking || removing} onClick={() => void download()}>{t(record ? 'routeOffline.redownload' : 'routes.download')}</Button>
           {record && <Button icon={Trash2} variant="ghost" disabled={removing} onClick={() => void remove()}>{t('offline.remove')}</Button>}
         </div>}
-        <p className="mt-2 text-small text-muted">{t('routeOffline.includes')}</p>
+        <p className="mt-2 text-small text-muted text-pretty">{t('routeOffline.includes')}</p>
       </>}
     </section>
   );

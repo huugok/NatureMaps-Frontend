@@ -449,7 +449,9 @@ Los archivos cartográficos y las capturas permanecen fuera de Git.
 - Ajustes → Descargas (`/ajustes/descargas`) lista las rutas guardadas y abre su
   ficha. La descarga y el borrado siguen perteneciendo a NM-14/NM-17.
 - La ficha de ruta abre la ficha guardada de POIs y plantas sin especie enlazada;
-  las plantas enlazadas conservan el overlay de especie con `savedSpecies`.
+  las plantas enlazadas conservan el overlay de especie con `savedSpecies`. Estas
+  paradas solo ofrecen un control cuando hay una descarga local; al abrir la ficha
+  guardada, esta se desplaza al viewport y recibe el foco.
 - Ni `RouteDetail` ni `MapPage` recargan una ruta abierta al perder la conexión:
   geometría, paradas y mapa montado se mantienen. Si no hay mapa de fondo, los
   marcadores y el recorrido siguen visibles sobre `surface-2`.

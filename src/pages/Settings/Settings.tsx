@@ -21,6 +21,7 @@ import type { Language } from '../../types/language'
 
 export interface SettingsProps {
   language: Language
+  /** Vuelve a la pantalla anterior. */
   onBack: () => void
 }
 

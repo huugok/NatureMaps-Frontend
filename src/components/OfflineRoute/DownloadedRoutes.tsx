@@ -35,16 +35,16 @@ export function DownloadedRoutes({ emptyMessage }: DownloadedRoutesProps) {
   if (!records.length && !error && !emptyMessage) return null;
   return <section className="mt-4" aria-label={t('routeOffline.downloads')}>
     <h2 className="font-display text-heading">{t('routeOffline.downloads')}</h2>
-    {error && <p role="alert" className="text-small text-danger">{t('routeOffline.error')}</p>}
+    {error && <p role="alert" className="text-small text-danger text-pretty">{t('routeOffline.error')}</p>}
     {!records.length && !error && emptyMessage && (
-      <p className="mt-2 text-small text-muted">{t(emptyMessage)}</p>
+      <p className="mt-2 text-small text-muted text-pretty">{t(emptyMessage)}</p>
     )}
-    <ul className="mt-2 flex flex-col gap-3">{records.map((record) => <li key={record.routeId} className="rounded-card bg-surface p-4">
-      <h3 className="font-display text-body">{record.packet.route.name}</h3>
-      <p className="my-2 text-small text-muted">{t('routeOffline.saved', { size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang })}</p>
+    <ul className="mt-2 flex flex-col gap-3">{records.map((record) => <li key={record.routeId} className="rounded-card bg-surface p-4 shadow-raised">
+      <h3 className="font-display text-body text-balance">{record.packet.route.name}</h3>
+      <p className="my-2 text-small text-muted text-pretty">{t('routeOffline.saved', { size: formatBytes(record.bytes, lang), date: formatDate(record.downloadedAt, lang), language: record.lang })}</p>
       <div className="flex flex-wrap gap-2">
-        <Button to={`/rutas/${record.routeId}`} size="sm">{t('routes.downloadsFicha')}</Button>
-        <Button variant="ghost" size="sm" disabled={removing !== undefined} aria-label={t('routeOffline.removeNamed', { name: record.packet.route.name })} onClick={() => void remove(record.routeId)}>{t('offline.remove')}</Button>
+        <Button to={`/rutas/${record.routeId}`} size="sm" className="min-h-11">{t('routes.downloadsFicha')}</Button>
+        <Button variant="ghost" size="sm" className="min-h-11" disabled={removing !== undefined} aria-label={t('routeOffline.removeNamed', { name: record.packet.route.name })} onClick={() => void remove(record.routeId)}>{t('offline.remove')}</Button>
       </div>
     </li>)}</ul>
   </section>;

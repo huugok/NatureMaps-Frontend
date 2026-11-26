@@ -72,9 +72,11 @@ export async function downloadRoute(options: {
     if (packet.schemaVersion !== 2 || !packet.map || packet.route.id !== options.id) throw new Error('Invalid route packet');
     const urls = [...new Set(packet.images.map((image) => image.url))];
     const images: OfflineRouteRecord['images'] = [];
+    const sharedMap = await deps.store.map(packet.map.sha256);
+    const requiredMapBytes = sharedMap ? 0 : packet.map.bytes;
     let bytes = new Blob([JSON.stringify(packet)]).size;
     const free = await deps.freeBytes();
-    if (free !== null && free < bytes + packet.map.bytes) throw new OfflineError('storage-full', 'Storage full');
+    if (free !== null && free < bytes + requiredMapBytes) throw new OfflineError('storage-full', 'Storage full');
     onProgress?.({ phase: 'images', fraction: 0.1, done: 0, total: urls.length });
     for (const url of urls) {
       signal?.throwIfAborted();
@@ -91,7 +93,7 @@ export async function downloadRoute(options: {
     const mapBlob = await deps.map(packet.map, signal, (fraction) => onProgress?.({
       phase: 'map', fraction: 0.45 + 0.5 * fraction, done: Math.round(packet.map!.bytes * fraction), total: packet.map!.bytes,
     }));
-    bytes += mapBlob.size;
+    bytes += sharedMap ? 0 : mapBlob.size;
     if (bytes > MAX_BYTES) throw new OfflineError('too-large', 'Route too large');
     if (free !== null && bytes > free) throw new OfflineError('storage-full', 'Storage full');
     signal?.throwIfAborted();

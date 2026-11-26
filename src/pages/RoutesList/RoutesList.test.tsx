@@ -23,6 +23,7 @@ import { fetchRouteList } from '../../services/routes'
 const mockFetchRouteList = vi.mocked(fetchRouteList)
 
 afterEach(() => {
+  localStorage.clear()
   setOfflineRouteStore()
   vi.restoreAllMocks()
 })

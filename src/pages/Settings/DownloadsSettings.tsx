@@ -3,6 +3,7 @@ import { DownloadedRoutes } from '../../components/OfflineRoute'
 import { useApp } from '../../context/useApp'
 
 export interface DownloadsSettingsProps {
+  /** Vuelve a la pantalla principal de Ajustes. */
   onBack: () => void
 }
 

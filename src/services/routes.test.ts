@@ -22,7 +22,7 @@ describe('lectura de rutas y fichas guardadas', () => {
     await prepare();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
     expect((await fetchRouteList())[0]!.id).toBe(7);
-    expect((await fetchRouteDetail(7)).path).toHaveLength(2);
+    expect((await fetchRouteDetail(7)).path).toHaveLength(4);
     expect((await getSpeciesDetail(5, 'es')).content).toBe('Ficha del naranjo.');
   });
 
@@ -38,6 +38,14 @@ describe('lectura de rutas y fichas guardadas', () => {
 
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
     expect((await fetchRouteList()).map((route) => route.id)).toEqual([7, 8]);
+  });
+
+  it('ignora entradas corruptas del catálogo cacheado sin romper el fallback', async () => {
+    const valid = savedRoute(8).packet.route;
+    localStorage.setItem('naturemaps:route-catalog:v1', JSON.stringify([null, { id: 'roto' }, valid]));
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+
+    expect(await fetchRouteList()).toEqual([valid]);
   });
 
   it('un 5xx permite leer la copia, un 404 sigue siendo un error', async () => {

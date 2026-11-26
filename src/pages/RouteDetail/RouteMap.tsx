@@ -15,12 +15,19 @@ export interface RouteMapProps {
   route: RouteDetail;
   /** Responde al toque de una parada (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
+  /** Los POIs solo abren su ficha guardada cuando hay una descarga local. */
+  openPoiStops?: boolean;
 }
 
-export function RouteMap({ route, onOpenStop }: RouteMapProps) {
+export function RouteMap({ route, onOpenStop, openPoiStops = false }: RouteMapProps) {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const onOpenStopRef = useRef(onOpenStop);
+
+  useEffect(() => {
+    onOpenStopRef.current = onOpenStop;
+  }, [onOpenStop]);
 
   useEffect(() => {
     const element = mapElementRef.current;
@@ -33,7 +40,10 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
     mapRef.current = map;
     addOfflineTileLayer(map);
 
-    const layer = addRouteOverlay(map, route, { onOpenStop, openPoiStops: true });
+    const layer = addRouteOverlay(map, route, {
+      onOpenStop: (stop) => onOpenStopRef.current?.(stop),
+      openPoiStops,
+    });
     layerRef.current = layer;
     fitRouteBounds(map, route);
 
@@ -43,7 +53,7 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
       map.remove();
       mapRef.current = null;
     };
-  }, [route, onOpenStop]);
+  }, [route, openPoiStops]);
 
   return <div ref={mapElementRef} className="h-full w-full bg-surface-2" role="img" aria-label={route.name} />;
 }

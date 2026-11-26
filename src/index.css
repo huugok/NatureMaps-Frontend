@@ -258,7 +258,7 @@
 }
 
 .route-stop-icon span {
-  inset: 2px;
+  inset: 13px;
   background: var(--color-place);
 }
 

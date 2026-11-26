@@ -7,7 +7,10 @@ import { DownloadsSettings } from './DownloadsSettings'
 
 const onBack = () => undefined
 
-afterEach(() => setOfflineRouteStore())
+afterEach(() => {
+  localStorage.clear()
+  setOfflineRouteStore()
+})
 
 describe('DownloadsSettings', () => {
   it('explica el estado vacío cuando no hay rutas descargadas', async () => {

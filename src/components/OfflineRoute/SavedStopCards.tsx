@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/useApp';
 import { Button } from '../ui/Button';
 import { routeStore } from '../../services/offlineRouteStorage';
@@ -7,18 +7,18 @@ import type { OfflineRouteRecord } from '../../types/offlineRoute';
 
 export interface SavedStopCardsProps {
   routeId: number;
-  /** Muestra solo esta parada (su ficha se abre desde la lista o el mapa). */
+  /** Parada cuya ficha guardada se abre desde la lista o el mapa. */
   activeIndex?: number;
-  /** Por defecto se listan todas las fichas guardadas. */
-  showList?: boolean;
+  /** Cierra la ficha guardada. */
   onClose?: () => void;
 }
 
 /** También los POIs y las plantas sin especie enlazada se pueden consultar
  * dentro de la ruta. Las URLs blob se liberan al cambiar/borrar la descarga. */
-export function SavedStopCards({ routeId, activeIndex, showList = true, onClose }: SavedStopCardsProps) {
+export function SavedStopCards({ routeId, activeIndex, onClose }: SavedStopCardsProps) {
   const { t } = useApp();
   const [saved, setSaved] = useState<{ record: OfflineRouteRecord; images: Record<string, string> }>();
+  const sectionRef = useRef<HTMLElement>(null);
   useEffect(() => {
     let active = true;
     let generation = 0;
@@ -38,21 +38,25 @@ export function SavedStopCards({ routeId, activeIndex, showList = true, onClose 
     window.addEventListener('naturemaps-route-downloads', refresh);
     return () => { active = false; release(); window.removeEventListener('naturemaps-route-downloads', refresh); };
   }, [routeId]);
-  if (!saved) return null;
-  if (!showList && activeIndex === undefined) return null;
+  useEffect(() => {
+    if (activeIndex === undefined || !saved) return;
+    const section = sectionRef.current;
+    if (!section) return;
+    section.scrollIntoView?.({ block: 'nearest' });
+    section.focus({ preventScroll: true });
+  }, [activeIndex, saved]);
+  if (!saved || activeIndex === undefined) return null;
   const { record, images } = saved;
-  const indices = activeIndex === undefined
-    ? record.packet.stops.map((_, index) => index)
-    : activeIndex >= 0 && activeIndex < record.packet.stops.length ? [activeIndex] : [];
+  const indices = activeIndex >= 0 && activeIndex < record.packet.stops.length ? [activeIndex] : [];
   if (indices.length === 0) return null;
-  return <section aria-label={t('routeOffline.cards')}>
+  return <section ref={sectionRef} tabIndex={-1} aria-label={t('routeOffline.cards')}>
     <div className="flex items-center justify-between gap-3">
-      <h2 className="font-display text-heading">{t('routeOffline.cards')}</h2>
-      {activeIndex !== undefined && onClose && (
-        <Button variant="ghost" size="sm" icon={X} onClick={onClose}>{t('routeOffline.closeCard')}</Button>
+      <h2 className="font-display text-heading text-balance">{t('routeOffline.cards')}</h2>
+      {onClose && (
+        <Button variant="ghost" size="sm" className="min-h-11" icon={X} onClick={onClose}>{t('routeOffline.closeCard')}</Button>
       )}
     </div>
-    <ol className={showList ? 'mt-2 flex flex-col gap-3' : 'mt-2'}>{indices.map((index) => {
+    <ol className="mt-2">{indices.map((index) => {
       const stop = record.packet.stops[index];
       if (!stop) return null;
       const species = record.packet.species.find((item) => item.id === stop.plant?.speciesId);
@@ -62,17 +66,17 @@ export function SavedStopCards({ routeId, activeIndex, showList = true, onClose 
       const sources = species?.profile?.sources ?? [];
       const sourceUrl = stop.poi?.profile?.sourceUrl ?? stop.poi?.sourceUrl ?? stop.plant?.sourceUrl;
       const dataSource = stop.poi?.dataSource ?? stop.plant?.dataSource;
-      return <li key={`${index}-${stop.kind}-${stop.id}`} className="rounded-card bg-surface p-4">
-        <details open={activeIndex !== undefined}>
-          <summary className="min-h-12 cursor-pointer font-display text-body">{index + 1}. {name}</summary>
+      return <li key={`${index}-${stop.kind}-${stop.id}`} className="rounded-card bg-surface p-4 shadow-raised">
+        <details open>
+          <summary className="min-h-12 cursor-pointer font-display text-body text-balance">{index + 1}. {name}</summary>
           {image && images[image.url] && <figure className="my-2">
-            <img src={images[image.url]} alt={name ?? ''} className="max-h-64 w-full rounded-card object-cover" />
+            <img src={images[image.url]} alt={name ?? ''} className="max-h-64 w-full rounded-card object-cover outline outline-1 -outline-offset-1 outline-black/10" />
             <figcaption className="mt-1 text-small text-muted"><a className="underline" href={image.sourceUrl}>{image.attribution}</a> · <a className="underline" href={image.licenseUrl}>{image.license}</a></figcaption>
           </figure>}
-          <p className="font-body text-body whitespace-pre-line">{content ?? t('routeOffline.noContent')}</p>
-          {species?.profile?.family && <p className="mt-2 text-small">{species.profile.family}</p>}
-          {species?.profile?.flowering && <p className="mt-2 text-small">{species.profile.flowering}</p>}
-          {species?.profile?.curiosity && <p className="mt-2 font-body text-body">{species.profile.curiosity}</p>}
+          <p className="font-body text-body whitespace-pre-line text-pretty">{content ?? t('routeOffline.noContent')}</p>
+          {species?.profile?.family && <p className="mt-2 text-small text-pretty">{species.profile.family}</p>}
+          {species?.profile?.flowering && <p className="mt-2 text-small text-pretty">{species.profile.flowering}</p>}
+          {species?.profile?.curiosity && <p className="mt-2 font-body text-body text-pretty">{species.profile.curiosity}</p>}
           {species?.enrichment && <p className="mt-2 text-small text-muted"><a className="underline" href={species.enrichment.url}>{species.enrichment.source}</a> · {species.enrichment.license}</p>}
           {stop.poi?.profile && <p className="mt-2 text-small text-muted">{stop.poi.profile.language} · {stop.poi.profile.license}</p>}
           <ul className="mt-2 text-small text-muted">{sources.map((source) => <li key={source.url}><a className="underline" href={source.url}>{source.name}</a> · {source.description}</li>)}</ul>

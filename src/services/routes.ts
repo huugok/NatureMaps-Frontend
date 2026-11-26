@@ -60,6 +60,23 @@ export interface RouteDetail extends RouteSummary {
 
 const ROUTE_CATALOG_KEY = 'naturemaps:route-catalog:v1';
 
+function isRouteSummary(value: unknown): value is RouteSummary {
+  if (value === null || typeof value !== 'object') return false;
+  const route = value as Partial<RouteSummary>;
+  return typeof route.id === 'number' && Number.isFinite(route.id)
+    && typeof route.name === 'string'
+    && (route.theme === 'botanica' || route.theme === 'cultural' || route.theme === 'mixta')
+    && (route.shape === 'circular' || route.shape === 'lineal')
+    && (route.lengthCategory === 'corta' || route.lengthCategory === 'media' || route.lengthCategory === 'larga')
+    && typeof route.distanceMeters === 'number' && Number.isFinite(route.distanceMeters)
+    && typeof route.durationSeconds === 'number' && Number.isFinite(route.durationSeconds)
+    && typeof route.description === 'string'
+    && typeof route.stopsCount === 'number' && Number.isFinite(route.stopsCount)
+    && route.start !== null && typeof route.start === 'object'
+    && typeof route.start.latitude === 'number' && Number.isFinite(route.start.latitude)
+    && typeof route.start.longitude === 'number' && Number.isFinite(route.start.longitude);
+}
+
 /** El catálogo es ligero y no cambia con la descarga de una ruta. Guardarlo
  * permite seguir viendo todas las rutas sin red y avisar cuando una concreta
  * no está descargada, en lugar de reducir el listado a las copias guardadas. */
@@ -68,7 +85,7 @@ function readCachedRouteList(): RouteSummary[] {
     const raw = localStorage.getItem(ROUTE_CATALOG_KEY);
     if (raw === null) return [];
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed as RouteSummary[] : [];
+    return Array.isArray(parsed) ? parsed.filter(isRouteSummary) : [];
   } catch {
     return [];
   }

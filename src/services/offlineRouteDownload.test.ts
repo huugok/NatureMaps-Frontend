@@ -19,7 +19,7 @@ describe('descarga completa y atómica de rutas', () => {
     const dependencies = deps();
     const progress: RouteDownloadProgress[] = [];
     const saved = await downloadRoute({ id: 7, lang: 'es', onProgress: (p) => progress.push(p) }, dependencies);
-    expect(saved.packet.route.path).toHaveLength(2);
+    expect(saved.packet.route.path).toHaveLength(4);
     expect(saved.packet.species[0]!.content).toBe('Ficha del naranjo.');
     expect(saved.packet.images[0]!.author).toBe('Autor');
     expect(saved.images[0]!.blob.size).toBe(5);
@@ -28,6 +28,22 @@ describe('descarga completa y atómica de rutas', () => {
     expect(progress[0]!.fraction).toBe(0);
     expect(progress.at(-1)!.fraction).toBe(1);
     expect(progress.map((p) => p.fraction)).toEqual(progress.map((p) => p.fraction).sort((a, b) => a - b));
+  });
+
+  it('no vuelve a contar el mapa compartido al guardar otra ruta', async () => {
+    const store = createMemoryRouteStore();
+    await store.put(savedRoute(7), new Blob([new Uint8Array(127)]));
+    const packet = structuredClone(routePacket);
+    packet.route.id = 8;
+    const expectedBytes = new Blob([JSON.stringify(packet)]).size + 5;
+
+    const saved = await downloadRoute({ id: 8, lang: 'es' }, deps({
+      store,
+      packet: async () => packet,
+      freeBytes: async () => expectedBytes,
+    }));
+
+    expect(saved.bytes).toBe(expectedBytes);
   });
 
   it('la cancelación interrumpe el fetch y no deja una descarga parcial', async () => {

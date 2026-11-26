@@ -9,6 +9,7 @@ import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteDetail } from '../../services/routes';
 import type { RouteDetail as RouteDetailData, RouteStop } from '../../services/routes';
+import { routeStore } from '../../services/offlineRouteStorage';
 import { RouteMap } from './RouteMap';
 
 /** Ficha de una ruta del catálogo (/rutas/:id): mapa del recorrido, datos
@@ -23,6 +24,8 @@ type DetailState =
   | { status: 'offlineMissing' }
   | { status: 'error' };
 
+const stopItemClassName = 'flex min-h-11 w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small';
+
 export interface RouteDetailProps {
   /** Responde al toque de una parada de la ruta (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
@@ -35,8 +38,30 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [activeSavedStop, setActiveSavedStop] = useState<{ routeId: number; index: number }>();
+  const [savedRouteState, setSavedRouteState] = useState<{ routeId: number; exists: boolean }>();
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
+  const hasSavedRoute = savedRouteState?.routeId === routeId && savedRouteState.exists === true;
+
+  useEffect(() => {
+    if (routeId === null) return;
+    let active = true;
+    const refresh = () => {
+      void routeStore().get(routeId).then((record) => {
+        if (active) setSavedRouteState({ routeId, exists: record !== undefined });
+      }).catch(() => {
+        if (active) setSavedRouteState({ routeId, exists: false });
+      });
+    };
+    refresh();
+    window.addEventListener('naturemaps-route-downloads', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('naturemaps-route-downloads', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [routeId]);
 
   useEffect(() => {
     if (routeId === null) return;
@@ -132,7 +157,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       onOpenStop(stop);
       return;
     }
-    if (routeId !== null) setActiveSavedStop({ routeId, index });
+    if (routeId !== null && hasSavedRoute) setActiveSavedStop({ routeId, index });
   };
 
   const activeSavedStopIndex = activeSavedStop?.routeId === routeId ? activeSavedStop.index : undefined;
@@ -147,6 +172,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       <div className="h-64 shrink-0 border-y border-line">
         <RouteMap
           route={route}
+          openPoiStops={hasSavedRoute}
           onOpenStop={(stop) => {
             const index = route.stops.findIndex((item) => item.kind === stop.kind && item.id === stop.id);
             if (index >= 0) openStop(stop, index);
@@ -207,15 +233,20 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
                   </span>
                 </>
               );
+              const canOpen = (stop.kind === 'planta' && stop.speciesId !== null && Boolean(onOpenStop)) || hasSavedRoute;
               return (
                 <li key={`${stop.kind}-${stop.id}`}>
-                  <button
-                    type="button"
-                    onClick={() => openStop(stop, index)}
-                    className="flex w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    {label}
-                  </button>
+                  {canOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => openStop(stop, index)}
+                      className={`${stopItemClassName} transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <div className={stopItemClassName}>{label}</div>
+                  )}
                 </li>
               );
             })}
@@ -225,7 +256,6 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
           key={`saved-${route.id}`}
           routeId={route.id}
           activeIndex={activeSavedStopIndex}
-          showList={false}
           onClose={() => setActiveSavedStop(undefined)}
         />
       </div>

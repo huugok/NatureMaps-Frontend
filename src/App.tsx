@@ -306,9 +306,9 @@ export default function App() {
     [handleOpenPlant],
   );
 
-  /** Toca de una parada de una ruta: las de planta abren su ficha (al volver
-   * se sigue en la ficha de la ruta). Las de POI todavía no tienen ficha —
-   * quedan para la UT de fichas de POI; mientras tanto no hacen nada. */
+  /** Toca de una parada de una ruta: las plantas enlazadas abren su overlay
+   * (al volver se sigue en la ficha de la ruta). Los POIs y las plantas sin
+   * enlazar los gestiona RouteDetail con las fichas guardadas de la descarga. */
   const handleOpenRouteStop = useCallback(
     (stop: RouteStop) => {
       if (stop.kind !== 'planta') return;
