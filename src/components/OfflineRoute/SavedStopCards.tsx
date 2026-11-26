@@ -35,7 +35,7 @@ export function SavedStopCards({ routeId }: { routeId: number }) {
       const species = record.packet.species.find((item) => item.id === stop.plant?.speciesId);
       const name = record.packet.route.stops[index]?.name ?? stop.poi?.name ?? stop.plant?.displayName;
       const image = stop.poi?.image ?? species?.image;
-      const content = stop.poi?.profile?.description ?? species?.content;
+      const content = stop.sponsor?.sponsorLocation ?? stop.poi?.profile?.description ?? species?.content;
       const sources = species?.profile?.sources ?? [];
       const sourceUrl = stop.poi?.profile?.sourceUrl ?? stop.poi?.sourceUrl ?? stop.plant?.sourceUrl;
       const dataSource = stop.poi?.dataSource ?? stop.plant?.dataSource;

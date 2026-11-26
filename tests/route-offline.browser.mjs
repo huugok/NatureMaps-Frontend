@@ -46,6 +46,9 @@ const previewServer = await preview({
 const server = previewServer.httpServer
 const origin = `http://127.0.0.1:${server.address().port}`
 const packet = structuredClone(routePacket)
+packet.route.stops.push({ kind: 'sponsor', id: 999, speciesId: null, name: 'Comercio local', businessName: 'Comercio local', sponsorLocation: 'Calle de prueba 1', latitude: 39.4705, longitude: -0.3805 })
+packet.route.stopsCount = packet.route.stops.length
+packet.stops.push({ kind: 'sponsor', id: 999, plant: null, poi: null, sponsor: { name: 'Comercio local', businessName: 'Comercio local', sponsorLocation: 'Calle de prueba 1' } })
 packet.images[0].url = `${origin}/photo.png`
 packet.species[0].image = packet.images[0]
 let offline = false
@@ -67,6 +70,9 @@ try {
     else if (url.pathname === '/routes') data = { total: 1, routes: [packet.route] }
     else if (url.pathname === '/species/5') data = packet.species[0]
     else if (url.pathname === '/species') data = { species: packet.species }
+    else if (url.pathname === '/sponsors') data = []
+    else if (url.pathname === '/trees/nearby') data = { center: packet.route.start, radius: 1000, returned: 0, total: 0, limit: 20000, nextOffset: null, language: 'es', trees: [] }
+    else if (url.pathname === '/trees') data = { total: 0, nextOffset: null, trees: [] }
     else if (url.pathname === '/green-areas') data = { areas: [], sources: [] }
     await request.fulfill({ json: data })
   })
@@ -163,6 +169,8 @@ try {
   await page.waitForFunction(() => [...document.images].some((image) => image.alt === 'Naranjo' && image.naturalWidth > 0))
   await page.locator('summary').filter({ hasText: 'Torre' }).click()
   await page.getByText('Una torre histórica.', { exact: true }).waitFor()
+  await page.locator('summary').filter({ hasText: 'Comercio local' }).click()
+  await page.getByText('Calle de prueba 1', { exact: true }).waitFor()
   await page.screenshot({ path: resolve(root, 'offline-route.png'), fullPage: true })
   // La descarga sobrevive al cierre completo de la pestaña y se abre sin red.
   await page.close()

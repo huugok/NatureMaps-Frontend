@@ -3,7 +3,8 @@
 ## Descarga de rutas sin conexión
 
 El botón «Descargar ruta» guarda geometría, paradas, fichas de plantas y POIs,
-imágenes y el mapa del entorno. Incluye progreso por fases, cancelación,
+imágenes y el mapa del entorno. Conserva también el nombre comercial y la
+ubicación básica de las paradas patrocinadas. Incluye progreso por fases, cancelación,
 comprobación del espacio disponible, actualización y eliminación.
 
 - `offlineRouteDownload.ts` obtiene el paquete del backend y descarga imágenes

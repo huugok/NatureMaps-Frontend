@@ -67,7 +67,7 @@ export function GreenAreaPage() {
         {t('area.viewOnMap')}
       </Button>
 
-      <OfflineZoneCard groupSlug={area.groupSlug} bbox={area.bbox} plantCount={area.plants.total} />
+      <OfflineZoneCard groupSlug={area.groupSlug} bbox={area.bbox} plantCount={area.plants.total} name={area.name} />
 
       {area.articles.length > 0 && (
         <section aria-labelledby="area-articles">

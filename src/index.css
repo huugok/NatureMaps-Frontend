@@ -14,6 +14,11 @@
   --color-green: oklch(0.445 0.088 151);
   --color-warm: oklch(0.67 0.105 75);
   --color-warm-strong: oklch(0.49 0.09 65);
+  --color-bloom: oklch(0.58 0.19 8);
+  --color-bloom-strong: oklch(0.42 0.17 8);
+  /* Paradas patrocinadas: rosa/morado, distinto del verde y del ocre. */
+  --color-sponsor: oklch(0.62 0.17 330);
+  --color-sponsor-strong: oklch(0.43 0.16 330);
   --color-night: oklch(0.225 0.035 150);
 
   /* Texto y superficies */
@@ -262,6 +267,88 @@
   background: var(--color-location);
 }
 
+/* Numeración secuencial de las paradas de una ruta (PA 2856/2858). El número
+   va en una esquina y el distintivo de patrocinio en la opuesta para no taparlo. */
+.route-stop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+
+.route-stop__number {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border: 2px solid var(--color-surface);
+  border-radius: 9999px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* El icono base del POI se clona dentro de `.route-stop`, así que la regla
+   `.route-stop-icon span` ya no alcanza: se reaplica aquí con los mismos
+   colores que el mapa principal. */
+.route-stop--poi > span:first-child {
+  position: absolute;
+  inset: 4px;
+  border: 2px solid #8b5e20;
+  border-radius: 9999px;
+  background: #c58a31;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 35%);
+}
+
+.route-stop-icon--sponsor {
+  background: transparent;
+  border: 0;
+}
+
+.route-stop-icon--sponsor span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--color-sponsor-strong);
+  border-radius: 9999px;
+  background: var(--color-sponsor);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+}
+
+.route-stop--sponsor > span:first-child {
+  position: absolute;
+  inset: 4px;
+  border: 2px solid var(--color-sponsor-strong);
+  border-radius: 9999px;
+  background: var(--color-sponsor);
+  box-shadow: 0 1px 5px rgb(0 0 0 / 35%);
+}
+
+.route-stop__sponsor {
+  position: absolute;
+  bottom: -5px;
+  left: -5px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--color-surface);
+  border-radius: 9999px;
+  background: var(--color-warm-strong);
+  color: var(--color-surface);
+  font-size: 9px;
+  line-height: 1;
+}
+
 /* Plantas del mapa (F03.1): hoja + nombre, distintas de la ubicación y del lugar buscado. */
 .plant-icon {
   background: transparent;
@@ -363,15 +450,16 @@
   fill-opacity: 0.12;
 }
 
-.plants-labels-visible .plant-pin__label {
-  display: block;
-}
 
 .poi-distance-label {
   display: none;
 }
 
 .plants-labels-visible .poi-distance-label {
+  display: block;
+}
+
+.plants-labels-visible .park-pin__label {
   display: block;
 }
 
@@ -508,7 +596,9 @@
   white-space: nowrap;
 }
 
+/* El nombre de la zona solo se lee de cerca: de lejos tapa el mapa. */
 .park-pin__label {
+  display: none;
   position: absolute;
   top: 50%;
   left: 100%;
@@ -526,4 +616,126 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+}
+
+.month-range input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 2rem;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.month-range input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+}
+
+.month-range input[type='range']::-moz-range-track {
+  height: 4px;
+  background: transparent;
+}
+
+.month-range input[type='range']::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  appearance: none;
+  border: 3px solid var(--color-bloom-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.month-range input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--color-bloom-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.month-range input[type='range']:focus-visible {
+  outline: none;
+}
+
+.month-range input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.month-range input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* Indicador de carga de plantas: anillo verde que se va completando. */
+.plant-progress-ring {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 5px rgb(0 0 0 / 25%);
+}
+
+/* La tarjeta se estrecha/estira por el lado izquierdo: el borde derecho
+   queda anclado al círculo y el texto se recorta sin moverse. */
+.plant-progress-card--entering {
+  animation: plant-progress-stretch 260ms ease-out;
+}
+
+.plant-progress-card--leaving {
+  animation: plant-progress-shrink 450ms ease-in forwards;
+}
+
+@keyframes plant-progress-stretch {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes plant-progress-shrink {
+  from { clip-path: inset(0 0 0 0); }
+  to { clip-path: inset(0 0 0 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plant-progress-card--entering, .plant-progress-card--leaving { animation: none; }
+}
+
+/* Vista alejada: iconos compactos y, a mucha distancia, diminutos. */
+.plants-compact .plant-pin,
+.plants-compact .park-pin {
+  transform: scale(0.75);
+  transform-origin: center;
+}
+
+.plants-tiny .plant-pin,
+.plants-tiny .park-pin {
+  transform: scale(0.55);
+}
+
+/* Cada planta "salta" suavemente al aparecer en el render progresivo. */
+@keyframes plant-pin-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.plant-pin-pop .plant-pin__icon {
+  animation: plant-pin-pop 260ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plant-pin-pop .plant-pin__icon { animation: none; }
 }

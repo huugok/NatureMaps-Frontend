@@ -25,6 +25,46 @@ export function createPoiStopIcon(): L.DivIcon {
   });
 }
 
+/** Icono de una parada patrocinada: mismo punto que el POI pero en rosa/morado. */
+export function createSponsorStopIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'route-stop-icon--sponsor',
+    html: '<span aria-hidden="true"></span>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
+/** Icono numerado de una parada: superpone el número al icono base sin tapar
+ *  la hoja ni el distintivo de patrocinio. El número entra en la secuencia
+ *  global de la ruta, también para las paradas publicitarias (PA 2856/2858). */
+export function createNumberedStopIcon(stop: RouteStop, index: number): L.DivIcon {
+  const base = stop.kind === 'planta'
+    ? createPlantIcon(routeStopToPlantPin(stop))
+    : stop.kind === 'sponsor' ? createSponsorStopIcon() : createPoiStopIcon();
+  const root = document.createElement('span');
+  root.className = `route-stop route-stop--${stop.kind}`;
+  const html = base.options?.html;
+  if (typeof html === 'string') root.innerHTML = html;
+  else if (html instanceof HTMLElement) root.append(html.cloneNode(true));
+  const number = document.createElement('span');
+  number.className = 'route-stop__number';
+  number.textContent = String(index + 1);
+  root.append(number);
+  if (stop.kind === 'sponsor') {
+    const badge = document.createElement('span');
+    badge.className = 'route-stop__sponsor';
+    badge.textContent = '★';
+    root.append(badge);
+  }
+  return L.divIcon({
+    className: `route-stop-${stop.kind}`,
+    html: root,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
 /** Icono del punto de partida: círculo de marca. */
 export function createRouteStartIcon(): L.DivIcon {
   return L.divIcon({
@@ -76,32 +116,24 @@ export function addRouteOverlay(
     interactive: false,
   }).addTo(layer);
 
-  for (const stop of route.stops) {
-    if (stop.kind === 'planta') {
-      const marker = L.marker([stop.latitude, stop.longitude], {
-        icon: createPlantIcon(routeStopToPlantPin(stop)),
-        title: stop.name,
-        alt: stop.name,
-      });
-      // El nombre también como tooltip: en el mapa pequeño de la ficha las
-      // etiquetas de las plantas solo se ven a partir de cierto zoom.
-      marker.bindTooltip(stop.name, { direction: 'top' });
-      if (options.onOpenStop) marker.on('click', () => options.onOpenStop?.(stop));
-      marker.addTo(layer);
-      continue;
+  for (const [index, stop] of route.stops.entries()) {
+    const label = `${index + 1}. ${stop.name}`;
+    const marker = L.marker([stop.latitude, stop.longitude], {
+      icon: createNumberedStopIcon(stop, index),
+      title: label,
+      alt: label,
+      keyboard: stop.kind !== 'poi',
+      interactive: stop.kind !== 'poi',
+    }).bindTooltip(label, { direction: 'top' });
+    if (stop.kind === 'planta' && options.onOpenStop) {
+      marker.on('click', () => options.onOpenStop?.(stop));
     }
-    // Punto de POI: visible, con su nombre al tocarlo o pasar por encima
-    // (tooltip, no popup), pero sin ficha todavía —la de POI llega en una UT
-    // posterior—.
-    L.marker([stop.latitude, stop.longitude], {
-      icon: createPoiStopIcon(),
-      title: stop.name,
-      alt: stop.name,
-      keyboard: false,
-      interactive: false,
-    })
-      .bindTooltip(stop.name, { direction: 'top' })
-      .addTo(layer);
+    // En móvil el toque (y el gesto largo) abre la etiqueta, igual que el
+    // hover en escritorio: no hay ficha, solo el nombre del comercio.
+    if (stop.kind === 'poi' || stop.kind === 'sponsor') {
+      marker.on('click', () => marker.openTooltip());
+    }
+    marker.addTo(layer);
   }
 
   layer.addTo(map);
@@ -112,8 +144,6 @@ export function addRouteOverlay(
 export function fitRouteBounds(map: L.Map, route: RouteDetail): void {
   if (route.path.length >= 2) {
     const bounds = L.latLngBounds(route.path.map((point) => [point.latitude, point.longitude]));
-    // Al cambiar de pantalla no dejamos una transición de zoom pendiente:
-    // Leaflet 1.x puede terminarla después de desmontar el contenedor.
     map.fitBounds(bounds.pad(0.12), { animate: false });
     return;
   }

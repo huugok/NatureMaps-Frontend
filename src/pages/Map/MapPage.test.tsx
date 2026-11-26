@@ -9,7 +9,7 @@ import { AppContext } from '../../context/state';
 import type { AppState } from '../../context/state';
 import { dictionaries } from '../../i18n/strings';
 import type { Mode } from '../../types';
-import { MapPage } from './MapPage';
+import { clearPaintedRoute, MapPage } from './MapPage';
 
 /** MapPage usa useSearchParams («Ver en el mapa»): todo render lleva router. */
 function renderMap(ui: React.ReactNode = <MapPage />, route = '/mapa') {
@@ -44,6 +44,7 @@ const leaflet = vi.hoisted(() => {
     flyTo: vi.fn(),
     fitBounds: vi.fn(),
     getZoom: vi.fn(() => 15),
+    getCenter: vi.fn(() => ({ lat: 39.45, lng: -0.36 })),
     getBounds: vi.fn(() => ({
       getWest: () => -0.5,
       getNorth: () => 39.6,
@@ -161,11 +162,27 @@ const geo = {
   getCurrentPosition: vi.fn(),
 };
 
+/** El cargador espera a la posición: los tests que cargan plantas la fijan. */
+function withPosition(latitude = 39.48, longitude = -0.38) {
+  geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+    success({ coords: { latitude, longitude, accuracy: 25 } });
+  });
+}
+/** Caso sin GPS: se carga el inventario completo. */
+function withoutGps() {
+  Object.defineProperty(navigator, 'permissions', {
+    configurable: true,
+    value: { query: vi.fn(async () => ({ state: 'denied' })) },
+  });
+}
+
 describe('MapPage', () => {
   beforeEach(() => {
+    clearPaintedRoute();
     vi.clearAllMocks();
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: geo });
-    geo.watchPosition.mockReturnValue(7);
+    geo.watchPosition.mockReset().mockReturnValue(7);
+    geo.getCurrentPosition.mockReset();
     vi.stubGlobal('fetch', vi.fn(async (url: string) => (
       String(url).includes('/trees')
         ? { ok: true, json: async () => ({ nextOffset: null, trees: [] }) }
@@ -176,9 +193,10 @@ describe('MapPage', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', async () => {
+  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', () => {
     geo.watchPosition.mockImplementation((_success, error) => {
       error({ code: 1, message: 'Permission denied' });
       return 7;
@@ -192,7 +210,7 @@ describe('MapPage', () => {
       zoomControl: false,
       attributionControl: true,
     }));
-    await waitFor(() => expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object)));
+    expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object));
     expect(leaflet.markerFactory).not.toHaveBeenCalled();
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
   });
@@ -224,16 +242,37 @@ describe('MapPage', () => {
     expect(leaflet.map.setView).toHaveBeenCalledWith([39.48, -0.38], 16, { animate: true });
   });
 
+  it('se centra al entrar al mapa, pero no con cada posición posterior del GPS', () => {
+    renderMap();
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    expect(leaflet.map.setView).toHaveBeenCalledTimes(1);
+
+    leaflet.map.setView.mockClear();
+    onPosition({ coords: { latitude: 39.49, longitude: -0.39, accuracy: 25 } });
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+  });
+
+  it('el botón de centrar vuelve a centrar en el usuario', () => {
+    renderMap();
+    const onPosition = geo.watchPosition.mock.calls[0][0];
+    onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    leaflet.map.flyTo.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Centrar el mapa en mi ubicación' }));
+    expect(leaflet.map.flyTo).toHaveBeenCalledWith([39.48, -0.38], 16);
+  });
+
   it('permite buscar un lugar y anuncia cuando no hay resultados', async () => {
     renderMap();
     fireEvent.change(screen.getByRole('textbox', { name: 'Buscar sitios en el mapa' }), { target: { value: 'Xàtiva' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent('No se encontraron lugares con ese nombre.');
+    expect(await screen.findByText(/No se encontraron lugares con ese nombre/)).toBeInTheDocument();
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes('nominatim'))).toHaveLength(1));
   });
 
-  it('908: pinta cada planta del inventario con su icono y su nombre', async () => {
+  it('908: pinta cada planta del inventario con su icono, sin etiqueta de nombre', async () => {
+    withoutGps();
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')
@@ -255,15 +294,16 @@ describe('MapPage', () => {
     const icons = iconCalls.map(([options]) => options).filter((o) => o.className === 'plant-icon');
     expect(icons).toHaveLength(2);
     expect(icons[0].html?.className).toBe('plant-pin');
-    expect(icons[0].html?.querySelector('.plant-pin__label')?.textContent).toBe('Naranjo amargo');
+    expect(icons[0].html?.querySelector('.plant-pin__label')).toBeNull();
     expect(icons[1].html?.className).toBe('plant-pin plant-pin--unidentified');
   });
 
   it('908: avisa si no se pueden cargar las plantas y mantiene el mapa', async () => {
+    withPosition();
     vi.mocked(fetch).mockRejectedValue(new Error('network'));
     renderMap();
 
-    expect(await screen.findByRole('status')).toHaveTextContent('No se pudieron cargar las plantas del mapa.');
+    expect(await screen.findByText('No se pudieron cargar las plantas del mapa.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
   });
 
@@ -300,6 +340,50 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('la pestaña «En la zona» llena solo su lista, sin cambiar el mapa', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        const inZone = requestUrl.searchParams.get('lat') === '39.45';
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000,
+          returned: 1, total: 1, limit: 20000, language: 'es',
+          trees: inZone
+            ? [{ id: 20, speciesId: 9, displayName: 'Olivo', latitude: 39.45, longitude: -0.36, distance: 10 }]
+            : [{ id: 9, speciesId: 3, displayName: 'Almez', latitude: 39.48, longitude: -0.38, distance: 50 }],
+        }) };
+      }
+      return { ok: true, json: async () => [] };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    fireEvent.click(screen.getByRole('button', { name: /explorar/i }));
+    expect(await screen.findByText('Almez')).toBeInTheDocument();
+    expect(screen.queryByText('Olivo')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Cercanos' })).toHaveAttribute('aria-selected', 'true');
+
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.48, -0.38], expect.objectContaining({ title: 'Almez' })));
+    const plantMarkers = () => (leaflet.markerFactory.mock.calls as unknown as Array<[unknown, { title?: string }]>)
+      .filter((call) => call[1]?.title !== undefined).length;
+    const markersBefore = plantMarkers();
+    fireEvent.click(screen.getByRole('tab', { name: 'En la zona' }));
+    expect(await screen.findByText('Plantas y puntos de interés en la zona')).toBeInTheDocument();
+    expect(await screen.findByText('Olivo')).toBeInTheDocument();
+    // El mapa no se vuelve a pintar y la otra pestaña sigue intacta.
+    expect(plantMarkers()).toBe(markersBefore);
+    fireEvent.click(screen.getByRole('tab', { name: 'Cercanos' }));
+    expect(await screen.findByText('Almez')).toBeInTheDocument();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
   it('muestra las plantas cercanas del backend como marcadores con distancia en el popup', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
@@ -317,7 +401,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 1,
-            limit: 100,
+            total: 1,
+            limit: 20000,
             language: 'es',
             trees: [{
               id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
@@ -336,6 +421,8 @@ describe('MapPage', () => {
       onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
     });
 
+    // El panel «Explorar cerca» solo se monta al abrirlo.
+    fireEvent.click(screen.getByRole('button', { name: /explorar/i }));
     expect(await screen.findByText('Almez')).toBeInTheDocument();
     expect(screen.getByText('250 m')).toBeInTheDocument();
     expect(leaflet.layerGroupFactory).toHaveBeenCalled();
@@ -365,7 +452,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 2,
-            limit: 100,
+            total: 2,
+            limit: 20000,
             language: 'es',
             trees: [
               {
@@ -433,7 +521,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 1,
-            limit: 100,
+            total: 1,
+            limit: 20000,
             language: 'es',
             trees: [{
               id: 7, speciesId: 3, scientificName: 'Celtis australis', commonName: 'Almez',
@@ -519,6 +608,194 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('una nueva posición a mitad de carga no corta la descarga en curso', async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    let pages = 0;
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        pages++;
+        if (pages === 2) await gate; // segunda página a medias
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000, returned: 1,
+          total: 3, limit: 20000, language: 'es',
+          trees: [{ id: pages, speciesId: 3, displayName: `Planta ${pages}`, latitude: 39.4795, longitude: -0.3795, distance: 10 }],
+        }) };
+      }
+      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    await waitFor(() => expect(pages).toBeGreaterThanOrEqual(2));
+    // Nueva posición lejana con la 2ª página pendiente: no debe abortar.
+    const beforeMove = vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes('limit=20000')).length;
+    act(() => onPosition?.({ coords: { latitude: 39.6, longitude: -0.5, accuracy: 25 } }));
+    expect(vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes('limit=20000')).length).toBe(beforeMove);
+    release?.();
+    // La descarga continúa hasta el final (3 páginas) y publica plantas.
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls
+      .filter((c) => String(c[0]).includes('limit=20000')).length).toBeGreaterThanOrEqual(3), { timeout: 5000 });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('una segunda posición del GPS no aborta la carga en curso', async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        if (requestUrl.searchParams.get('limit') === '20000') await gate;
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.48, longitude: -0.38 }, radius: 1000, returned: 1,
+          total: 1, limit: 20000, language: 'es',
+          trees: [{ id: 1, speciesId: 3, displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 10 }],
+        }) };
+      }
+      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls
+      .filter((call) => String(call[0]).includes('limit=20000'))).toHaveLength(1));
+    // Segunda posición casi idéntica mientras la petición sigue pendiente.
+    act(() => onPosition?.({ coords: { latitude: 39.48001, longitude: -0.38001, accuracy: 25 } }));
+    expect(vi.mocked(fetch).mock.calls.filter((call) => String(call[0]).includes('limit=20000'))).toHaveLength(1);
+    release?.();
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('las plantas se pintan página a página, sin esperar a la última', async () => {
+    withPosition(39.47, -0.37);
+    let releaseSecond: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSecond = resolve; });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        const offset = Number(requestUrl.searchParams.get('offset') ?? 0);
+        if (offset === 1) await gate;
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.4699, longitude: -0.3763 }, radius: 10000,
+          returned: 1, total: 2, limit: 20000, language: 'es',
+          trees: [{ id: offset + 1, speciesId: 3, displayName: `Planta ${offset + 1}`, latitude: 39.47 + offset * 0.001, longitude: -0.37, distance: 100 }],
+        }) };
+      }
+      return { ok: true, json: async () => [] };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    // La primera página ya pinta su planta mientras la segunda está retenida.
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.47, -0.37], expect.objectContaining({ title: 'Planta 1' })), { timeout: 5000 });
+    releaseSecond?.();
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.471, -0.37], expect.objectContaining({ title: 'Planta 2' })), { timeout: 5000 });
+  });
+
+  it('el círculo de carga va por el perímetro, está bajo el buscador y se retira al terminar', async () => {
+    let releaseSecond: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSecond = resolve; });
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        const offset = Number(requestUrl.searchParams.get('offset') ?? 0);
+        if (offset === 1) await gate;
+        return {
+          ok: true,
+          json: async () => ({
+            center: { latitude: 39.48, longitude: -0.38 }, radius: 1000,
+            returned: offset < 2 ? 1 : 0, total: 2, limit: 20000, language: 'es',
+            trees: offset < 2 ? [{
+              id: offset + 1, speciesId: 3, displayName: 'Almez', latitude: 39.4795,
+              longitude: -0.3795, distance: offset * 10,
+            }] : [],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ nextOffset: null, trees: [] }) };
+    }) as unknown as typeof fetch);
+
+    const { unmount } = renderMap();
+    const circle = await screen.findByRole('button', { name: /Cargando plantas/ });
+    // Bajo la barra de búsqueda (top-20), no encima (top-4).
+    expect(circle.parentElement).toHaveClass('top-20');
+    // El perímetro se dibuja con strokeDashoffset sobre un circle.
+    const ring = circle.querySelector('circle[stroke="var(--color-accent)"]');
+    expect(ring?.getAttribute('stroke-dashoffset')).not.toBe(ring?.getAttribute('stroke-dasharray'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); // no bloquea
+
+    // La tarjeta se retira a los 3 s mientras la segunda página sigue pendiente.
+    await waitFor(() => expect(screen.queryByText(/Cargando plantas/)).not.toBeInTheDocument(), { timeout: 5000 });
+    expect(circle).toBeInTheDocument();
+    // Solo un clic del usuario la reabre (la espera de la 2ª página no la toca).
+    fireEvent.click(circle);
+    expect(screen.getByText(/Cargando plantas/)).toHaveClass('plant-progress-card--entering');
+
+    // Al terminar la carga desaparecen círculo y tarjeta.
+    releaseSecond?.();
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls
+      .map((call) => new URL(String(call[0])))
+      .filter((url) => url.searchParams.get('limit') === '20000')).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Cargando plantas/ })).not.toBeInTheDocument(), { timeout: 5000 });
+    unmount();
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('oculta las plantas de las zonas cuando la capa está activa', async () => {
+    withPosition(39.47, -0.38);
+    vi.mocked(fetch).mockImplementation((async (url: string) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname.includes('/trees/nearby')) {
+        return { ok: true, json: async () => ({
+          center: { latitude: 39.4699, longitude: -0.3763 }, radius: 10000, returned: 2, total: 2, limit: 20000, language: 'es',
+          trees: [
+            { id: 1, speciesId: 5, displayName: 'Dentro de zona', latitude: 39.46, longitude: -0.37, greenAreaId: 1, distance: 100 },
+            { id: 2, speciesId: 5, displayName: 'Calle', latitude: 39.47, longitude: -0.38, distance: 200 },
+          ],
+        }) };
+      }
+      if (requestUrl.pathname.includes('/green-areas')) {
+        return { ok: true, json: async () => ({ groups: [], areas: [] }) };
+      }
+      return { ok: true, json: async () => [] };
+    }) as unknown as typeof fetch);
+
+    renderMap();
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [39.47, -0.38], expect.objectContaining({ title: 'Calle' })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      [39.46, -0.37], expect.anything());
+  });
+
   it('«Ver en el mapa»: pinta los ejemplares de la especie y encuadra el mapa', async () => {
     // El effects actual pide la ficha y las ubicaciones al backend (no usa las
     // plantas cercanas), así que se simulan esas dos respuestas.
@@ -564,7 +841,8 @@ describe('MapPage', () => {
             center: { latitude: 39.48, longitude: -0.38 },
             radius: 1000,
             returned: 1,
-            limit: 100,
+            total: 1,
+            limit: 20000,
             language: 'es',
             trees: [{
               id: 9, speciesId: 4, scientificName: 'Morus nigra', commonName: 'Morera',
@@ -593,6 +871,77 @@ describe('MapPage', () => {
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
+  it('«Ver EN el mapa» de una ficha no centra en el usuario, encuadra el ejemplar', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    const detail = {
+      id: 3, scientificName: 'Platanus hispanica',
+      names: [{ name: 'Plátano de sombra', language: 'es' }],
+      profile: null, enrichment: null, image: null,
+      locations: {
+        total: 1, returned: 1, nextAfterId: null,
+        items: [
+          { id: 7, latitude: 39.4795, longitude: -0.3795, district: 'Ciutat Vella', neighborhood: null, source: 'VALENCIA_ARBOLADO', sourceUrl: null },
+        ],
+      },
+    };
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/species/3')
+        ? detail
+        : { nextOffset: null, trees: [] },
+    })) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verEspecie=3');
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+    await waitFor(() => expect(leaflet.map.fitBounds).toHaveBeenCalled());
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('el navbar centra en el usuario aunque no se remonte el mapa', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn(async () => ({ state: 'granted' })) },
+    });
+    geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
+    });
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/mapa', state: { centerOnUser: 1 } }]}>
+        <MapPage />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
+    const onPosition = geo.watchPosition.mock.calls[0][0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).toHaveBeenCalledWith([39.48, -0.38], 16, { animate: true });
+    delete (navigator as unknown as { permissions?: unknown }).permissions;
+  });
+
+  it('al entrar con una ruta, el primer dato del GPS no centra en el usuario', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (
+      String(url).includes('/routes/7')
+        ? { ok: true, json: async () => ({
+            id: 7, name: 'Ruta', theme: 'mixta', shape: 'circular', lengthCategory: 'corta',
+            distanceMeters: 100, durationSeconds: 100, start: { latitude: 39.47, longitude: -0.37 },
+            description: '', stopsCount: 0, stops: [],
+            path: [{ latitude: 39.47, longitude: -0.37 }, { latitude: 39.471, longitude: -0.371 }],
+          }) }
+        : { ok: true, json: async () => ({ nextOffset: null, trees: [] }) }
+    )) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verRuta=7');
+    const onPosition = geo.watchPosition.mock.calls[0][0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
+  });
+
   it('«Ver en el mapa» desde una ruta: pinta el recorrido y «Limpiar mapa» lo quita', async () => {
     const route = {
       id: 7,
@@ -604,8 +953,11 @@ describe('MapPage', () => {
       durationSeconds: 1980,
       start: { latitude: 39.4699, longitude: -0.3763 },
       description: 'Plantas y patrimonio alternados.',
-      stopsCount: 1,
-      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      stopsCount: 2,
+      stops: [
+        { kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 },
+        { kind: 'poi', id: 22, name: 'Torre', latitude: 39.4706, longitude: -0.3754, speciesId: null },
+      ],
       path: [
         { latitude: 39.4699, longitude: -0.3763 },
         { latitude: 39.4705, longitude: -0.3755 },
@@ -627,6 +979,14 @@ describe('MapPage', () => {
       expect.anything(),
     );
     expect(leaflet.map.fitBounds).toHaveBeenCalled();
+    // Inicio, parada de planta y parada de POI de la ruta.
+    expect(leaflet.markerFactory).toHaveBeenCalledTimes(3);
+
+    // Un dato de GPS posterior no debe arrancar el mapa hacia el usuario.
+    leaflet.map.setView.mockClear();
+    const onPosition = geo.watchPosition.mock.calls[0]?.[0] as ((p: unknown) => void) | undefined;
+    act(() => onPosition?.({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
+    expect(leaflet.map.setView).not.toHaveBeenCalled();
 
     // «Limpiar mapa» aparece como botón de solo icono y quita la capa.
     const clear = await screen.findByRole('button', { name: 'Limpiar mapa' });
@@ -636,6 +996,39 @@ describe('MapPage', () => {
 
     await waitFor(() => expect(leaflet.layerGroup.remove).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Limpiar mapa' })).not.toBeInTheDocument();
+  });
+
+  it('la ruta sigue pintada al salir del mapa y volver a entrar', async () => {
+    const route = {
+      id: 9, name: 'Ruta persistente', theme: 'mixta', shape: 'circular', lengthCategory: 'corta',
+      distanceMeters: 2100, durationSeconds: 1700,
+      start: { latitude: 39.4699, longitude: -0.3763 },
+      description: 'Para comprobar que no se pierde al cambiar de pestaña.',
+      stopsCount: 1,
+      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      path: [
+        { latitude: 39.4699, longitude: -0.3763 },
+        { latitude: 39.4705, longitude: -0.3755 },
+        { latitude: 39.4699, longitude: -0.3763 },
+      ],
+    };
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/routes/9')
+        ? route
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [] }
+          : [],
+    })) as unknown as typeof fetch);
+
+    const first = renderMap(<MapPage />, '/mapa?verRuta=9');
+    expect(await screen.findByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument();
+    first.unmount();
+
+    // Sin el parámetro, al volver al mapa se recupera la última ruta pintada.
+    renderMap(<MapPage />, '/mapa');
+    expect(await screen.findByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument();
+    expect(leaflet.polylineFactory).toHaveBeenCalled();
   });
 
   it('al tocar el mapa se contrae la ventana de explorar', () => {
@@ -656,7 +1049,7 @@ describe('MapPage', () => {
     expect(exploreBtn).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('fuera de València, sin ejemplares cerca, el mapa conserva las plantas del inventario', async () => {
+  it('fuera de València, sin ejemplares cerca, el mapa no pinta plantas lejanas', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
@@ -683,47 +1076,49 @@ describe('MapPage', () => {
       });
     });
 
-    // Los pines del inventario siguen pintándose pese a la respuesta vacía.
-    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
-      [39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo' })));
+    // Con GPS, solo se pintan las plantas dentro del círculo azul.
+    await waitFor(() => expect(leaflet.circleFactory).toHaveBeenCalledWith(
+      [39.4372, -0.4653], expect.objectContaining({ radius: 1000 })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      [39.47, -0.37], expect.objectContaining({ title: 'Naranjo amargo' }));
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
-  it('al moverse a una zona con ejemplares se vuelve a las plantas cercanas', async () => {
+  it('al entrar la ubicación se pintan solo las plantas del círculo azul', async () => {
     Object.defineProperty(navigator, 'permissions', {
       configurable: true,
       value: { query: vi.fn(async () => ({ state: 'granted' })) },
     });
     geo.getCurrentPosition.mockImplementationOnce((success: (position: unknown) => void) => {
-      success({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } });
+      success({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } });
     });
-    let nearbyTrees: unknown[] = [];
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees/nearby')
-        ? { center: { latitude: 39.47, longitude: -0.37 }, radius: 1000, returned: nearbyTrees.length, limit: 100, language: 'es', trees: nearbyTrees }
-        : String(url).includes('/trees')
-          ? { nextOffset: null, trees: [] }
-          : [],
+        ? {
+            center: { latitude: 39.48, longitude: -0.38 }, radius: 10000, returned: 2,
+            total: 2, limit: 20000, language: 'es',
+            trees: [
+              { id: 9, speciesId: 3, displayName: 'Almez', latitude: 39.4795, longitude: -0.3795, distance: 120 },
+              { id: 10, speciesId: 4, displayName: 'Lejana', latitude: 39.6, longitude: -0.5, distance: 15000 },
+            ],
+          }
+        : [],
     })) as unknown as typeof fetch);
 
     renderMap();
-    await waitFor(() => expect(geo.watchPosition).toHaveBeenCalled());
-    const onPosition = geo.watchPosition.mock.calls[0][0] as (position: unknown) => void;
-    act(() => onPosition({ coords: { latitude: 39.4372, longitude: -0.4653, accuracy: 25 } }));
-
-    // Entra en cobertura: una respuesta vacía previa no bloquea la siguiente.
-    nearbyTrees = [{
-      id: 9, speciesId: 3, scientificName: 'Celtis australis', displayName: 'Almez',
-      latitude: 39.4795, longitude: -0.3795, distance: 120,
-    }];
-    act(() => onPosition({ coords: { latitude: 39.48, longitude: -0.38, accuracy: 25 } }));
     await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledWith(
       [39.4795, -0.3795], expect.objectContaining({ title: 'Almez' })));
+    expect(leaflet.markerFactory).not.toHaveBeenCalledWith(
+      [39.6, -0.5], expect.anything());
+    // El círculo azul solo aparece con GPS.
+    expect(leaflet.circleFactory).toHaveBeenCalledWith(
+      [39.48, -0.38], expect.objectContaining({ radius: 1000 }));
     delete (navigator as unknown as { permissions?: unknown }).permissions;
   });
 
   it('agrupa en un marcador las plantas que están dentro de un parque', async () => {
+    withoutGps();
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')
@@ -749,6 +1144,7 @@ describe('MapPage', () => {
   });
 
   it('al acercarse al parque se ven sus plantas una a una', async () => {
+    withPosition();
     vi.mocked(fetch).mockImplementation((async (url: string) => ({
       ok: true,
       json: async () => String(url).includes('/trees')

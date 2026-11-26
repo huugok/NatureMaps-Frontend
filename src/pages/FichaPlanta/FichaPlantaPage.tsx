@@ -155,6 +155,28 @@ export function FichaPlantaPage({
   );
   const sources = species.sources ?? [];
   const greenAreas = species.greenAreas ?? [];
+  const observedMonths = [...new Set((species.floweringPeriods ?? [])
+    .filter((period) => /val[eè]ncia|valencia/i.test(period.region))
+    .flatMap((period) => {
+      const months: number[] = [];
+      let month = period.startMonth;
+      for (let count = 0; count < 12; count += 1) {
+        months.push(month);
+        if (month === period.endMonth) break;
+        month = month % 12 + 1;
+      }
+      return months;
+    }))].sort((a, b) => a - b);
+  const monthNames = new Intl.DateTimeFormat(lang === 'va' ? 'ca-ES' : lang === 'en' ? 'en-GB' : 'es-ES', { month: 'long', timeZone: 'UTC' });
+  const observedMonthLabels = observedMonths.map((month) =>
+    monthNames.format(new Date(Date.UTC(2020, month - 1, 1))),
+  );
+  const hasContinuousFloweringRange = observedMonths.length > 1
+    && observedMonths.every((month, index) => index === 0 || month === observedMonths[index - 1] + 1);
+  const floweringLabel = hasContinuousFloweringRange
+    ? t('ficha.floweringRange', { start: observedMonthLabels[0], end: observedMonthLabels[observedMonthLabels.length - 1] })
+    : `${t('ficha.flowering')}: ${observedMonthLabels.join(', ')}`;
+  const isObservedFloweringNow = observedMonths.includes(new Date().getMonth() + 1);
 
   const handleToggleFavorite = () => {
     setIsFavorite((current) => !current);
@@ -255,7 +277,14 @@ export function FichaPlantaPage({
               </button>
             </li>
           )}
-          {species.flowering ? (
+          {observedMonthLabels.length > 0 ? (
+            <li className={`inline-flex items-center gap-1.5 rounded-full border border-bloom px-3 py-1 text-caption font-medium ${isObservedFloweringNow ? 'bg-bloom text-white' : 'bg-bloom/15 text-ink-2'}`}>
+              <Flower2 size={14} className={`shrink-0 ${isObservedFloweringNow ? 'text-white' : 'text-bloom-strong'}`} aria-hidden="true" />
+              {isObservedFloweringNow
+                ? t('ficha.inFlowering')
+                : floweringLabel}
+            </li>
+          ) : species.flowering ? (
             <li className="inline-flex items-center gap-1.5 rounded-full bg-warm/15 px-3 py-1 text-caption font-medium text-warm-strong">
               <Flower2 size={14} aria-hidden="true" />
               {t('ficha.flowering')}: {species.flowering}

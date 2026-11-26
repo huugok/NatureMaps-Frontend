@@ -1,12 +1,13 @@
-import { Search as SearchIcon, Sprout } from 'lucide-react'
+import { Search as SearchIcon, SlidersHorizontal, Sprout } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLocationPermission } from '../../components/Location'
 import { Page } from '../../components/Page'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Input } from '../../components/ui/Input'
 import { useApp } from '../../context/useApp'
 import { formatDistance, repairTextEncoding } from '../../i18n/format'
-import { commonNameFor, getAllSpeciesList } from '../../services/ficha'
+import { commonNameFor, getAllSpeciesList, getFloweringSpeciesInRange } from '../../services/ficha'
 import type { FichaListItem } from '../../services/ficha'
 import { fetchNearbyTrees } from '../../services/nearby'
 
@@ -55,8 +56,11 @@ function normalizeSearch(value: string) {
 /** Búsqueda del catálogo por nombre común o científico. */
 export function Search({ onSelectSpecies }: SearchProps) {
   const { t, lang } = useApp()
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const { status: locationStatus, position, allow, deny, retry } = useLocationPermission()
+  const [floweringRange, setFloweringRange] = useState<{ start: number; end: number } | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const { status: locationStatus, position, allow, deny } = useLocationPermission()
   const [catalog, setCatalog] = useState<FichaListItem[] | null>(null)
   const [catalogFailed, setCatalogFailed] = useState(false)
   const [nearestDistanceBySpecies, setNearestDistanceBySpecies] = useState<Record<number, number>>({})
@@ -65,11 +69,13 @@ export function Search({ onSelectSpecies }: SearchProps) {
     let cancelled = false
     setCatalog(null)
     setCatalogFailed(false)
-    getAllSpeciesList(lang)
-      .then((items) => { if (!cancelled) setCatalog(items) })
+    const request = floweringRange
+      ? getFloweringSpeciesInRange(floweringRange.start, floweringRange.end, lang)
+      : getAllSpeciesList(lang)
+    request.then((items) => { if (!cancelled) setCatalog(items) })
       .catch(() => { if (!cancelled) { setCatalog([]); setCatalogFailed(true) } })
     return () => { cancelled = true }
-  }, [lang])
+  }, [lang, floweringRange])
 
   useEffect(() => {
     if (!position) {
@@ -108,10 +114,44 @@ export function Search({ onSelectSpecies }: SearchProps) {
     const distanceB = nearestDistanceBySpecies[b.id] ?? Infinity
     return distanceA - distanceB || commonNameFor(a.names, lang)?.localeCompare(commonNameFor(b.names, lang) ?? '', lang) || a.scientificName.localeCompare(b.scientificName)
   })
+  const monthName = (month: number) => new Intl.DateTimeFormat(lang === 'va' ? 'ca' : lang, { month: 'long' })
+    .format(new Date(2020, month - 1, 1))
 
   return (
     <Page title={t('search.title')}>
-      <Input icon={SearchIcon} type="search" value={query} placeholder={t('search.placeholder')} onChange={(e) => setQuery(e.target.value)} />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={t('search.filters')}
+          aria-expanded={filtersOpen}
+          onClick={() => {
+            setFiltersOpen((open) => !open)
+            const currentMonth = new Date().getMonth() + 1
+            setFloweringRange((range) => range ?? { start: currentMonth, end: currentMonth % 12 + 1 })
+          }}
+          className={`flex size-12 shrink-0 items-center justify-center rounded-card border shadow-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${floweringRange ? 'border-bloom bg-bloom/15 text-bloom-strong' : 'border-line bg-surface text-ink'}`}
+        >
+          <SlidersHorizontal size={20} aria-hidden="true" />
+        </button>
+        <div className="min-w-0 flex-1"><Input icon={SearchIcon} type="search" value={query} placeholder={t('search.placeholder')} onChange={(e) => setQuery(e.target.value)} /></div>
+      </div>
+
+      {filtersOpen && floweringRange && (
+        <section className="rounded-card border border-line bg-surface p-4 shadow-raised" aria-label={t('search.floweringFilter')}>
+          <div className="flex items-center justify-between gap-3 text-small font-semibold text-ink">
+            <span>{t('search.floweringFilter')}</span>
+            <span className="capitalize text-bloom-strong">{monthName(floweringRange.start)} – {monthName(floweringRange.end)}</span>
+          </div>
+          <div className="month-range relative mx-2 mt-5 h-8" style={{ '--range-start': `${((floweringRange.start - 1) / 11) * 100}%`, '--range-end': `${((floweringRange.end - 1) / 11) * 100}%` } as React.CSSProperties}>
+            <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-line" />
+            <div className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-bloom" style={{ left: 'var(--range-start)', width: 'calc(var(--range-end) - var(--range-start))' }} />
+            <input type="range" min="1" max="12" step="1" value={floweringRange.start} aria-label={t('search.fromMonth')} aria-valuetext={monthName(floweringRange.start)} onChange={(event) => setFloweringRange((range) => ({ start: Number(event.target.value), end: range?.end ?? Number(event.target.value) }))} />
+            <input type="range" min="1" max="12" step="1" value={floweringRange.end} aria-label={t('search.toMonth')} aria-valuetext={monthName(floweringRange.end)} onChange={(event) => setFloweringRange((range) => ({ start: range?.start ?? Number(event.target.value), end: Number(event.target.value) }))} />
+          </div>
+          <div className="mt-1 flex justify-between text-caption text-muted"><span>{monthName(1).slice(0, 3)}</span><span>{monthName(4).slice(0, 3)}</span><span>{monthName(7).slice(0, 3)}</span><span>{monthName(10).slice(0, 3)}</span><span>{monthName(12).slice(0, 3)}</span></div>
+          <button type="button" onClick={() => { setFloweringRange(null); setFiltersOpen(false) }} className="mt-2 min-h-11 text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('search.clearFloweringFilter')}</button>
+        </section>
+      )}
 
       {locationStatus === 'prompt' && (
         <section className="mt-3 rounded-card bg-surface p-3 shadow-raised" aria-label={t('search.locationOrder')}>
@@ -123,7 +163,7 @@ export function Search({ onSelectSpecies }: SearchProps) {
         </section>
       )}
       {locationStatus === 'denied' && (
-        <button type="button" onClick={retry} className="mt-3 text-left text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('search.locationRetry')}</button>
+        <button type="button" onClick={() => navigate('/ajustes/permisos')} className="mt-3 text-left text-small font-medium text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{t('search.locationRetry')}</button>
       )}
 
       {normalizedQuery && (

@@ -20,6 +20,7 @@ import type { FichaEspecie, IdentificacionFicha } from './pages/FichaPlanta';
 import { ArticlePage, Discover } from './pages/Discover';
 import { GreenAreaPage } from './pages/GreenArea';
 import { Home } from './pages/Home';
+import { FloweringPlants } from './pages/FloweringPlants';
 import { ModeSelect } from './pages/ModeSelect';
 import { NotFound } from './pages/NotFound';
 import { RoutesList } from './pages/RoutesList';
@@ -27,7 +28,7 @@ import { RouteDetail } from './pages/RouteDetail';
 import { routeStopToPlantPin } from './pages/Map/routeOverlay';
 import type { RouteStop } from './services/routes';
 import { Search } from './pages/Search';
-import { LanguageSettings, Settings } from './pages/Settings';
+import { LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
 import {
   findSpeciesIndexByScientificName,
@@ -321,11 +322,13 @@ export default function App() {
   const handleViewOnMap = (speciesId?: number, neighborhood?: string) => {
     setFicha(null);
     if (speciesId === undefined) {
-      navigate('/mapa');
+      // «Ver el mapa» del inicio: igual que el navbar, centra en el usuario.
+      navigate('/mapa', { state: { centerOnUser: Date.now() } });
       return;
     }
     const params = new URLSearchParams({ verEspecie: String(speciesId) });
     if (neighborhood) params.set('barrio', neighborhood);
+    // «Ver EN el mapa» de una ficha: centra el ejemplar, no al usuario.
     navigate(`/mapa?${params.toString()}`);
   };
 
@@ -374,6 +377,15 @@ export default function App() {
                 }
               />
               <Route path="/rutas" element={<RoutesList />} />
+              <Route path="/floracion" element={<FloweringPlants onSelectSpecies={(item) => {
+                setFicha({ species: conFotoPropia(fichaDesdeItemLista(item, lang)), identification: null });
+                getSpeciesDetail(item.id, lang)
+                  .then((detail) => fichaDesdeDetalleConFuentes(detail, lang))
+                  .then((species) => setFicha((actual) => actual?.species.id === item.id
+                    ? { ...actual, species: conFotoPropia(species) }
+                    : actual))
+                  .catch(() => undefined);
+              }} />} />
               <Route path="/rutas/:id" element={<RouteDetail onOpenStop={handleOpenRouteStop} />} />
               <Route path="/buscar" element={<Search onSelectSpecies={(item) => {
                 setFicha({ species: fichaDesdeItemLista(item, lang), identification: null });
@@ -404,6 +416,10 @@ export default function App() {
                     onSave={handleSaveLanguage}
                   />
                 }
+              />
+              <Route
+                path="/ajustes/permisos"
+                element={<PermissionsSettings onBack={() => navigate('/ajustes')} />}
               />
               <Route
                 path="/ficha"
@@ -464,6 +480,7 @@ export default function App() {
             />
           </div>
         )}
+
       </div>
     </div>
   );

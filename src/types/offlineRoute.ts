@@ -18,10 +18,11 @@ export interface RoutePacket {
   revision: string;
   route: RouteDetail;
   stops: Array<{
-    kind: 'planta' | 'poi';
+    kind: 'planta' | 'poi' | 'sponsor';
     id: number;
     plant: { id: number; speciesId: number | null; displayName: string; sourceUrl?: string; dataSource?: FichaDataSource | null } | null;
     poi: RoutePoi | null;
+    sponsor?: { name: string; businessName: string; sponsorLocation: string };
   }>;
   species: FichaDetail[];
   images: FichaImageInfo[];

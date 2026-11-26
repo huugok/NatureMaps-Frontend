@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AppProvider } from './context/AppContext'
+import { plantCache, sponsorCache } from './services/offlineStorage'
 import '@fontsource-variable/literata/opsz.css'
 import '@fontsource-variable/literata/opsz-italic.css'
 import '@fontsource/atkinson-hyperlegible/400.css'
@@ -11,6 +12,11 @@ import './index.css'
 import { prepareOfflineApp } from './services/offlineApp'
 
 void prepareOfflineApp().catch(() => undefined)
+
+// Caché de sesión: se limpia al abrir la app, así que la primera carga siempre
+// consulta a Neon. Las zonas/rutas descargadas viven en otros stores y no se tocan.
+void plantCache().clear();
+void sponsorCache().clear();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

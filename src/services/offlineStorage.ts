@@ -20,8 +20,10 @@ export interface TileCache {
 }
 
 const DB_NAME = 'naturemaps-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 const ZONES_STORE = 'zones';
+const PLANTS_STORE = 'plants';
+const SPONSORS_STORE = 'sponsors';
 export const TILE_CACHE_NAME = 'naturemaps-tiles-v1';
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -39,24 +41,135 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
   });
 }
 
-export function createIndexedDbStore(): OfflineStore {
-  let opened: Promise<IDBDatabase> | null = null;
-  const open = () => {
-    opened ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onupgradeneeded = () => {
-        request.result.createObjectStore(ZONES_STORE, { keyPath: 'groupSlug' });
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => {
-        opened = null;
-        reject(request.error ?? new Error('IndexedDB'));
-      };
-    });
-    return opened;
+let opened: Promise<IDBDatabase> | null = null;
+function openDb(): Promise<IDBDatabase> {
+  opened ??= new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(ZONES_STORE)) db.createObjectStore(ZONES_STORE, { keyPath: 'groupSlug' });
+      if (!db.objectStoreNames.contains(PLANTS_STORE)) db.createObjectStore(PLANTS_STORE);
+      if (!db.objectStoreNames.contains(SPONSORS_STORE)) db.createObjectStore(SPONSORS_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => {
+      opened = null;
+      reject(request.error ?? new Error('IndexedDB'));
+    };
+  });
+  return opened;
+}
+
+/** Caché de plantas por centro+radio+idioma: evita volver a Neon al reentrar al mapa. */
+export interface CachedPlants {
+  savedAt: number;
+  trees: Array<{
+    id: number; speciesId: number | null; scientificName: string | null;
+    reportedScientificName?: string | null; commonName: string | null; displayName: string;
+    latitude: number; longitude: number; distance: number; greenAreaId?: number | null;
+  }>;
+}
+export interface PlantCache {
+  get(key: string): Promise<CachedPlants | undefined>;
+  put(key: string, value: CachedPlants): Promise<void>;
+  /** Se llama al arrancar: es caché de sesión, no almacenamiento del usuario. */
+  clear(): Promise<void>;
+}
+
+export function createIndexedDbPlantCache(): PlantCache {
+  return {
+    async get(key) {
+      const transaction = (await openDb()).transaction(PLANTS_STORE, 'readonly');
+      return (await requestResult(transaction.objectStore(PLANTS_STORE).get(key))) as CachedPlants | undefined;
+    },
+    async put(key, value) {
+      const transaction = (await openDb()).transaction(PLANTS_STORE, 'readwrite');
+      transaction.objectStore(PLANTS_STORE).put(value, key);
+      await transactionDone(transaction);
+    },
+    async clear() {
+      const transaction = (await openDb()).transaction(PLANTS_STORE, 'readwrite');
+      transaction.objectStore(PLANTS_STORE).clear();
+      await transactionDone(transaction);
+    },
   };
+}
+
+export function createMemoryPlantCache(): PlantCache {
+  const entries = new Map<string, CachedPlants>();
+  return {
+    get: async (key) => structuredClone(entries.get(key)),
+    put: async (key, value) => { entries.set(key, structuredClone(value)); },
+    clear: async () => { entries.clear(); },
+  };
+}
+
+export function createUnsupportedPlantCache(): PlantCache {
+  return { get: async () => undefined, put: async () => undefined, clear: async () => undefined };
+}
+
+let currentPlants: PlantCache | null = null;
+export function plantCache(): PlantCache {
+  currentPlants ??= isOfflineSupported() ? createIndexedDbPlantCache() : createUnsupportedPlantCache();
+  return currentPlants;
+}
+/** Solo para tests: sustituye el caché de plantas (sin argumentos, lo restablece). */
+export function setPlantCache(cache?: PlantCache): void {
+  currentPlants = cache ?? null;
+}
+
+/** Caché de sesión de los comercios del mapa (pocos, una sola entrada). */
+export interface SponsorCache {
+  get(): Promise<{ savedAt: number; items: unknown[] } | undefined>;
+  put(items: unknown[]): Promise<void>;
+  clear(): Promise<void>;
+}
+
+export function createIndexedDbSponsorCache(): SponsorCache {
+  const KEY = 'all';
+  return {
+    async get() {
+      const transaction = (await openDb()).transaction(SPONSORS_STORE, 'readonly');
+      return (await requestResult(transaction.objectStore(SPONSORS_STORE).get(KEY))) as { savedAt: number; items: unknown[] } | undefined;
+    },
+    async put(items) {
+      const transaction = (await openDb()).transaction(SPONSORS_STORE, 'readwrite');
+      transaction.objectStore(SPONSORS_STORE).put({ savedAt: Date.now(), items }, KEY);
+      await transactionDone(transaction);
+    },
+    async clear() {
+      const transaction = (await openDb()).transaction(SPONSORS_STORE, 'readwrite');
+      transaction.objectStore(SPONSORS_STORE).clear();
+      await transactionDone(transaction);
+    },
+  };
+}
+
+export function createMemorySponsorCache(): SponsorCache {
+  let entry: { savedAt: number; items: unknown[] } | undefined;
+  return {
+    get: async () => entry ? structuredClone(entry) : undefined,
+    put: async (items) => { entry = { savedAt: Date.now(), items: structuredClone(items) }; },
+    clear: async () => { entry = undefined; },
+  };
+}
+
+export function createUnsupportedSponsorCache(): SponsorCache {
+  return { get: async () => undefined, put: async () => undefined, clear: async () => undefined };
+}
+
+let currentSponsors: SponsorCache | null = null;
+export function sponsorCache(): SponsorCache {
+  currentSponsors ??= isOfflineSupported() ? createIndexedDbSponsorCache() : createUnsupportedSponsorCache();
+  return currentSponsors;
+}
+export function setSponsorCache(cache?: SponsorCache): void {
+  currentSponsors = cache ?? null;
+}
+
+export function createIndexedDbStore(): OfflineStore {
   const zones = async (mode: IDBTransactionMode) => {
-    const transaction = (await open()).transaction(ZONES_STORE, mode);
+    const transaction = (await openDb()).transaction(ZONES_STORE, mode);
     return { transaction, store: transaction.objectStore(ZONES_STORE) };
   };
   return {

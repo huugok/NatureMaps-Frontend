@@ -3,6 +3,7 @@ import type { Mode } from '../types';
 import { repairTextEncoding } from '../i18n/format';
 import { isUnreachable } from './offlineError';
 import { offlineNearbyTrees } from './offlineRead';
+import { plantCache } from './offlineStorage';
 
 // Plantas cercanas al usuario (GET /trees/nearby del backend).
 // El backend devuelve `distance` en metros (línea recta) y ordena de más
@@ -27,10 +28,15 @@ export interface NearbyResponse {
   center: { latitude: number; longitude: number };
   radius: number;
   returned: number;
-  limit: number;
+  /** Total de plantas del radio, para el indicador de progreso. */
+  total: number;
+  limit: number | null;
   language: string;
   trees: NearbyPlant[];
+  /** true cuando el contenido sale de la caché de IndexedDB, no de Neon. */
+  cached?: boolean;
 }
+
 
 // Radio de búsqueda configurable en Ajustes. Va en su propia clave de
 // localStorage para no tocar `naturemaps:prefs`, que solo guarda el modo.
@@ -61,17 +67,45 @@ export function saveNearbyRadius(meters: number): void {
   localStorage.setItem(RADIUS_KEY, String(meters));
 }
 
+// Caché de la carga completa en IndexedDB: al reentrar al mapa se sirve de aquí
+// y Neon no vuelve a transferir el inventario. Caduca en 1 h y se limpia al
+// arrancar: es caché de sesión, no datos guardados a propósito por el usuario
+// (zonas, rutas), que viven en otros stores y no se tocan.
+const TREE_CACHE_TTL_MS = 60 * 60 * 1000;
+
+function treeCacheKey(params: { latitude: number; longitude: number; radius: number; lang: string }): string {
+  return `${params.latitude.toFixed(4)}:${params.longitude.toFixed(4)}:${params.radius}:${params.lang}`;
+}
+
 export async function fetchNearbyTrees(
-  params: { latitude: number; longitude: number; radius: number; limit?: number; lang: string },
+  params: { latitude: number; longitude: number; radius: number; limit?: number; offset?: number; lang: string },
   signal?: AbortSignal,
 ): Promise<NearbyResponse> {
+  const key = treeCacheKey(params);
+  const offset = params.offset ?? 0;
+  // Servir en páginas, igual que Neon: así el cargador sigue publicando cada
+  // tanda y el render progresivo no agrupa las 67k de golpe.
+  const fromCache = (all: NearbyPlant[]): NearbyResponse => {
+    const trees = params.limit !== undefined ? all.slice(offset, offset + params.limit) : all;
+    return {
+      center: { latitude: params.latitude, longitude: params.longitude },
+      radius: params.radius, returned: trees.length, total: all.length,
+      limit: params.limit ?? null, language: params.lang, trees, cached: true,
+    };
+  };
+  const cached = await plantCache().get(key).catch(() => undefined);
+  if (cached && Date.now() - cached.savedAt < TREE_CACHE_TTL_MS) {
+    return fromCache(cached.trees as NearbyPlant[]);
+  }
   const query = new URLSearchParams({
     lat: String(params.latitude),
     lon: String(params.longitude),
     radius: String(params.radius),
-    limit: String(params.limit ?? 100),
     lang: params.lang,
   });
+  // Sin límite explícito el backend devuelve todas las plantas del radio.
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
   // Mismo arreglo de codificación para lo que llega de la red y para la copia descargada.
   const repair = (response: NearbyResponse): NearbyResponse => ({
     ...response,
@@ -86,9 +120,21 @@ export async function fetchNearbyTrees(
   try {
     return repair(await apiGet<NearbyResponse>(`/trees/nearby?${query.toString()}`, signal));
   } catch (error) {
-    // Sin red, las plantas de las zonas descargadas; sin zonas descargadas, el error de siempre.
+    // Si Neon falla (500 o red caída), servir la caché aunque esté caducada:
+    // el mapa sigue enseñando plantas en vez de mostrar un error.
+    const stale = await plantCache().get(key).catch(() => undefined);
+    if (stale?.trees.length) return fromCache(stale.trees as NearbyPlant[]);
     const saved = isUnreachable(error) ? await offlineNearbyTrees(params) : null;
     if (saved) return repair(saved);
     throw error;
   }
+}
+
+
+/** Guarda la carga completa al terminar el bucle de páginas del mapa. */
+export async function saveNearbyTreesCache(
+  params: { latitude: number; longitude: number; radius: number; lang: string },
+  trees: NearbyPlant[],
+): Promise<void> {
+  await plantCache().put(treeCacheKey(params), { savedAt: Date.now(), trees }).catch(() => undefined);
 }

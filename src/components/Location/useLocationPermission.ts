@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { isPermissionEnabled } from '../../services/permissionPreferences';
 
 export type LocationPermissionStatus = 'prompt' | 'granted' | 'denied';
 
@@ -22,12 +23,14 @@ export function useLocationPermission() {
   // El estado se resuelve al instante cuando se puede (sin geolocation o sin
   // Permissions API) y queda en `null` solo mientras se consulta el permiso.
   const [status, setStatus] = useState<LocationPermissionStatus | null>(() => {
+    if (!isPermissionEnabled('geolocation')) return 'denied';
     if (!navigator.geolocation) return 'denied';
     return navigator.permissions ? null : 'granted';
   });
   const [position, setPosition] = useState<LocationCoordinates | null>(null);
 
   useEffect(() => {
+    if (!isPermissionEnabled('geolocation')) return;
     if (status !== null) return;
     const permissions = navigator.permissions;
     if (!permissions) return;
@@ -47,6 +50,10 @@ export function useLocationPermission() {
   }, [status]);
 
   const allow = useCallback(() => {
+    if (!isPermissionEnabled('geolocation')) {
+      setStatus('denied');
+      return;
+    }
     if (!navigator.geolocation) {
       setStatus('denied');
       return;
@@ -67,6 +74,7 @@ export function useLocationPermission() {
   // Si el permiso ya estaba concedido (usuario recurrente) el aviso no se
   // muestra: se pide la posición directamente para que la pantalla pueda usarla.
   useEffect(() => {
+    if (!isPermissionEnabled('geolocation')) return;
     if (status !== 'granted' || position || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (current) => setPosition({ latitude: current.coords.latitude, longitude: current.coords.longitude }),

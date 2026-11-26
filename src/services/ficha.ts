@@ -50,6 +50,17 @@ export interface FichaNameInfo {
   language: string;
 }
 
+/** Periodo observado devuelto por el catálogo de especies. */
+export interface FichaFloweringPeriod {
+  startMonth: number;
+  endMonth: number;
+  region: string;
+  /** El backend actual usa `source`; `sourceName` es el nombre del contrato. */
+  source?: string;
+  sourceName?: string;
+  sourceUrl: string;
+}
+
 /** Extracto automático de Wikipedia (tabla species_enrichments), con su licencia. */
 export interface FichaEnrichment {
   language: string;
@@ -70,6 +81,7 @@ export interface FichaListItem {
   profile: FichaProfile | null;
   enrichment: FichaEnrichment | null;
   image: FichaImageInfo | null;
+  floweringPeriods?: FichaFloweringPeriod[];
 }
 
 export interface FichaLocation {
@@ -140,6 +152,43 @@ export async function getSpeciesList(language: Language): Promise<FichaListItem[
     'No se ha podido cargar el catálogo de especies',
   );
   return body.species ?? [];
+}
+
+/** Especies con periodos observados en un mes y región concretos. */
+export async function getFloweringSpecies(month: number, language: Language): Promise<FichaListItem[]> {
+  const params = new URLSearchParams({
+    month: String(month),
+    region: 'Valencia',
+    limit: '200',
+    offset: '0',
+    lang: language,
+  });
+  const body = await fetchJson<{ species: FichaListItem[] }>(
+    `${API_URL}/species?${params.toString()}`,
+    'No se han podido cargar las plantas en floración',
+  );
+  return body.species ?? [];
+}
+
+/** Une los resultados mensuales para un intervalo inclusivo (también admite diciembre–enero). */
+export async function getFloweringSpeciesInRange(
+  startMonth: number,
+  endMonth: number,
+  language: Language,
+): Promise<FichaListItem[]> {
+  const months: number[] = [];
+  let month = startMonth;
+  for (let count = 0; count < 12; count += 1) {
+    months.push(month);
+    if (month === endMonth) break;
+    month = month % 12 + 1;
+  }
+  const monthlyResults = await Promise.all(months.map((value) => getFloweringSpecies(value, language)));
+  const unique = new Map<number, FichaListItem>();
+  for (const items of monthlyResults) {
+    for (const item of items) unique.set(item.id, item);
+  }
+  return [...unique.values()];
 }
 
 /** Catálogo completo paginado, para búsquedas por nombre. */
@@ -252,6 +301,11 @@ export function fichaDesdeItemLista(item: FichaListItem, language: Language): Fi
     photoCredit: item.image?.attribution ? repairTextEncoding(item.image.attribution) : undefined,
     description: item.content ? repairTextEncoding(item.content) : undefined,
     flowering: item.profile?.flowering ? repairTextEncoding(item.profile.flowering) : undefined,
+    floweringPeriods: (item.floweringPeriods ?? []).map((period) => ({
+      ...period,
+      ...(period.sourceName ?? period.source ? { sourceName: repairTextEncoding(period.sourceName ?? period.source ?? '') } : {}),
+      region: repairTextEncoding(period.region),
+    })),
     curiosity: item.profile?.curiosity
       ? { label: 'Dato curioso', text: repairTextEncoding(item.profile.curiosity) }
       : undefined,

@@ -8,8 +8,8 @@ import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteList } from '../../services/routes';
 import type { RouteShape, RouteSummary, RouteTheme } from '../../services/routes';
-import { DownloadedZones } from '../../components/OfflineZone'
 import { DownloadedRoutes } from '../../components/OfflineRoute';
+import { DownloadedZones } from '../../components/OfflineZone'
 
 /** Rutas: catálogo predefinido del backend (GET /routes). Cada tarjeta lleva
  * nombre, tema, longitud, duración y número de paradas; la ficha abre en
@@ -31,7 +31,9 @@ function ThemeBadge({ theme }: { theme: RouteTheme }) {
     ? t('routes.theme.botanica')
     : theme === 'cultural'
       ? t('routes.theme.cultural')
-      : t('routes.theme.mixta');
+      : theme === 'sponsor'
+        ? t('routes.theme.sponsor')
+        : t('routes.theme.mixta');
   return <Badge>{label}</Badge>;
 }
 

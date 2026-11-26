@@ -32,6 +32,8 @@ export interface ClusterResult {
   clusters: ParkCluster[];
   /** Plantas que se siguen pintando una a una (fuera de cualquier zona verde). */
   loose: PlantPin[];
+  /** Ejemplares de cada zona, para subdividirlos según el zoom. */
+  membersByGroup: Map<string, PlantPin[]>;
 }
 
 /**
@@ -47,6 +49,7 @@ export function clusterPlantsByPark(plants: PlantPin[], areas: GreenArea[]): Clu
   const areaById = new Map(areas.map((area) => [area.id, area]));
   const clusters = new Map<string, ParkCluster>();
   const loose: PlantPin[] = [];
+  const membersByGroup = new Map<string, PlantPin[]>();
 
   for (const plant of plants) {
     const area = plant.greenAreaId == null ? undefined : areaById.get(plant.greenAreaId);
@@ -54,6 +57,9 @@ export function clusterPlantsByPark(plants: PlantPin[], areas: GreenArea[]): Clu
       loose.push(plant);
       continue;
     }
+    const members = membersByGroup.get(area.groupSlug);
+    if (members) members.push(plant);
+    else membersByGroup.set(area.groupSlug, [plant]);
     const existing = clusters.get(area.groupSlug);
     if (existing) {
       existing.shown += plant.count ?? 1;
@@ -80,7 +86,7 @@ export function clusterPlantsByPark(plants: PlantPin[], areas: GreenArea[]): Clu
     cluster.total = totals.get(cluster.groupSlug) ?? null;
   }
 
-  return { clusters: [...clusters.values()], loose };
+  return { clusters: [...clusters.values()], loose, membersByGroup };
 }
 
 export interface ParkMarkersText {

@@ -402,18 +402,21 @@ describe('ficha de planta conectada a la API (RF3, UT F06)', () => {
   })
 
   it('muestra un error con reintentar cuando la API no responde', async () => {
+    let firstCatalogue = true
     vi.stubGlobal(
       'fetch',
-      vi.fn()
-        .mockRejectedValueOnce(new TypeError('Network error'))
-        .mockImplementation((input: RequestInfo | URL) => {
-          const url = String(input)
-          if (url.includes('/species/')) {
-            const id = Number(url.split('/species/')[1]?.split('?')[0] ?? '1')
-            return Promise.resolve(new Response(JSON.stringify(detalleEspecie(id)), respuestaJson))
-          }
-          return Promise.resolve(new Response(JSON.stringify(catalogo), respuestaJson))
-        }),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/species/')) {
+          const id = Number(url.split('/species/')[1]?.split('?')[0] ?? '1')
+          return Promise.resolve(new Response(JSON.stringify(detalleEspecie(id)), respuestaJson))
+        }
+        if (url.includes('/species?lang=') && !url.includes('month=') && firstCatalogue) {
+          firstCatalogue = false
+          return Promise.reject(new TypeError('Network error'))
+        }
+        return Promise.resolve(new Response(JSON.stringify(catalogo), respuestaJson))
+      }),
     )
 
     renderWithProviders(<App />, { route: '/inicio' })

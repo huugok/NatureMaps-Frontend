@@ -27,6 +27,15 @@ export interface FichaUbicacion {
   longitude?: number;
 }
 
+/** Meses observados en una región, con su referencia de origen. */
+export interface FichaPeriodoFloracion {
+  startMonth: number;
+  endMonth: number;
+  region: string;
+  sourceName?: string;
+  sourceUrl: string;
+}
+
 export interface FichaEspecie {
   /** Id de la especie en el catálogo; ausente en fichas de solo identificación. */
   id?: number;
@@ -44,6 +53,8 @@ export interface FichaEspecie {
   description?: string;
   /** Época de floración (vacío o ausente si no se conoce). */
   flowering?: string;
+  /** Periodos observados que devuelve el catálogo; no equivalen a una temporada garantizada. */
+  floweringPeriods?: FichaPeriodoFloracion[];
   curiosity?: { label: string; text: string };
   locations?: FichaUbicacion[];
   sources?: FichaFuente[];

@@ -21,7 +21,8 @@ export function TabLayout() {
           <Outlet />
         </div>
       </main>
-      <BottomNavigation position="relative" activeTab={activeTab} onChange={(tab) => navigate(`/${tab}`)} />
+      <BottomNavigation position="relative" activeTab={activeTab} onChange={(tab) =>
+        navigate(`/${tab}`, tab === 'mapa' ? { state: { centerOnUser: Date.now() } } : undefined)} />
     </>
   )
 }
