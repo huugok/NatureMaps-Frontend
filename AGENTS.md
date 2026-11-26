@@ -161,9 +161,9 @@ consultarla sin conexión: ficha, plantas y mapa. Necesita el endpoint del backe
 - **Lectura sin conexión** (`offlineRead.ts`): `fetchGreenAreaDetail`, `fetchGreenAreas` y
   `fetchNearbyTrees` piden al backend y, **solo si falla la red o el servidor da 5xx** (no un 404),
   sirven lo descargado. Sin zonas descargadas conservan su error de siempre.
-- **Límites conocidos**: la app en sí (JS/HTML) no se guarda: sin service worker, abrirla en frío
-  sin red depende de la caché HTTP del navegador. Los POIs del mapa (Overpass/Nominatim) y las
-  fichas de especie no se guardan; los textos quedan en el idioma de la descarga.
+- **Límites conocidos**: el módulo de zonas no guarda fichas de especie ni POIs de
+  Overpass/Nominatim. La descarga de rutas sí guarda sus fichas y añade un service worker
+  al build de producción para reabrir la app sin red; comprobar con build y preview.
 
 ## Stack
 
@@ -375,9 +375,9 @@ Reglas:
   con el punto de partida y las paradas: las de planta usan el mismo pin de hoja
   del mapa y se pulsan para abrir la ficha de la planta; las de POI son un punto
   de la paleta con su nombre en el `title`, **sin ficha todavía** (ver abajo).
-  La ficha repite los datos principales del listado e incluye los botones
-  «Iniciar ruta» y «Descargar ruta» como marcadores de posición (la UT del
-  guía de recorrido y la descarga llegan más adelante).
+  La ficha repite los datos principales del listado. «Descargar ruta» guarda
+  recorrido, paradas, fichas e imágenes, con progreso, cancelación y borrado.
+  Las fichas guardadas (incluidos POIs) se consultan dentro de la propia ruta.
   El botón «Iniciar ruta» de la ficha lleva a `/mapa?verRuta=<id>`: el
   mapa principal pinta la ruta (`src/pages/Map/routeOverlay.ts`, el mismo
   dibujado que la ficha) y muestra un botón de solo icono «Limpiar mapa»
@@ -412,6 +412,49 @@ configuración de protección y el versionado están en `docs/agents/git-workflo
 - No hacer `git push` ni abrir PRs sin que lo pida el usuario.
 
 ## Agent skills
+
+### Rutas sin conexión
+
+`components/OfflineRoute/` integra descarga, progreso, cancelación, lista, fichas
+guardadas y borrado. `offlineRouteStorage.ts` es el único escritor de IndexedDB
+`naturemaps-offline-routes`; datos e imágenes se confirman juntos. Vite genera
+el shell offline para producción. Ejecutar `npm run test:offline-browser` tras
+build para comprobar reapertura sin red (requiere Playwright y Edge o Chrome).
+Cada build identifica su worker mediante una URL versionada. La descarga espera
+a que ese worker esté activado y controle la pestaña; un worker anterior activo
+no garantiza que los assets actuales estén disponibles sin conexión. Se conserva
+también el shell anterior para las pestañas abiertas durante la actualización.
+La prueba de navegador incluye la actualización desde un worker antiguo antes
+de comprobar la recarga completa sin red.
+Usa Vite preview real (incluido `Vary: Origin`) y comprueba el marco de escritorio
+antes y después de recargar sin red. Para los archivos estáticos del build, el
+worker busca con `ignoreVary: true`: los módulos envían Origin, pero el precache
+no, aunque la URL y el contenido sean idénticos. No aplicar esta excepción a API.
+El contrato actual es `schemaVersion: 2`, con `map` (URL, SHA-256, cobertura y
+tamaño). La descarga verifica el archivo antes del commit. IndexedDB v2 añade
+el store `maps`: una copia por hash, compartida entre rutas y retirada al borrar
+la última referencia, en la misma transacción. Las descargas v1 se conservan
+y piden volver a descargar para incorporar el mapa. `protomaps-leaflet` dibuja
+el PMTiles local en la ficha y en el mapa principal; no descarga teselas OSM.
+La prueba de navegador requiere `NATUREMAPS_TEST_MAP` apuntando al PMTiles real.
+Los archivos cartográficos y las capturas permanecen fuera de Git.
+
+#### Consulta offline (NM-15)
+
+- `fetchRouteList` guarda el catálogo ligero en `localStorage`
+  (`naturemaps:route-catalog:v1`) y lo combina con las rutas descargadas al fallar
+  la red. Así el listado sigue mostrando todas las rutas, no solo las guardadas.
+- Las tarjetas marcan «Disponible sin conexión» y, sin red, una ruta no descargada
+  muestra un aviso sin navegar a una pantalla de error.
+- Ajustes → Descargas (`/ajustes/descargas`) lista las rutas guardadas y abre su
+  ficha. La descarga y el borrado siguen perteneciendo a NM-14/NM-17.
+- La ficha de ruta abre la ficha guardada de POIs y plantas sin especie enlazada;
+  las plantas enlazadas conservan el overlay de especie con `savedSpecies`. Estas
+  paradas solo ofrecen un control cuando hay una descarga local; al abrir la ficha
+  guardada, esta se desplaza al viewport y recibe el foco.
+- Ni `RouteDetail` ni `MapPage` recargan una ruta abierta al perder la conexión:
+  geometría, paradas y mapa montado se mantienen. Si no hay mapa de fondo, los
+  marcadores y el recorrido siguen visibles sobre `surface-2`.
 
 ### Issue tracker
 

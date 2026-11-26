@@ -3,6 +3,8 @@ import { fireEvent, screen } from '@testing-library/react'
 import App from './App'
 import { LANGUAGE_STORAGE_KEY } from './services/languagePreference'
 import { SPECIES_PHOTO_STORAGE_KEY } from './services/speciesPhoto'
+import { createMemoryRouteStore, setOfflineRouteStore } from './services/offlineRouteStorage'
+import { savedRoute } from './test/routeOfflineFixtures'
 import { renderWithProviders } from './test/renderWithProviders'
 
 vi.mock('./pages/Map', () => ({
@@ -240,6 +242,7 @@ describe('catálogo de rutas (UT de rutas predefinidas)', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    setOfflineRouteStore()
   })
 
   it('el listado muestra nombre, tema, longitud, duración y paradas', async () => {
@@ -260,7 +263,7 @@ describe('catálogo de rutas (UT de rutas predefinidas)', () => {
     expect(screen.getByText('33 min')).toBeInTheDocument()
     expect(screen.getByText('2 paradas')).toBeInTheDocument()
 
-    // La parada de planta abre su ficha; la de POI todavía no (llega luego).
+    // La parada de planta abre su ficha; la de POI abre la ficha guardada.
     fireEvent.click(screen.getByRole('button', { name: /Naranjo de la plaza/ }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Citrus aurantium' })).toBeInTheDocument()
 
@@ -270,12 +273,25 @@ describe('catálogo de rutas (UT de rutas predefinidas)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
   })
 
-  it('la ficha ofrece «Iniciar ruta» y «Descargar ruta»', async () => {
+  it('sin red abre la ruta descargada y la ficha guardada de una parada', async () => {
+    const store = createMemoryRouteStore()
+    setOfflineRouteStore(store)
+    await store.put(savedRoute(7))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
+    renderWithProviders(<App />, { route: '/rutas/7' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ruta de los jardines' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Naranjo/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Citrus aurantium' })).toBeInTheDocument()
+    expect(screen.getByText('Ficha del naranjo.')).toBeInTheDocument()
+  })
+
+  it('la ficha ofrece «Iniciar ruta» e informa si el almacenamiento offline no está disponible', async () => {
     renderWithProviders(<App />, { route: '/rutas/7' })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Historia bajo los árboles' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar ruta' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Descargar ruta' })).toBeInTheDocument()
+    expect(screen.getByText('Este navegador no permite guardar rutas sin conexión.')).toBeInTheDocument()
   })
 })
 

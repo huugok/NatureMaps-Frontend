@@ -1,4 +1,4 @@
-import { Languages, Palette, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Download, Languages, Palette, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Page } from '../../components/Page'
 import { List } from '../../components/ui/List'
@@ -21,6 +21,7 @@ import type { Language } from '../../types/language'
 
 export interface SettingsProps {
   language: Language
+  /** Vuelve a la pantalla anterior. */
   onBack: () => void
 }
 
@@ -54,6 +55,7 @@ export function Settings({ language, onBack }: SettingsProps) {
         />
         <ListItem icon={Palette} title={t('settings.components')} to="/componentes" />
         <ListItem icon={ShieldCheck} title={t('settings.permissions')} to="/ajustes/permisos" />
+        <ListItem icon={Download} title={t('settings.downloads')} subtitle={t('settings.downloadsDesc')} to="/ajustes/descargas" />
       </List>
       <SectionLabel>{t('settings.mapSection')}</SectionLabel>
       <div className="rounded-card bg-surface p-4 shadow-raised">

@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { RouteDetail, RouteStop } from '../../services/routes';
 import { addRouteOverlay, fitRouteBounds } from '../Map/routeOverlay';
+import { addOfflineTileLayer } from '../Map/offlineTileLayer';
 
 // Mapa de la ficha de ruta: el recorrido (`path`, ya guardado en BD) como
 // polilínea y las paradas con los mismos puntos que usa el mapa principal (las
@@ -14,12 +15,19 @@ export interface RouteMapProps {
   route: RouteDetail;
   /** Responde al toque de una parada (abre su ficha). */
   onOpenStop?: (stop: RouteStop) => void;
+  /** Los POIs solo abren su ficha guardada cuando hay una descarga local. */
+  openPoiStops?: boolean;
 }
 
-export function RouteMap({ route, onOpenStop }: RouteMapProps) {
+export function RouteMap({ route, onOpenStop, openPoiStops = false }: RouteMapProps) {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const onOpenStopRef = useRef(onOpenStop);
+
+  useEffect(() => {
+    onOpenStopRef.current = onOpenStop;
+  }, [onOpenStop]);
 
   useEffect(() => {
     const element = mapElementRef.current;
@@ -27,15 +35,15 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
 
     const map = L.map(element, {
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     });
     mapRef.current = map;
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+    addOfflineTileLayer(map);
 
-    const layer = addRouteOverlay(map, route, { onOpenStop });
+    const layer = addRouteOverlay(map, route, {
+      onOpenStop: (stop) => onOpenStopRef.current?.(stop),
+      openPoiStops,
+    });
     layerRef.current = layer;
     fitRouteBounds(map, route);
 
@@ -45,7 +53,7 @@ export function RouteMap({ route, onOpenStop }: RouteMapProps) {
       map.remove();
       mapRef.current = null;
     };
-  }, [route, onOpenStop]);
+  }, [route, openPoiStops]);
 
-  return <div ref={mapElementRef} className="h-full w-full" role="img" aria-label={route.name} />;
+  return <div ref={mapElementRef} className="h-full w-full bg-surface-2" role="img" aria-label={route.name} />;
 }

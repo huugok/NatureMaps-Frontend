@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
+import { Footprints, MapPin, Route as RouteIcon } from 'lucide-react';
+import { OfflineRouteCard, SavedStopCards } from '../../components/OfflineRoute';
 import { Page } from '../../components/Page';
 import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteDetail } from '../../services/routes';
 import type { RouteDetail as RouteDetailData, RouteStop } from '../../services/routes';
+import { routeStore } from '../../services/offlineRouteStorage';
 import { RouteMap } from './RouteMap';
 
 /** Ficha de una ruta del catálogo (/rutas/:id): mapa del recorrido, datos
@@ -18,7 +21,10 @@ type DetailState =
   | { status: 'loading' }
   | { status: 'ready'; route: RouteDetailData }
   | { status: 'notFound' }
+  | { status: 'offlineMissing' }
   | { status: 'error' };
+
+const stopItemClassName = 'flex min-h-11 w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small';
 
 export interface RouteDetailProps {
   /** Responde al toque de una parada de la ruta (abre su ficha). */
@@ -31,9 +37,31 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const { id } = useParams();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const [notice, setNotice] = useState('');
+  const [activeSavedStop, setActiveSavedStop] = useState<{ routeId: number; index: number }>();
+  const [savedRouteState, setSavedRouteState] = useState<{ routeId: number; exists: boolean }>();
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
+  const hasSavedRoute = savedRouteState?.routeId === routeId && savedRouteState.exists === true;
+
+  useEffect(() => {
+    if (routeId === null) return;
+    let active = true;
+    const refresh = () => {
+      void routeStore().get(routeId).then((record) => {
+        if (active) setSavedRouteState({ routeId, exists: record !== undefined });
+      }).catch(() => {
+        if (active) setSavedRouteState({ routeId, exists: false });
+      });
+    };
+    refresh();
+    window.addEventListener('naturemaps-route-downloads', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('naturemaps-route-downloads', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [routeId]);
 
   useEffect(() => {
     if (routeId === null) return;
@@ -44,7 +72,14 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState({ status: error && typeof error === 'object' && (error as { status?: number }).status === 404 ? 'notFound' : 'error' });
+          const status = error && typeof error === 'object' ? (error as { status?: number }).status : undefined;
+          if (status === 404) {
+            setState({ status: 'notFound' });
+          } else if (navigator.onLine === false || error instanceof TypeError) {
+            setState({ status: 'offlineMissing' });
+          } else {
+            setState({ status: 'error' });
+          }
         }
       });
     return () => {
@@ -72,23 +107,34 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
     );
   }
 
-  if (state.status === 'notFound' || state.status === 'error') {
+  if (state.status === 'notFound' || state.status === 'error' || state.status === 'offlineMissing') {
+    const message = state.status === 'notFound'
+      ? t('routes.notFound')
+      : state.status === 'offlineMissing'
+        ? t('routeOffline.unavailable')
+        : t('routes.error');
     return (
       <Page title={t('routes.title')} back>
         <div className="flex flex-col items-start gap-3">
           <p role="alert" className="text-small text-muted">
-            {state.status === 'notFound' ? t('routes.notFound') : t('routes.error')}
+            {message}
           </p>
-          <button
-            type="button"
-            className="rounded-full bg-accent px-4 py-2 text-small font-bold text-on-accent"
-            onClick={() => {
-              setState({ status: 'loading' });
-              setAttempt((attempts) => attempts + 1);
-            }}
-          >
-            {t('routes.retry')}
-          </button>
+          {state.status === 'offlineMissing' ? (
+            <Button variant="secondary" onClick={() => navigate('/rutas')}>
+              {t('routeOffline.backToRoutes')}
+            </Button>
+          ) : (
+            <button
+              type="button"
+              className="rounded-full bg-accent px-4 py-2 text-small font-bold text-on-accent"
+              onClick={() => {
+                setState({ status: 'loading' });
+                setAttempt((attempts) => attempts + 1);
+              }}
+            >
+              {t('routes.retry')}
+            </button>
+          )}
         </div>
       </Page>
     );
@@ -104,6 +150,18 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
         : t('routes.theme.mixta');
   const shape = route.shape === 'circular' ? t('routes.shape.circular') : t('routes.shape.lineal');
 
+  /** Las plantas enlazadas abren su ficha completa. Los POIs y las plantas
+   * sin especie enlazada consultan la ficha guardada de la parada. */
+  const openStop = (stop: RouteStop, index: number) => {
+    if (stop.kind === 'planta' && stop.speciesId !== null && onOpenStop) {
+      onOpenStop(stop);
+      return;
+    }
+    if (routeId !== null && hasSavedRoute) setActiveSavedStop({ routeId, index });
+  };
+
+  const activeSavedStopIndex = activeSavedStop?.routeId === routeId ? activeSavedStop.index : undefined;
+
   return (
     <Page
       title={route.name}
@@ -112,7 +170,14 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       flush
     >
       <div className="h-64 shrink-0 border-y border-line">
-        <RouteMap route={route} onOpenStop={onOpenStop} />
+        <RouteMap
+          route={route}
+          openPoiStops={hasSavedRoute}
+          onOpenStop={(stop) => {
+            const index = route.stops.findIndex((item) => item.kind === stop.kind && item.id === stop.id);
+            if (index >= 0) openStop(stop, index);
+          }}
+        />
       </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">
@@ -135,8 +200,6 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
         </ul>
         <p className="text-small text-pretty break-words">{route.description}</p>
 
-        {/* Acciones de la ruta: «Iniciar ruta» la pinta en el mapa para
-            recorrerla a pie; la descarga queda como marcador de posición. */}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -146,20 +209,8 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
             <Footprints size={16} aria-hidden="true" />
             {t('routes.start')}
           </button>
-          <button
-            type="button"
-            onClick={() => setNotice(t('routes.comingSoon'))}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-small font-bold text-accent shadow-raised transition-[transform,background-color] active:scale-95"
-          >
-            <Download size={16} aria-hidden="true" />
-            {t('routes.download')}
-          </button>
         </div>
-        {notice && (
-          <p role="status" className="text-caption text-muted">
-            {notice}
-          </p>
-        )}
+        <OfflineRouteCard key={route.id} routeId={route.id} />
 
         <section aria-label={t('routes.stopsList')}>
           <h2 className="font-display text-body font-bold">{t('routes.stopsList')}</h2>
@@ -182,28 +233,31 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
                   </span>
                 </>
               );
-              // Solo las plantas tienen ficha: las de POI quedan como texto.
-              if (stop.kind === 'planta' && onOpenStop) {
-                return (
-                  <li key={`${stop.kind}-${stop.id}`}>
+              const canOpen = (stop.kind === 'planta' && stop.speciesId !== null && Boolean(onOpenStop)) || hasSavedRoute;
+              return (
+                <li key={`${stop.kind}-${stop.id}`}>
+                  {canOpen ? (
                     <button
                       type="button"
-                      onClick={() => onOpenStop(stop)}
-                      className="flex w-full items-center gap-3 rounded-control px-2 py-2 text-left text-small transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      onClick={() => openStop(stop, index)}
+                      className={`${stopItemClassName} transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                     >
                       {label}
                     </button>
-                  </li>
-                );
-              }
-              return (
-                <li key={`${stop.kind}-${stop.id}`} className="flex items-center gap-3 px-2 py-2 text-small">
-                  {label}
+                  ) : (
+                    <div className={stopItemClassName}>{label}</div>
+                  )}
                 </li>
               );
             })}
           </ol>
         </section>
+        <SavedStopCards
+          key={`saved-${route.id}`}
+          routeId={route.id}
+          activeIndex={activeSavedStopIndex}
+          onClose={() => setActiveSavedStop(undefined)}
+        />
       </div>
     </Page>
   );

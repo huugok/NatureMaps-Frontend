@@ -194,9 +194,10 @@ describe('MapPage', () => {
     cleanup();
     vi.unstubAllGlobals();
     delete (navigator as unknown as { permissions?: unknown }).permissions;
+    vi.restoreAllMocks();
   });
 
-  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', () => {
+  it('522-1: mantiene el mapa base si el permiso de ubicación es denegado', async () => {
     geo.watchPosition.mockImplementation((_success, error) => {
       error({ code: 1, message: 'Permission denied' });
       return 7;
@@ -208,9 +209,9 @@ describe('MapPage', () => {
       center: [39.4699, -0.3763],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     }));
-    expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object));
+    await waitFor(() => expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object)));
     expect(leaflet.markerFactory).not.toHaveBeenCalled();
     expect(screen.getByRole('region', { name: 'Mapa' })).toBeInTheDocument();
   });
@@ -1030,6 +1031,42 @@ describe('MapPage', () => {
     expect(await screen.findByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument();
     expect(leaflet.polylineFactory).toHaveBeenCalled();
   });
+
+  it('la ruta pintada no se recarga ni desaparece al perder la conexión', async () => {
+    const route = {
+      id: 7, name: 'Ruta abierta', theme: 'mixta', shape: 'circular', lengthCategory: 'corta',
+      distanceMeters: 2100, durationSeconds: 1700,
+      start: { latitude: 39.4699, longitude: -0.3763 },
+      description: '', stopsCount: 1,
+      stops: [{ kind: 'planta', id: 11, name: 'Naranjo', latitude: 39.4705, longitude: -0.3755, speciesId: 3 }],
+      path: [
+        { latitude: 39.4699, longitude: -0.3763 },
+        { latitude: 39.4705, longitude: -0.3755 },
+        { latitude: 39.4699, longitude: -0.3763 },
+      ],
+    };
+    vi.mocked(fetch).mockImplementation((async (url: string) => ({
+      ok: true,
+      json: async () => String(url).includes('/routes/7')
+        ? route
+        : String(url).includes('/trees')
+          ? { nextOffset: null, trees: [] }
+          : [],
+    })) as unknown as typeof fetch);
+
+    renderMap(<MapPage />, '/mapa?verRuta=7');
+    expect(await screen.findByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument()
+    expect(leaflet.polylineFactory).toHaveBeenCalledTimes(1)
+
+    leaflet.layerGroup.remove.mockClear()
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    vi.mocked(fetch).mockRejectedValue(new TypeError('offline'))
+    fireEvent(window, new Event('offline'))
+
+    expect(screen.getByRole('button', { name: 'Limpiar mapa' })).toBeInTheDocument()
+    expect(leaflet.polylineFactory).toHaveBeenCalledTimes(1)
+    expect(leaflet.layerGroup.remove).not.toHaveBeenCalled()
+  })
 
   it('al tocar el mapa se contrae la ventana de explorar', () => {
     renderMap();

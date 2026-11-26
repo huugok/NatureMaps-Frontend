@@ -6,6 +6,8 @@ import { AppProvider } from '../../context/AppContext'
 import { RouteDetail } from './RouteDetail'
 import { fetchRouteDetail } from '../../services/routes'
 import type { RouteDetail as RouteDetailData } from '../../services/routes'
+import { createMemoryRouteStore, setOfflineRouteStore } from '../../services/offlineRouteStorage'
+import { savedRoute } from '../../test/routeOfflineFixtures'
 
 // La ficha habla con GET /routes/:id a través de services/routes; se simula el
 // servicio (el contrato HTTP lo cubren los tests del backend).
@@ -136,6 +138,9 @@ describe('RouteDetail', () => {
 
   afterEach(() => {
     cleanup()
+    localStorage.clear()
+    setOfflineRouteStore()
+    vi.restoreAllMocks()
   })
 
   it('pinta los datos de la ficha y el recorrido en el mapa', async () => {
@@ -160,6 +165,10 @@ describe('RouteDetail', () => {
       expect.anything(),
     );
     expect(leaflet.markerFactory).toHaveBeenCalledTimes(3);
+    expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [route.stops[1].latitude, route.stops[1].longitude],
+      expect.objectContaining({ interactive: false, keyboard: false }),
+    );
     expect(leaflet.map.fitBounds).toHaveBeenCalled();
   })
 
@@ -177,22 +186,31 @@ describe('RouteDetail', () => {
     expect(stops[1]).toHaveTextContent('Torres de Serranos')
     expect(stops[1]).toHaveTextContent('POI cultural')
 
-    // La parada de planta abre su ficha; la de POI no (su ficha llega luego).
+    // La parada de planta abre su ficha; sin descarga, el POI no ofrece un
+    // control que no pueda responder.
     await user.click(within(stops[0]).getByRole('button'))
     expect(onOpenStop).toHaveBeenCalledWith(expect.objectContaining({ kind: 'planta', name: 'Naranjo de la plaza' }))
-    expect(within(stops[1]).queryByRole('button')).toBeNull()
+    expect(within(stops[1]).queryByRole('button')).not.toBeInTheDocument()
+    expect(stops[1]).toHaveTextContent('Torres de Serranos')
   })
 
   it('el toque de una parada en el mapa también abre su ficha', async () => {
     const onOpenStop = vi.fn()
+    const store = createMemoryRouteStore()
+    setOfflineRouteStore(store)
+    await store.put(savedRoute(7))
     mockFetchRouteDetail.mockResolvedValue(route)
     renderDetail('7', onOpenStop)
 
     await screen.findByRole('heading', { name: 'Historia bajo los árboles' })
-    // Plantas abren ficha; POIs y patrocinadores también responden al toque
-    // para mostrar su etiqueta. Se busca el handler que llama a onOpenStop.
+    await waitFor(() => expect(leaflet.markerFactory).toHaveBeenCalledTimes(3))
+    // Planta y POI llevan manejador de clic en la ficha de ruta.
     const withClick = leaflet.created.filter((instance) => instance.on.mock.calls.length > 0)
-    expect(withClick.length).toBeGreaterThanOrEqual(1)
+    expect(withClick).toHaveLength(2)
+    expect(leaflet.markerFactory).toHaveBeenCalledWith(
+      [route.stops[1].latitude, route.stops[1].longitude],
+      expect.objectContaining({ interactive: true, keyboard: true }),
+    )
     const handlers = withClick.flatMap((instance) => instance.on.mock.calls.map((call) => call[1] as () => void))
     const clickHandler = handlers.find((handler) => {
       onOpenStop.mockClear()
@@ -213,19 +231,59 @@ describe('RouteDetail', () => {
     expect(screen.getByText('mapa?verRuta=7')).toBeInTheDocument()
   })
 
-  it('incluye el botón «Descargar ruta» como marcador de posición', async () => {
-    const user = userEvent.setup()
+  it('explica la falta de almacenamiento offline cuando el navegador no lo permite', async () => {
     mockFetchRouteDetail.mockResolvedValue(route)
     renderDetail()
 
-    await user.click(await screen.findByRole('button', { name: 'Descargar ruta' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Disponible en próximas versiones.')
+    expect(await screen.findByText('Este navegador no permite guardar rutas sin conexión.')).toBeInTheDocument()
   })
 
   it('un id no numérico muestra «no existe» sin llamar al servicio', () => {
     renderDetail('abc')
     expect(screen.getByRole('alert')).toHaveTextContent('Esta ruta no existe o ya no está disponible.')
     expect(mockFetchRouteDetail).not.toHaveBeenCalled()
+  })
+
+  it('abre la ficha guardada de un POI desde su parada', async () => {
+    const user = userEvent.setup()
+    const store = createMemoryRouteStore()
+    setOfflineRouteStore(store)
+    const record = savedRoute(7)
+    await store.put(record)
+    mockFetchRouteDetail.mockResolvedValue(record.packet.route)
+    renderDetail()
+
+    const poiButton = await screen.findByRole('button', { name: /Torre/ })
+    const mapCreationsBefore = leaflet.mapFactory.mock.calls.length
+    await user.click(poiButton)
+    expect(await screen.findByText('Una torre histórica.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cerrar ficha' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Fichas guardadas de las paradas' })).toHaveFocus())
+    expect(leaflet.mapFactory).toHaveBeenCalledTimes(mapCreationsBefore)
+  })
+
+  it('sin red y sin descarga muestra un aviso concreto y permite volver a rutas', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    mockFetchRouteDetail.mockRejectedValueOnce(new TypeError('offline'))
+    renderDetail()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esta ruta no está disponible sin conexión.')
+    expect(screen.getByRole('button', { name: 'Volver a rutas' })).toBeInTheDocument()
+  })
+
+  it('una ruta abierta online se conserva al perder la conexión', async () => {
+    mockFetchRouteDetail.mockResolvedValue(route)
+    renderDetail()
+    await screen.findByRole('heading', { name: 'Historia bajo los árboles' })
+
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    expect(screen.getByRole('heading', { name: 'Historia bajo los árboles' })).toBeInTheDocument()
+    expect(screen.getByText('Naranjo de la plaza')).toBeInTheDocument()
+    expect(screen.getByText('Torres de Serranos')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(leaflet.polylineFactory).toHaveBeenCalledTimes(1)
   })
 
   it('404 y fallo de red son estados distintos', async () => {

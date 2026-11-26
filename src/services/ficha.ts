@@ -5,6 +5,7 @@ import type { SpeciesGreenArea } from '../types/greenArea';
 import type { PlantPin } from '../types/plant';
 import type { FichaEspecie, FichaFuente } from '../pages/FichaPlanta/types';
 import { normalizarNombreCientifico } from '../utils/speciesName';
+import { savedSpecies } from './offlineRouteRead';
 
 // Servicio de la ficha de planta (RF3, UT F06): conecta la pantalla con la API
 // del backend (NatureMaps-Backend) en lugar de leer datos de ejemplo de
@@ -126,9 +127,9 @@ async function fetchJson<T>(url: string, mensaje: string): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url);
-  } catch {
+  } catch (error) {
     // Error de red / servidor caído: el mensaje no expone detalles internos.
-    throw new Error(mensaje);
+    throw Object.assign(new Error(mensaje), { offline: error instanceof TypeError });
   }
   if (!response.ok) {
     // El backend responde { error: string } en los fallos controlados.
@@ -139,7 +140,7 @@ async function fetchJson<T>(url: string, mensaje: string): Promise<T> {
     } catch {
       // El cuerpo no es JSON: se queda el mensaje genérico.
     }
-    throw new Error(detail !== '' ? `${mensaje}: ${detail}` : `${mensaje} (HTTP ${response.status})`);
+    throw Object.assign(new Error(detail !== '' ? `${mensaje}: ${detail}` : `${mensaje} (HTTP ${response.status})`), { offline: response.status >= 500 });
   }
   return (await response.json()) as T;
 }
@@ -222,10 +223,17 @@ export async function getSpeciesLocations(id: number, language: Language): Promi
 
 /** Ficha completa de una especie, con sus ubicaciones reales. */
 export async function getSpeciesDetail(id: number, language: Language): Promise<FichaDetail> {
-  return fetchJson<FichaDetail>(
-    `${API_URL}/species/${id}?lang=${encodeURIComponent(language)}`,
-    'No se ha podido cargar la ficha de la especie',
-  );
+  try {
+    return await fetchJson<FichaDetail>(
+      `${API_URL}/species/${id}?lang=${encodeURIComponent(language)}`,
+      'No se ha podido cargar la ficha de la especie',
+    );
+  } catch (error) {
+    if (!(error && typeof error === 'object' && 'offline' in error && error.offline)) throw error;
+    const saved = await savedSpecies(id, language);
+    if (!saved) throw error;
+    return saved;
+  }
 }
 
 /** Consulta los metadatos de una fuente asociada a las ubicaciones de la especie. */

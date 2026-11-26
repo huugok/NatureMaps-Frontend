@@ -28,7 +28,7 @@ import { RouteDetail } from './pages/RouteDetail';
 import { routeStopToPlantPin } from './pages/Map/routeOverlay';
 import type { RouteStop } from './services/routes';
 import { Search } from './pages/Search';
-import { LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
+import { DownloadsSettings, LanguageSettings, PermissionsSettings, Settings } from './pages/Settings';
 import { identifyPlant } from './services/identify';
 import {
   findSpeciesIndexByScientificName,
@@ -306,9 +306,9 @@ export default function App() {
     [handleOpenPlant],
   );
 
-  /** Toca de una parada de una ruta: las de planta abren su ficha (al volver
-   * se sigue en la ficha de la ruta). Las de POI todavía no tienen ficha —
-   * quedan para la UT de fichas de POI; mientras tanto no hacen nada. */
+  /** Toca de una parada de una ruta: las plantas enlazadas abren su overlay
+   * (al volver se sigue en la ficha de la ruta). Los POIs y las plantas sin
+   * enlazar los gestiona RouteDetail con las fichas guardadas de la descarga. */
   const handleOpenRouteStop = useCallback(
     (stop: RouteStop) => {
       if (stop.kind !== 'planta') return;
@@ -416,6 +416,10 @@ export default function App() {
                     onSave={handleSaveLanguage}
                   />
                 }
+              />
+              <Route
+                path="/ajustes/descargas"
+                element={<DownloadsSettings onBack={() => navigate('/ajustes')} />}
               />
               <Route
                 path="/ajustes/permisos"
