@@ -32,6 +32,8 @@ function route(overrides: Partial<RouteSummary> = {}): RouteSummary {
     start: { latitude: 39.4699, longitude: -0.3763 },
     description: 'Un paseo corto por el casco antiguo.',
     stopsCount: 4,
+    userId: 1,
+    origin: 'Predeterminado',
     ...overrides,
   }
 }

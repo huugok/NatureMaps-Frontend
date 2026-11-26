@@ -8,6 +8,7 @@ import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteDetail } from '../../services/routes';
 import type { RouteDetail as RouteDetailData, RouteStop } from '../../services/routes';
 import { RouteMap } from './RouteMap';
+import { RouteEditor } from './RouteEditor';
 
 /** Ficha de una ruta del catálogo (/rutas/:id): mapa del recorrido, datos
  * principales (tema, forma, longitud, duración, paradas), descripción y lista
@@ -32,6 +33,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState('');
+  const [editing, setEditing] = useState(false);
 
   const routeId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 
@@ -114,6 +116,14 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
       <div className="h-64 shrink-0 border-y border-line">
         <RouteMap route={route} onOpenStop={onOpenStop} />
       </div>
+      {editing ? (
+        <RouteEditor
+          route={route}
+          onSaved={(updated) => { setState({ status: 'ready', route: updated }); setEditing(false); setNotice(t('routes.saved')); }}
+          onDeleted={() => navigate('/rutas')}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
       <div className="flex flex-1 flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">
           <Badge>{theme}</Badge>
@@ -155,6 +165,12 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
             {t('routes.download')}
           </button>
         </div>
+        {route.origin === 'Administración' && !editing && (
+          <button type="button" onClick={() => setEditing(true)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-small font-bold text-accent shadow-raised">
+            <RouteIcon size={16} aria-hidden="true" />{t('routes.edit')}
+          </button>
+        )}
         {notice && (
           <p role="status" className="text-caption text-muted">
             {notice}
@@ -205,6 +221,7 @@ export function RouteDetail({ onOpenStop }: RouteDetailProps = {}) {
           </ol>
         </section>
       </div>
+      )}
     </Page>
   );
 }
