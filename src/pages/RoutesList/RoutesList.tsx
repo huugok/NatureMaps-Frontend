@@ -8,6 +8,7 @@ import { useApp } from '../../context/useApp';
 import { formatDistance, formatDuration } from '../../i18n/format';
 import { fetchRouteList } from '../../services/routes';
 import type { RouteShape, RouteSummary, RouteTheme } from '../../services/routes';
+import { DownloadedRoutes } from '../../components/OfflineRoute';
 import { DownloadedZones } from '../../components/OfflineZone'
 
 /** Rutas: catálogo predefinido del backend (GET /routes). Cada tarjeta lleva
@@ -151,6 +152,7 @@ export function RoutesList() {
           ))}
         </ul>
       )}
+      <DownloadedRoutes />
       <DownloadedZones />
     </Page>
   );

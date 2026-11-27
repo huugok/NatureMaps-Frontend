@@ -608,7 +608,7 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
       center: [VALENCIA.latitude, VALENCIA.longitude],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     });
     mapRef.current = map;
     addOfflineTileLayer(map);

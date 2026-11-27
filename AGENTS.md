@@ -413,6 +413,37 @@ configuración de protección y el versionado están en `docs/agents/git-workflo
 
 ## Agent skills
 
+### Rutas sin conexión
+
+`components/OfflineRoute/` integra descarga, progreso, cancelación, lista, fichas
+guardadas y borrado. `offlineRouteStorage.ts` es el único escritor de IndexedDB
+`naturemaps-offline-routes`; datos e imágenes se confirman juntos. Vite genera
+el shell offline para producción. Ejecutar `npm run test:offline-browser` tras
+build para comprobar reapertura sin red (requiere Playwright y Edge o Chrome).
+Cada build identifica su worker mediante una URL versionada. La descarga espera
+a que ese worker esté activado y controle la pestaña; un worker anterior activo
+no garantiza que los assets actuales estén disponibles sin conexión. Se conserva
+también el shell anterior para las pestañas abiertas durante la actualización.
+La prueba de navegador incluye la actualización desde un worker antiguo antes
+de comprobar la recarga completa sin red.
+Usa Vite preview real (incluido `Vary: Origin`) y comprueba el marco de escritorio
+antes y después de recargar sin red. Para los archivos estáticos del build, el
+worker busca con `ignoreVary: true`: los módulos envían Origin, pero el precache
+no, aunque la URL y el contenido sean idénticos. No aplicar esta excepción a API.
+El contrato actual es `schemaVersion: 3`, solo contenido. El navegador usa el
+planificador de teselas de las zonas (zoom 13–17, hasta 2000, dos peticiones).
+IndexedDB v3 conserva datos y fotos de v1/v2 y retira el store PMTiles antiguo;
+esas descargas piden actualizar el mapa. Las teselas se guardan con Cache API
+en cachés `naturemaps-route-tiles-v1-*`, propias de cada descarga. El registro
+solo se confirma al final; al cancelar o fallar se retira la caché temporal.
+Actualizar conserva la versión anterior hasta confirmar la nueva. Borrar una
+ruta elimina su caché sin tocar parques ni otras rutas. Las pruebas de navegador
+simulan el proveedor de teselas y no requieren un archivo regional.
+**Rama educativa:** tile.openstreetmap.org prohíbe esta precarga offline. La
+limitación se documenta en README y requiere otro proveedor antes de publicar;
+Geoapify queda como alternativa pendiente, sin integración ni clave.
+Las capturas y archivos temporales permanecen fuera de Git.
+
 ### Issue tracker
 
 GitHub Issues vía `gh` (repo inferido del remote). See `docs/agents/issue-tracker.md`.

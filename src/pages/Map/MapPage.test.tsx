@@ -208,7 +208,7 @@ describe('MapPage', () => {
       center: [39.4699, -0.3763],
       zoom: 15,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
     }));
     expect(leaflet.tileLayer).toHaveBeenCalledWith(expect.stringContaining('tile.openstreetmap.org'), expect.any(Object));
     expect(leaflet.markerFactory).not.toHaveBeenCalled();

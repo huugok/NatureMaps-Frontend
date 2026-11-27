@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:offline-browser": "node tests/route-offline.browser.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
