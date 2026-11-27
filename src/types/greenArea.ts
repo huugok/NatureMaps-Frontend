@@ -1,4 +1,4 @@
-// Zonas verdes y contenido editorial (NM-08), tal y como los sirve el backend
+// Zonas verdes y contenido editorial de flora y cultura, tal y como los sirve el backend
 // (`/green-areas` y `/editorial`).
 
 export type GeoPosition = [number, number];
@@ -7,7 +7,7 @@ export type AreaGeometry =
   | { type: 'MultiPolygon'; coordinates: GeoPosition[][][] };
 
 /** Secciones temáticas del contenido editorial, en el orden en que se muestran. */
-export const EDITORIAL_TOPICS = ['flora', 'parques', 'jardines', 'paisajismo'] as const;
+export const EDITORIAL_TOPICS = ['flora', 'parques', 'jardines', 'paisajismo', 'historia', 'entorno-urbano', 'tradiciones', 'gastronomia'] as const;
 export type EditorialTopic = (typeof EDITORIAL_TOPICS)[number];
 
 export function isEditorialTopic(value: unknown): value is EditorialTopic {

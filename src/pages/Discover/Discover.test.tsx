@@ -59,6 +59,22 @@ describe('Descubre València: secciones temáticas (NM-08)', () => {
   });
 });
 
+describe('Descubre València: secciones culturales', () => {
+  it.each([
+    { topic: 'entorno-urbano', label: 'Entorno urbano', slug: 'arquitectura-y-vida-urbana', title: 'Arquitectura y vida urbana de València' },
+    { topic: 'tradiciones', label: 'Tradiciones', slug: 'fallas-tradicion-y-barrio', title: 'Fallas: tradición de barrio' },
+    { topic: 'gastronomia', label: 'Gastronomía', slug: 'arroces-y-horchata', title: 'Arroces y horchata' },
+  ])('muestra la sección $topic y enlaza su artículo', async ({ topic, label, slug, title }) => {
+    const article = { ...articleSummaries[0]!, topic, slug, title, summary: 'Contenido cultural de prueba.' };
+    stubApi({ '/editorial': { returned: 1, articles: [article] } }, vi);
+    renderWithProviders(<Discover />, { route: '/descubre?tema=' + topic });
+
+    const section = await screen.findByRole('region', { name: label });
+    expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(section).getByRole('link', { name: new RegExp(title) })).toHaveAttribute('href', '/descubre/' + slug);
+  });
+});
+
 describe('artículo editorial (NM-08)', () => {
   const renderArticle = () =>
     renderWithProviders(

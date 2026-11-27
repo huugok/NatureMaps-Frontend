@@ -58,6 +58,7 @@ export interface FichaPlantaPageProps {
   onOpenGreenArea?: (groupSlug: string) => void;
   /** Abre la sección editorial de flora (NM-08). Sin él no se pinta el acceso. */
   onOpenFloraArticle?: () => void;
+  onOpenHistory?: () => void;
 }
 
 function metersBetween(latitudeA: number, longitudeA: number, latitudeB: number, longitudeB: number) {
@@ -137,6 +138,7 @@ export function FichaPlantaPage({
   onNext,
   onOpenGreenArea,
   onOpenFloraArticle,
+  onOpenHistory,
 }: FichaPlantaPageProps) {
   const { t, lang } = useApp();
   const { status: locationStatus, position: userPosition, allow, deny, retry } = useLocationPermission();
@@ -421,6 +423,20 @@ export function FichaPlantaPage({
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="text-body font-semibold text-ink">{t('ficha.floraArticle')}</span>
               <span className="text-small text-muted">{t('ficha.floraArticleDesc')}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-muted-2" aria-hidden="true" />
+          </button>
+        )}
+        {onOpenHistory !== undefined && (
+          <button
+            type="button"
+            onClick={onOpenHistory}
+            className="mt-3 flex min-h-12 w-full items-center gap-3 rounded-card border border-line bg-surface p-3 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <BookOpen size={20} className="shrink-0 text-accent" aria-hidden="true" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-body font-semibold text-ink">{t('ficha.history')}</span>
+              <span className="text-small text-muted">{t('ficha.historyDesc')}</span>
             </span>
             <ChevronRight size={16} className="shrink-0 text-muted-2" aria-hidden="true" />
           </button>

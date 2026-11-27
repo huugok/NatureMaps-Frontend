@@ -428,3 +428,19 @@ describe('FichaPlantaPage: enlace con flora y zonas verdes (NM-08, PA 3013)', ()
     expect(screen.queryByRole('button', { name: /Flora característica/ })).not.toBeInTheDocument();
   });
 });
+
+describe('FichaPlantaPage: acceso al contenido cultural', () => {
+  it('abre la historia sin requerir una especie de catálogo', () => {
+    const onOpenHistory = vi.fn();
+    // renderFicha usa por defecto especie, que no tiene id de catálogo.
+    renderFicha({ onOpenHistory });
+    expect(onOpenHistory).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Historia de València/ }));
+    expect(onOpenHistory).toHaveBeenCalledOnce();
+  });
+
+  it('no ofrece la historia si no hay callback', () => {
+    renderFicha();
+    expect(screen.queryByRole('button', { name: /Historia de València/ })).not.toBeInTheDocument();
+  });
+});

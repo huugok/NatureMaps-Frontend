@@ -1432,6 +1432,10 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
     }).addTo(map);
   };
 
+  const handleOpenHistory = () => {
+    navigate('/descubre?tema=historia');
+  };
+
   return (
     <section
       className="relative h-full min-h-0 overflow-hidden bg-app"
@@ -1560,6 +1564,13 @@ export function MapPage({ onOpenPlant }: MapPageProps = {}) {
             </div>
             <p className="mt-3 text-small text-muted">{t('map.poi')} · {formatDistance(poiFicha.distance, lang)}</p>
             <p className="mt-2 text-caption text-muted">{t('map.poiSource')}</p>
+            <button type="button" onClick={handleOpenHistory} className="mt-3 flex min-h-12 w-full items-center gap-3 rounded-card border border-line bg-surface p-3 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <BookOpen size={20} className="shrink-0 text-accent" aria-hidden="true" />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-body font-semibold text-ink">{t('ficha.history')}</span>
+                <span className="text-small text-muted">{t('ficha.historyDesc')}</span>
+              </span>
+            </button>
           </section>
         </div>
       )}
